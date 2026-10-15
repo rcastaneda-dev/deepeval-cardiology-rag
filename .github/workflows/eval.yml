@@ -1,0 +1,88 @@
+name: eval
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      upload_to_confident:
+        description: Upload this run to Confident AI (needs the CONFIDENT_API_KEY secret)
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 14 * * 1" # Mondays, 14:00 UTC
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DEEPEVAL_TELEMETRY_OPT_OUT: "YES"
+
+jobs:
+  unit:
+    name: unit tests and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  eval:
+    name: DeepEval (${{ github.event_name == 'pull_request' && 'smoke subset' || 'full suite' }})
+    needs: unit
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CONFIDENT_API_KEY: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload_to_confident)) && secrets.CONFIDENT_API_KEY || '' }}
+      DEEPEVAL_RESULTS_FOLDER: results
+      EVENT_NAME: ${{ github.event_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check for API keys
+        id: keys
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ] || [ -z "$OPENAI_API_KEY" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::API keys are not available to this run (a fork pull request?). Paid evals skipped."
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@v10
+        if: steps.keys.outputs.available == 'true'
+        with:
+          enable-cache: true
+      - name: Install
+        if: steps.keys.outputs.available == 'true'
+        run: uv sync --frozen
+      - name: Run DeepEval
+        if: steps.keys.outputs.available == 'true'
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            uv run deepeval test run evals/ -m smoke
+          else
+            uv run deepeval test run evals/
+          fi
+      - name: Summarise results
+        if: always() && steps.keys.outputs.available == 'true'
+        continue-on-error: true
+        run: uv run python -m evals.report results >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.keys.outputs.available == 'true'
+        with:
+          name: deepeval-results
+          path: results/
+          if-no-files-found: ignore
