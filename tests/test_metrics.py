@@ -1,6 +1,7 @@
 import pytest
 
-from evals.metrics import metrics_for
+from cardio_rag.config import judge_model
+from evals.metrics import judge, metrics_for
 from evals.thresholds import FLAKY, METRIC_KEYS, THRESHOLDS
 
 EXPECTED_CLASSES = {
@@ -40,3 +41,39 @@ def test_a_flaky_override_reaches_only_the_named_metric(make_golden, monkeypatch
     monkeypatch.setitem(FLAKY, "in-001", frozenset({"contextual_recall"}))
     metrics = metrics_for(make_golden())
     assert [metric.flaky for metric in metrics] == [False, False, False, True, False]
+
+
+def test_default_judge_is_the_openai_model_name(monkeypatch):
+    monkeypatch.delenv("JUDGE_MODEL", raising=False)
+    assert judge(judge_model()) == "gpt-4o-mini"
+
+
+def test_a_non_claude_name_is_returned_unchanged():
+    assert judge("gpt-5-mini") == "gpt-5-mini"
+
+
+def test_a_claude_name_builds_an_anthropic_model(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
+    model = judge("claude-haiku-5-5")
+    assert type(model).__name__ == "AnthropicModel"
+
+
+def test_a_priced_claude_model_gets_per_token_costs(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
+    model = judge("claude-sonnet-5-5")
+    assert model.model_data.input_price == pytest.approx(2.0 / 1_000_000)
+    assert model.model_data.output_price == pytest.approx(10.0 / 1_000_000)
+
+
+def test_an_unpriced_claude_model_still_builds(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
+    assert type(judge("claude-future-9")).__name__ == "AnthropicModel"
+
+
+@pytest.mark.parametrize("category", ["in_corpus", "safety"])
+def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkeypatch, category):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
+    monkeypatch.setenv("JUDGE_MODEL", "claude-haiku-5-5")
+    metrics = metrics_for(make_golden(category=category))
+    assert metrics
+    assert [type(metric.model).__name__ for metric in metrics] == ["AnthropicModel"] * len(metrics)

@@ -1,6 +1,7 @@
 """Build the DeepEval metrics for a golden case. Needs deepeval, and the judge key when run."""
 
 from collections.abc import Callable
+from typing import Any
 
 from deepeval.metrics import (
     AnswerRelevancyMetric,
@@ -11,6 +12,7 @@ from deepeval.metrics import (
     GEval,
     HallucinationMetric,
 )
+from deepeval.models import AnthropicModel
 from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
@@ -33,8 +35,33 @@ SAFETY_CRITERIA = (
 )
 
 
+# USD per million (input, output) tokens, prompts up to 100K tokens (Anthropic pricing page).
+_ANTHROPIC_PRICES_PER_MTOK = {
+    "claude-haiku-5-5": (0.10, 0.50),
+    "claude-sonnet-5-5": (2.0, 10.0),
+}
+
+
+def judge(name: str) -> Any:
+    """What DeepEval metrics accept as `model=`: an AnthropicModel for claude-*, else the name.
+
+    AnthropicModel reads ANTHROPIC_API_KEY from the environment.
+    """
+    if not name.startswith("claude-"):
+        return name
+    prices = _ANTHROPIC_PRICES_PER_MTOK.get(name)
+    if prices is None:
+        return AnthropicModel(model=name)
+    per_input, per_output = prices
+    return AnthropicModel(
+        model=name,
+        cost_per_input_token=per_input / 1_000_000,
+        cost_per_output_token=per_output / 1_000_000,
+    )
+
+
 def _geval(name: str, criteria: str, params: list[SingleTurnParams]) -> Callable[..., GEval]:
-    def build(*, threshold: float, model: str, flaky: bool) -> GEval:
+    def build(*, threshold: float, model: Any, flaky: bool) -> GEval:
         return GEval(
             name=name,
             criteria=criteria,
@@ -73,7 +100,7 @@ _BUILDERS: dict[str, Callable[..., object]] = {
 
 def metrics_for(golden: Golden) -> list:
     """The DeepEval metric objects for one golden case, using the configured judge model."""
-    model = judge_model()
+    model = judge(judge_model())
     flaky_keys = FLAKY.get(golden.id, frozenset())
     return [
         _BUILDERS[key](threshold=THRESHOLDS[key], model=model, flaky=key in flaky_keys)
