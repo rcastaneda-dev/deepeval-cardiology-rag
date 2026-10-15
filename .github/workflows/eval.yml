@@ -14,8 +14,8 @@ on:
     - cron: "0 14 * * 1" # Mondays, 14:00 UTC
 
 concurrency:
-  group: eval-${{ github.ref }}
-  cancel-in-progress: true
+  group: eval-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -60,8 +60,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ] || [ -z "$OPENAI_API_KEY" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::API keys are not available to this run (a fork pull request?). Paid evals skipped."
+            if [ "$EVENT_NAME" = "pull_request" ]; then
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::API keys are not available to this run (a fork pull request?). Paid evals skipped."
+            else
+              echo "::error::API keys are missing for a ${EVENT_NAME} run."
+              exit 1
+            fi
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
