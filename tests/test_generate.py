@@ -3,6 +3,8 @@ from types import SimpleNamespace
 import pytest
 
 from cardio_rag.generate import (
+    ABSTENTION,
+    DEFAULT_MAX_TOKENS,
     SYSTEM_PROMPT,
     Answer,
     build_user_prompt,
@@ -22,17 +24,18 @@ def text_block(text):
 
 
 class FakeMessages:
-    def __init__(self, content):
+    def __init__(self, content, stop_reason):
         self._content = content
+        self._stop_reason = stop_reason
         self.calls = []
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
-        return SimpleNamespace(content=self._content)
+        return SimpleNamespace(content=self._content, stop_reason=self._stop_reason)
 
 
-def fake_client(content):
-    return SimpleNamespace(messages=FakeMessages(content))
+def fake_client(content, stop_reason="end_turn"):
+    return SimpleNamespace(messages=FakeMessages(content, stop_reason))
 
 
 def test_user_prompt_lists_every_passage_with_its_id_and_the_question():
@@ -90,3 +93,32 @@ def test_generate_answer_joins_text_blocks_and_skips_other_blocks():
 def test_a_reply_with_no_text_is_an_error_not_an_empty_answer():
     with pytest.raises(RuntimeError, match="no text"):
         generate_answer("Q", CHUNKS, client=fake_client([]), model="m")
+
+
+def test_a_reply_that_spent_its_whole_budget_thinking_says_so_instead_of_no_text():
+    # Observed for bia-004: the model thought until max_tokens and never wrote an answer.
+    content = [SimpleNamespace(type="thinking")]
+    client = fake_client(content, stop_reason="max_tokens")
+    with pytest.raises(RuntimeError, match="max_tokens"):
+        generate_answer("Q", CHUNKS, client=client, model="m")
+
+
+def test_a_reply_cut_off_by_max_tokens_is_an_error_not_a_half_answer():
+    client = fake_client([text_block("Call 911 [heart-attack#1] and then")], "max_tokens")
+    with pytest.raises(RuntimeError, match="max_tokens"):
+        generate_answer("Q", CHUNKS, client=client, model="m")
+
+
+def test_a_refusal_becomes_the_fixed_abstention_with_no_citations():
+    client = fake_client([], stop_reason="refusal")
+    answer = generate_answer("Q", CHUNKS, client=client, model="m")
+    assert answer == Answer(text=ABSTENTION, cited_ids=[])
+    assert ABSTENTION == "I can't answer that from the available sources."
+
+
+def test_the_default_budget_leaves_room_for_thinking_plus_the_answer():
+    # With 700 tokens, thinking alone used up to 627 of them (bia-004).
+    assert DEFAULT_MAX_TOKENS >= 4096
+    client = fake_client([text_block("Ok.")])
+    generate_answer("Q", CHUNKS, client=client, model="m")
+    assert client.messages.calls[0]["max_tokens"] == DEFAULT_MAX_TOKENS
