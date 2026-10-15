@@ -1,0 +1,38 @@
+# Heart Attack Symptoms
+
+Not all heart attacks begin with the sudden and crushing chest pain that comes when the blood flow to heart gets blocked. Heart attack symptoms can start slowly and can be mild or more serious and sudden. Symptoms also may come and go over several hours. The symptoms of a heart attack can be different from person to person and different between men and women. If you’ve already had a heart attack, your symptoms may not be the same for another one.
+
+## What are the symptoms of a heart attack?
+
+If you are having a heart attack, you may experience one or more of the symptoms below.
+
+- **Chest pain, heaviness, or discomfort in the center or left side of the chest** (this is the most common symptom)
+- **Pain or discomfort** in one or both arms, your back, shoulders, neck, jaw, or above your belly button
+- **Shortness of breath** when resting or doing a little bit of physical activity (this is more common in older adults)
+- **Sweating a lot for no reason**
+- **Feeling unusually tired for no reason, sometimes for days** (this is more common in women)
+- **Nausea (feeling sick to the stomach) and vomiting**
+- **Light-headedness or sudden dizziness**
+- **Rapid or irregular heartbeat**
+
+It is also possible to have mild symptoms or even no symptoms at all and still have a heart attack.
+
+### Silent heart attacks
+
+Heart attacks can happen without any symptoms or with very mild symptoms. These are called silent heart attacks. Silent heart attacks are more common in older adults and in people who have high blood sugar or diabetes.
+
+## When to call 9-1-1
+
+Any time you think you might be having a heart attack, don’t ignore it. **Call 9-1-1 for emergency medical care,** even if you are not sure that you’re having a heart attack.
+
+- Acting fast can limit damage to your heart and save your life. The 9-1-1 operator or emergency medical services (EMS) personnel can give you advice that can help prevent damage to your heart.
+- An ambulance is the best and safest way to get to the hospital. Do not drive to the hospital or let someone else drive you. EMS personnel can check how you are doing and start tests and lifesaving medicines right away. People who arrive by ambulance often get faster treatment at the hospital.
+
+Every minute matters. **Never delay calling 9-1-1,** taking aspirin or doing anything else you think might help.
+
+Knowing the difference between stable angina (chest pain in people who have coronary artery disease) and a heart attack is important.
+
+- The pain from angina usually happens after physical activity and goes away in a few minutes when you rest or take medicine to treat it.
+- The pain from a heart attack is more serious than the pain from angina. Heart attack pain doesn’t go away when you rest or take medicine.
+
+If you don’t know whether your chest pain is angina or a heart attack, **call 9-1-1.**
