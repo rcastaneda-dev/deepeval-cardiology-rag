@@ -29,8 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           enable-cache: true
       - run: uv sync --frozen
@@ -45,15 +47,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      CONFIDENT_API_KEY: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload_to_confident)) && secrets.CONFIDENT_API_KEY || '' }}
       DEEPEVAL_RESULTS_FOLDER: results
       EVENT_NAME: ${{ github.event_name }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check for API keys
         id: keys
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ] || [ -z "$OPENAI_API_KEY" ]; then
             echo "available=false" >> "$GITHUB_OUTPUT"
@@ -61,7 +65,7 @@ jobs:
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         if: steps.keys.outputs.available == 'true'
         with:
           enable-cache: true
@@ -70,6 +74,10 @@ jobs:
         run: uv sync --frozen
       - name: Run DeepEval
         if: steps.keys.outputs.available == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CONFIDENT_API_KEY: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.upload_to_confident)) && secrets.CONFIDENT_API_KEY || '' }}
         run: |
           if [ "$EVENT_NAME" = "pull_request" ]; then
             uv run deepeval test run evals/ -m smoke
@@ -80,7 +88,7 @@ jobs:
         if: always() && steps.keys.outputs.available == 'true'
         continue-on-error: true
         run: uv run python -m evals.report results >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && steps.keys.outputs.available == 'true'
         with:
           name: deepeval-results
