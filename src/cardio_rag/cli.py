@@ -8,7 +8,7 @@ from cardio_rag import wiring
 from cardio_rag.config import DISCLAIMER, INDEX_PATH, MissingSettingError, Settings
 
 _CONTROL_SEQUENCES = re.compile(
-    r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07]*(\x07|\x1b\\)|[\x00-\x08\x0b-\x1f\x7f-\x9f]"
+    r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|[\x00-\x08\x0b-\x1f\x7f-\x9f]"
 )
 
 

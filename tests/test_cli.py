@@ -46,6 +46,27 @@ def test_ask_strips_terminal_control_sequences_from_the_answer(monkeypatch, caps
     assert "\x00" not in output
 
 
+def test_ask_keeps_text_between_st_terminated_osc_sequences(monkeypatch, capsys):
+    text = "x\x1b]0;t\x1b\\KEEP1\ny\x1b]8;;u\x1b\\link\x1b]8;;\x1b\\z"
+    result = RagResult("q", Answer(text, []), [])
+    monkeypatch.setattr(
+        cli.wiring, "build_pipeline", lambda settings: SimpleNamespace(ask=lambda q: result)
+    )
+    assert cli.main(["ask", "Anything?"]) == 0
+    output = capsys.readouterr().out
+    assert "xKEEP1\nylinkz" in output
+    assert "\x1b" not in output
+
+
+def test_ask_strips_a_lone_c1_csi_byte(monkeypatch, capsys):
+    result = RagResult("q", Answer("a\x9b31mb", []), [])
+    monkeypatch.setattr(
+        cli.wiring, "build_pipeline", lambda settings: SimpleNamespace(ask=lambda q: result)
+    )
+    assert cli.main(["ask", "Anything?"]) == 0
+    assert "\x9b" not in capsys.readouterr().out
+
+
 def test_a_missing_key_exits_with_code_2_and_names_the_variable(monkeypatch, capsys):
     def no_key(settings):
         raise MissingSettingError("Environment variable ANTHROPIC_API_KEY is not set.")
