@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets and local config
+.env
+
+# Generated at run time
+data/index.npz
+results/
+
+# DeepEval writes these into the working directory
+.deepeval/
+.deepeval_telemetry.txt
+
+# Design specs, plans and agent workspaces stay local: never committed
+docs/superpowers/
+.superpowers/
