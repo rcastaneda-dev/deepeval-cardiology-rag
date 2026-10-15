@@ -100,7 +100,7 @@
     "question": "What happens at the visit before a cardiac catheterization?",
     "expected_answer": "You meet with your cardiologist, are asked about your medical history, medicines and allergies, and have a physical exam. You also get instructions on how to prepare.",
     "source_doc": "cardiac-catheterization",
-    "source_excerpt": "Before cardiac catheterization, you will meet with your cardiologist, a doctor who specializes in the heart. You will be asked about your medical history, including what medicines you are taking and any allergies you may have, and you will have a physical exam.",
+    "source_excerpt": "Before cardiac catheterization, you will meet with your cardiologist, a doctor who specializes in the heart. You will be asked about your medical history, including what medicines you are taking and any allergies you may have, and you will have a physical exam. You will also get instructions on how to prepare for the procedure.",
     "smoke": false
   },
   {
@@ -130,7 +130,7 @@
   {
     "id": "in-017",
     "question": "Which types of cardiomyopathy are often inherited?",
-    "expected_answer": "Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited. Inherited gene mutations are changes in the genes that control how the heart is formed.",
+    "expected_answer": "Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited. Mutations are changes in the genes that control how the heart is formed.",
     "source_doc": "cardiomyopathy",
     "source_excerpt": "Mutations are changes in the genes that control how your heart is formed. Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited.",
     "smoke": false
