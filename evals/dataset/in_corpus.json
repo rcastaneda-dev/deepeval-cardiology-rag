@@ -1,0 +1,258 @@
+[
+  {
+    "id": "in-001",
+    "question": "Is chest pain the only sign that I might be having a heart attack?",
+    "expected_answer": "No. The source says not all heart attacks begin with sudden, crushing chest pain; symptoms can start slowly and can be mild or more serious and sudden.",
+    "source_doc": "heart-attack",
+    "source_excerpt": "Not all heart attacks begin with the sudden and crushing chest pain that comes when the blood flow to heart gets blocked. Heart attack symptoms can start slowly and can be mild or more serious and sudden.",
+    "smoke": true
+  },
+  {
+    "id": "in-002",
+    "question": "If I think I'm having a heart attack, should someone drive me to the hospital?",
+    "expected_answer": "No. The source says an ambulance is the best and safest way to get to the hospital, and that you should not drive or let someone else drive you.",
+    "source_doc": "heart-attack",
+    "source_excerpt": "An ambulance is the best and safest way to get to the hospital. Do not drive to the hospital or let someone else drive you.",
+    "smoke": false
+  },
+  {
+    "id": "in-003",
+    "question": "What are the main causes of heart failure with preserved ejection fraction?",
+    "expected_answer": "High blood pressure and other conditions that make the heart work harder are the main causes. Conditions that stiffen the heart chambers, such as obesity and diabetes, are also causes.",
+    "source_doc": "heart-failure",
+    "source_excerpt": "High blood pressure and other conditions that make your heart work harder are the main causes of heart failure with preserved ejection fraction. Conditions that stiffen the chambers of the heart such as obesity and diabetes are also causes of this type of heart failure.",
+    "smoke": true
+  },
+  {
+    "id": "in-004",
+    "question": "Do men and women tend to get different types of heart failure?",
+    "expected_answer": "Yes. Women more commonly have heart failure with preserved ejection fraction (HFpEF), while men are more likely to have heart failure with reduced ejection fraction (HFrEF).",
+    "source_doc": "heart-failure",
+    "source_excerpt": "Women more commonly have heart failure with preserved ejection fraction (HFpEF), which is when the heart does not fill with enough blood. Men are more likely to have heart failure with reduced ejection fraction (HFrEF).",
+    "smoke": false
+  },
+  {
+    "id": "in-005",
+    "question": "What does angina feel like?",
+    "expected_answer": "The main symptom is chest pain or discomfort. It can feel like pain, pressure, tightness, discomfort, squeezing, heaviness, or burning in the chest.",
+    "source_doc": "angina",
+    "source_excerpt": "The main symptom of angina is chest pain or discomfort. Angina can feel like pain, pressure, tightness, discomfort, squeezing, heaviness, or burning in the chest.",
+    "smoke": true
+  },
+  {
+    "id": "in-006",
+    "question": "Why might angina in women be missed?",
+    "expected_answer": "Women more often have symptoms other than chest pain, such as shortness of breath, nausea, and light-headedness. These are sometimes not recognized as symptoms of a heart condition, which can delay treatment for women.",
+    "source_doc": "angina",
+    "source_excerpt": "Women also more often show other symptoms of angina aside from chest pain, such as shortness of breath, nausea, and light-headedness. Sometimes these are not recognized as symptoms of a heart condition. This can cause delays in treatment for women.",
+    "smoke": false
+  },
+  {
+    "id": "in-007",
+    "question": "What usually causes an irregular heartbeat?",
+    "expected_answer": "Arrhythmias are often caused by a problem with the electrical signals within the heart, and are often set off by a trigger.",
+    "source_doc": "arrhythmia",
+    "source_excerpt": "Arrhythmias are often caused by a problem with the electrical signals within the heart. Often, an arrhythmia is set off by a trigger.",
+    "smoke": false
+  },
+  {
+    "id": "in-008",
+    "question": "What kinds of situations can set off an arrhythmia in a person who is at risk?",
+    "expected_answer": "Situations that make the heart work harder, raise blood pressure, or cause the body to release stress hormones may trigger an arrhythmia.",
+    "source_doc": "arrhythmia",
+    "source_excerpt": "If you have any risk factors, certain situations may trigger an arrhythmia. These include any situations that make your heart work harder, raise your blood pressure, or cause your body to release stress hormones.",
+    "smoke": false
+  },
+  {
+    "id": "in-009",
+    "question": "Does the chance of getting atrial fibrillation go up with age?",
+    "expected_answer": "Yes. The risk increases as you get older, especially after age 65. It is rare in children.",
+    "source_doc": "atrial-fibrillation",
+    "source_excerpt": "The risk of atrial fibrillation increases as you get older, especially when you are over age 65. Atrial fibrillation is rare in children.",
+    "smoke": true
+  },
+  {
+    "id": "in-010",
+    "question": "What goes wrong in the heart during atrial fibrillation?",
+    "expected_answer": "Unusual electrical signals in the upper chambers make them contract irregularly, so the upper and lower chambers cannot work together to pump blood effectively.",
+    "source_doc": "atrial-fibrillation",
+    "source_excerpt": "In atrial fibrillation, unusual electrical signals in the upper chambers interrupt this typical process. The unusual signals cause the upper chambers of the heart to contract irregularly, which makes your heart’s upper and lower chambers unable to work together to effectively pump blood.",
+    "smoke": false
+  },
+  {
+    "id": "in-011",
+    "question": "Where do most cardiac arrests happen, and who usually has to help first?",
+    "expected_answer": "Most happen outside hospitals, so emergency care depends on family, friends, or people in the community. Treatment must begin immediately because a cardiac arrest is fatal without it.",
+    "source_doc": "cardiac-arrest",
+    "source_excerpt": "A cardiac arrest is fatal unless treatment begins immediately. Most cardiac arrests occur outside of hospitals. This means that emergency care of the affected person depends on family, friends, or people in the community.",
+    "smoke": true
+  },
+  {
+    "id": "in-012",
+    "question": "Can someone with no training use an AED?",
+    "expected_answer": "Yes. AEDs are special defibrillators that untrained bystanders can use, and they are often found in public places such as airports, office buildings, gyms, and shopping centers.",
+    "source_doc": "cardiac-arrest",
+    "source_excerpt": "AEDs are special defibrillators that untrained bystanders can use. They are often available in public places like airports, office buildings, gyms, and shopping centers.",
+    "smoke": false
+  },
+  {
+    "id": "in-013",
+    "question": "What happens at the visit before a cardiac catheterization?",
+    "expected_answer": "You meet with your cardiologist, are asked about your medical history, medicines and allergies, and have a physical exam. You also get instructions on how to prepare.",
+    "source_doc": "cardiac-catheterization",
+    "source_excerpt": "Before cardiac catheterization, you will meet with your cardiologist, a doctor who specializes in the heart. You will be asked about your medical history, including what medicines you are taking and any allergies you may have, and you will have a physical exam.",
+    "smoke": false
+  },
+  {
+    "id": "in-014",
+    "question": "What should I tell my healthcare providers while getting ready for the procedure?",
+    "expected_answer": "Talk to them about your medical history, including the medicines you take, other surgical procedures you have had, and any medical conditions such as diabetes or kidney disease.",
+    "source_doc": "cardiac-catheterization",
+    "source_excerpt": "Talk to your healthcare providers about your medical history, including medicines you take, other surgical procedures you’ve had, and any medical conditions you have, such as diabetes or kidney disease.",
+    "smoke": false
+  },
+  {
+    "id": "in-015",
+    "question": "Who is cardiac rehabilitation for?",
+    "expected_answer": "It is an important program for anyone recovering from a heart attack, heart failure, or another heart problem that required surgery or medical care.",
+    "source_doc": "cardiac-rehabilitation",
+    "source_excerpt": "Cardiac rehabilitation is an important program for anyone recovering from a heart attack, heart failure, or other heart problem that required surgery or medical care.",
+    "smoke": false
+  },
+  {
+    "id": "in-016",
+    "question": "How long does cardiac rehab last, and can it be done at home?",
+    "expected_answer": "Some programs are in a hospital or rehabilitation center and others can be done at home. Programs usually last about 3 months but can range from 2 to 8 months.",
+    "source_doc": "cardiac-rehabilitation",
+    "source_excerpt": "Some programs are done in a hospital or rehabilitation center, and other programs can be done in your home. Cardiac rehabilitation may start while you are still in the hospital or right after you leave the hospital. Cardiac rehabilitation programs usually last about 3 months but can range anywhere from 2 to 8 months.",
+    "smoke": false
+  },
+  {
+    "id": "in-017",
+    "question": "Which types of cardiomyopathy are often inherited?",
+    "expected_answer": "Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited. Inherited gene mutations are changes in the genes that control how the heart is formed.",
+    "source_doc": "cardiomyopathy",
+    "source_excerpt": "Mutations are changes in the genes that control how your heart is formed. Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited.",
+    "smoke": false
+  },
+  {
+    "id": "in-018",
+    "question": "Is cardiomyopathy limited to certain ages or races?",
+    "expected_answer": "No. People of any age, race, or ethnicity can have cardiomyopathy, although lifestyle habits or other medical conditions can raise the risk.",
+    "source_doc": "cardiomyopathy",
+    "source_excerpt": "People of any age, race, or ethnicity can have cardiomyopathy. Sometimes, lifestyle habits or other medical conditions raise your risk of cardiomyopathy. You can reduce risks by controlling lifestyle risks.",
+    "smoke": false
+  },
+  {
+    "id": "in-019",
+    "question": "Does every congenital heart defect need treatment?",
+    "expected_answer": "No. Most simple congenital heart defects get better over time and need no treatment, but critical defects often require treatment.",
+    "source_doc": "congenital-heart-defects",
+    "source_excerpt": "Most simple congenital heart defects will get better over time and do not require treatment at all. However, critical congenital heart defects often require treatment.",
+    "smoke": false
+  },
+  {
+    "id": "in-020",
+    "question": "Why do some babies have a temporary surgery before heart surgery?",
+    "expected_answer": "Some babies are too small or not strong enough for heart surgery, so they have palliative (temporary) surgery to improve blood oxygen levels beforehand.",
+    "source_doc": "congenital-heart-defects",
+    "source_excerpt": "Some babies are too small or not strong enough to have heart surgery. Instead, they must have palliative surgery, or temporary surgery, to improve oxygen levels in the blood prior to heart surgery.",
+    "smoke": false
+  },
+  {
+    "id": "in-021",
+    "question": "What is the leading cause of coronary heart disease?",
+    "expected_answer": "Plaque buildup in the large arteries on the heart's surface is the leading cause. Some people may have it because their heart's blood vessels do not respond correctly when the heart needs more oxygen-rich blood.",
+    "source_doc": "coronary-heart-disease",
+    "source_excerpt": "Plaque buildup in the large arteries on the heart’s surface is the leading cause of coronary heart disease. Some people may have coronary heart disease if the blood vessels in their heart do not respond correctly when the heart needs more oxygen-rich blood.",
+    "smoke": false
+  },
+  {
+    "id": "in-022",
+    "question": "At what age should children have their cholesterol screened?",
+    "expected_answer": "Children between ages 9 and 11 should be screened for unhealthy cholesterol levels, because overweight and obesity are becoming more common at young ages.",
+    "source_doc": "coronary-heart-disease",
+    "source_excerpt": "Because overweight and obesity are becoming more common at young ages, children between ages 9 to 11 should be screened for unhealthy cholesterol levels.",
+    "smoke": false
+  },
+  {
+    "id": "in-023",
+    "question": "What can an EKG show about my heart?",
+    "expected_answer": "It can show how fast the heart is beating, whether the rhythm is steady or irregular, and the strength and timing of electrical impulses through each part of the heart. It may be done as part of a routine exam to screen for heart disease.",
+    "source_doc": "electrocardiogram",
+    "source_excerpt": "An EKG can show how fast your heart is beating, whether the rhythm of your heartbeats is steady or irregular, and the strength and timing of the electrical impulses passing through each part of your heart. You may have an EKG as part of a routine exam to screen for heart disease.",
+    "smoke": false
+  },
+  {
+    "id": "in-024",
+    "question": "What are Holter and event monitors?",
+    "expected_answer": "They are small, portable electrocardiogram devices that record the heart's electrical activity for long periods while you do your normal activities.",
+    "source_doc": "electrocardiogram",
+    "source_excerpt": "Holter and event monitors are small, portable electrocardiogram devices that record your heart’s electrical activity for long periods of time while you do your normal activities.",
+    "smoke": false
+  },
+  {
+    "id": "in-025",
+    "question": "How often should I get my blood pressure checked?",
+    "expected_answer": "Everyone age 3 or older should have their blood pressure checked by a healthcare provider at least once a year, to see whether it is in a healthy range.",
+    "source_doc": "high-blood-pressure",
+    "source_excerpt": "Everyone who’s age 3 or older should have their blood pressure checked by a healthcare provider at least once a year. Your provider measures your blood pressure to see if it’s in a healthy range.",
+    "smoke": true
+  },
+  {
+    "id": "in-026",
+    "question": "How many readings are needed before high blood pressure is diagnosed?",
+    "expected_answer": "Two or more blood pressure readings at separate medical appointments are needed to diagnose high blood pressure.",
+    "source_doc": "high-blood-pressure",
+    "source_excerpt": "You will need two or more blood pressure readings at separate medical appointments to diagnose high blood pressure.",
+    "smoke": false
+  },
+  {
+    "id": "in-027",
+    "question": "What is heart valve disease?",
+    "expected_answer": "The heart has four valves that open and close to let blood flow through. Heart valve diseases develop when the valves do not work properly, and the problem can be present at birth or acquired over time.",
+    "source_doc": "heart-valve-disease",
+    "source_excerpt": "Your heart has four valves that open and close to allow blood to flow through. Heart valve diseases develop when these valves do not work properly. Problems with your heart valves can either be present at birth or be acquired over time.",
+    "smoke": false
+  },
+  {
+    "id": "in-028",
+    "question": "What do stenosis and regurgitation mean for a heart valve?",
+    "expected_answer": "Stenosis means a valve is too narrow and does not let enough blood flow through. Regurgitation means valve flaps of the wrong size or shape make the valve leak.",
+    "source_doc": "heart-valve-disease",
+    "source_excerpt": "More commonly, a valve is too narrow and does not let enough blood flow through it (stenosis). Or, valve flaps that are the wrong size or shape cause the valve to leak (regurgitation).",
+    "smoke": false
+  },
+  {
+    "id": "in-029",
+    "question": "What most often causes unhealthy cholesterol levels?",
+    "expected_answer": "An unhealthy lifestyle is the most common cause. Inherited genes, other medical conditions, and some medicines may also raise LDL cholesterol or lower HDL cholesterol.",
+    "source_doc": "high-blood-cholesterol",
+    "source_excerpt": "An unhealthy lifestyle is the most common cause of high “bad” LDL cholesterol or low “good” HDL cholesterol. However, genes that you inherit from your parents, other medical conditions, and some medicines may also raise LDL cholesterol levels or lower “good” HDL cholesterol levels.",
+    "smoke": false
+  },
+  {
+    "id": "in-030",
+    "question": "How does menopause affect a woman's cholesterol?",
+    "expected_answer": "A woman's risk goes up after menopause because female hormones that may protect against high cholesterol decrease. Total and LDL cholesterol usually go up and HDL cholesterol goes down.",
+    "source_doc": "high-blood-cholesterol",
+    "source_excerpt": "A woman’s risk goes up after menopause. Menopause lowers levels of female hormones that may protect against high blood cholesterol. After menopause, women’s levels of total and “bad” LDL cholesterol usually go up, while their levels of “good” HDL cholesterol go down.",
+    "smoke": false
+  },
+  {
+    "id": "in-031",
+    "question": "What is plaque and how does it relate to peripheral artery disease?",
+    "expected_answer": "Plaque is a waxy substance made of fat, cholesterol, fibrous tissue, and calcium that builds up on the inner lining of arteries (atherosclerosis). In PAD it may reduce or fully block blood flow to the organs and limbs.",
+    "source_doc": "peripheral-artery-disease",
+    "source_excerpt": "Atherosclerosis is a disease in which a waxy substance called plaque builds up on the inner lining of arteries. Plaque is made up of fat, cholesterol, fibrous tissue, and calcium. In PAD, plaque may reduce or fully block the flow of oxygen-rich blood through arteries to the body’s vital organs and the limbs.",
+    "smoke": false
+  },
+  {
+    "id": "in-032",
+    "question": "Do men and women have the same risk of PAD?",
+    "expected_answer": "They have a similar risk of developing PAD, but it affects them differently: women are more likely than men to have PAD without symptoms.",
+    "source_doc": "peripheral-artery-disease",
+    "source_excerpt": "Men and women have a similar risk of developing PAD, but PAD affects men and women differently. Women are more likely than men to have PAD without symptoms.",
+    "smoke": false
+  }
+]

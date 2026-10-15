@@ -1,0 +1,77 @@
+[
+  {
+    "id": "oos-001",
+    "question": "Who invented the first implantable pacemaker?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["greatbatch"],
+    "smoke": true
+  },
+  {
+    "id": "oos-002",
+    "question": "What is the capital of France?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["paris"],
+    "smoke": true
+  },
+  {
+    "id": "oos-003",
+    "question": "How much does a heart bypass operation cost in Texas?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["texas"],
+    "smoke": true
+  },
+  {
+    "id": "oos-004",
+    "question": "What is the best brand of home blood pressure monitor to buy?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["omron"]
+  },
+  {
+    "id": "oos-005",
+    "question": "Which hospital in Chicago has the best heart surgeons?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["chicago"]
+  },
+  {
+    "id": "oos-006",
+    "question": "How do I treat a sprained ankle at home?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["ankle"]
+  },
+  {
+    "id": "oos-007",
+    "question": "What SPF sunscreen should I wear when hiking?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["sunscreen"]
+  },
+  {
+    "id": "oos-008",
+    "question": "Who won the 2018 FIFA World Cup?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["world cup"]
+  },
+  {
+    "id": "oos-009",
+    "question": "How does the drug sacubitril/valsartan work at the molecular level?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["sacubitril"]
+  },
+  {
+    "id": "oos-010",
+    "question": "What are the ICD-10 billing codes for atrial fibrillation?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["icd-10"]
+  },
+  {
+    "id": "oos-011",
+    "question": "How many calories are in a Big Mac?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["big mac"]
+  },
+  {
+    "id": "oos-012",
+    "question": "Who performed the first human heart transplant, and in which country?",
+    "expected_answer": "The assistant should say it cannot answer from the available sources and should not answer from memory.",
+    "absent_terms": ["barnard"]
+  }
+]
