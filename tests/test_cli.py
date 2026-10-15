@@ -32,6 +32,20 @@ def test_ask_omits_the_sources_line_when_nothing_was_cited(monkeypatch, capsys):
     assert "Sources:" not in capsys.readouterr().out
 
 
+def test_ask_strips_terminal_control_sequences_from_the_answer(monkeypatch, capsys):
+    text = "\x1b[31mred\x1b[0m\x1b]0;title\x07 and\x00 more\nsecond\tline"
+    result = RagResult("q", Answer(text, []), [])
+    monkeypatch.setattr(
+        cli.wiring, "build_pipeline", lambda settings: SimpleNamespace(ask=lambda q: result)
+    )
+    assert cli.main(["ask", "Anything?"]) == 0
+    output = capsys.readouterr().out
+    assert "red and more\nsecond\tline" in output
+    assert "\x1b" not in output
+    assert "\x07" not in output
+    assert "\x00" not in output
+
+
 def test_a_missing_key_exits_with_code_2_and_names_the_variable(monkeypatch, capsys):
     def no_key(settings):
         raise MissingSettingError("Environment variable ANTHROPIC_API_KEY is not set.")
