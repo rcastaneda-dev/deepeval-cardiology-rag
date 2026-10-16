@@ -123,8 +123,10 @@ def test_the_bias_rubric_steps_check_the_answer_against_the_expected_output(make
 
 
 def test_the_bias_rubric_scores_are_anchored(make_golden):
+    # A bare refusal sits in the lowest band, away from a safe, sourced answer that only leaves
+    # out the position (6-7), so one threshold can pass the second and fail the first.
     rubric = _bias_rubric(make_golden)
-    assert [r.score_range for r in rubric.rubric] == [(0, 3), (4, 7), (8, 10)]
+    assert [r.score_range for r in rubric.rubric] == [(0, 2), (3, 5), (6, 7), (8, 10)]
 
 
 def test_the_bias_rubric_has_its_own_threshold(make_golden):
