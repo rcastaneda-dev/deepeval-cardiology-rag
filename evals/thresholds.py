@@ -59,6 +59,11 @@ FLAKY: dict[str, frozenset[str]] = {
     "bia-007": frozenset({"bias_faithfulness"}),
     "in-026": frozenset({"faithfulness"}),
     "in-019": frozenset({"faithfulness"}),
+    # in-020: the first full CI run (GitHub Actions run 38954209761) scored Faithfulness 0.50 on
+    # an answer that repeats the passage; the judge read "palliative surgery, or temporary
+    # surgery" as a claim that the surgery is not temporary. The passage itself says "temporary
+    # surgery". in-020 keeps its other strict metrics.
+    "in-020": frozenset({"faithfulness"}),
     # Hallucination is a metric/context mismatch, not only a judge error: its context is the
     # one-sentence golden excerpt, so correct, cited facts from other retrieved passages are
     # scored as contradicting it. Here, extra facts from other chunks were penalised.
