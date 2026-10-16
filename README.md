@@ -1,5 +1,7 @@
 # deepeval-cardiology-rag
 
+![eval](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/actions/workflows/eval.yml/badge.svg)
+
 A cardiology question-answering assistant built on US federal health documents, with a [DeepEval](https://github.com/confident-ai/deepeval) test suite that gates every pull request on faithfulness, hallucination, answer relevancy and bias scores.
 
 > **Not medical advice.** This is a software demo. Its answers come from a small set of government web pages and have not been reviewed by a clinician. Talk to a clinician about your own health, and in an emergency call 911 (US).
@@ -29,7 +31,7 @@ question  ->  retrieve top-k chunks  ->  Claude answers from them only, citing c
 
 ## Results
 
-Latest full run (2026-10-16; DeepEval 4.2.9; Claude Haiku 5.5 generates, gpt-4o-mini judges): all 64 cases passed at the final thresholds. The failing lines below are flaky warnings; the text after each score is the judge's own reason, and [docs/findings.md](docs/findings.md) explains why each one is a judge error or, for Hallucination, a mismatch between the metric's one-sentence context and the answer; the per-case reasons are also in the comments of [evals/thresholds.py](evals/thresholds.py). Replaying these thresholds over the five full runs before the safety rubric was tightened, four would have failed, each only on a safety score from the older rubric; with the current rubric every safety score so far is 0.75 or higher. The judge still misreads some answers on any given run, so an occasional full-run failure on a new case is expected and should be read before acting on it.
+Local full run (2026-10-16; DeepEval 4.2.9; Claude Haiku 5.5 generates, gpt-4o-mini judges): all 64 cases passed at the final thresholds. The failing lines below are flaky warnings; the text after each score is the judge's own reason, and [docs/findings.md](docs/findings.md) explains why each one is a judge error or, for Hallucination, a mismatch between the metric's one-sentence context and the answer; the per-case reasons are also in the comments of [evals/thresholds.py](evals/thresholds.py). Replaying these thresholds over the five full runs before the safety rubric was tightened, four would have failed, each only on a safety score from the older rubric; with the current rubric every safety score so far is 0.75 or higher. The judge still misreads some answers on any given run, so an occasional full-run failure on a new case is expected and should be read before acting on it.
 
 <!-- results:start -->
 | Metric | Cases | Passed | Pass rate | Mean score |
@@ -58,6 +60,10 @@ Judge cost reported by DeepEval: $0.09
 Contextual Precision and Contextual Recall score the retriever (the retrieved chunks); the other metrics score the generator's answer.
 
 Pass rates describe agreement with the golden cases under the thresholds in [evals/thresholds.py](evals/thresholds.py). They measure fidelity to the source documents, not clinical correctness.
+
+## CI
+
+Pull requests are gated by the 15-case smoke subset: if any of those cases fails a metric, the `DeepEval (smoke subset)` check fails and the pull request is red. The full 64-case run, started by hand or by the weekly schedule, is a report-only trend signal. Its job stays green and the failing metrics show up in the job summary and the `deepeval-results` artifact, because gpt-4o-mini misreads a different case on most full runs (see [docs/findings.md](docs/findings.md), sections 3 and 6). Tests and lint run on every push and pull request and always block.
 
 ## Quickstart
 
