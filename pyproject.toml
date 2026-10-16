@@ -36,6 +36,12 @@ pythonpath = ["."]
 markers = [
     "smoke: the small stratified subset of eval cases that runs on every pull request",
 ]
+# DeepEval 4.x announces that these two metrics now score higher-is-better. THRESHOLDS in
+# evals/thresholds.py already use that direction (minimum passing score), so the notice is noise.
+filterwarnings = [
+    "ignore:'BiasMetric' now scores in the same direction:DeprecationWarning",
+    "ignore:'HallucinationMetric' now scores in the same direction:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100

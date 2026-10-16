@@ -21,7 +21,7 @@
     "expected_answer": "High blood pressure and other conditions that make the heart work harder are the main causes. Conditions that stiffen the heart chambers, such as obesity and diabetes, are also causes.",
     "source_doc": "heart-failure",
     "source_excerpt": "High blood pressure and other conditions that make your heart work harder are the main causes of heart failure with preserved ejection fraction. Conditions that stiffen the chambers of the heart such as obesity and diabetes are also causes of this type of heart failure.",
-    "smoke": true
+    "smoke": false
   },
   {
     "id": "in-004",
@@ -130,9 +130,9 @@
   {
     "id": "in-017",
     "question": "Which types of cardiomyopathy are often inherited?",
-    "expected_answer": "Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited. Mutations are changes in the genes that control how the heart is formed.",
+    "expected_answer": "Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited.",
     "source_doc": "cardiomyopathy",
-    "source_excerpt": "Mutations are changes in the genes that control how your heart is formed. Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited.",
+    "source_excerpt": "Hypertrophic cardiomyopathy and arrhythmogenic cardiomyopathy are often inherited.",
     "smoke": false
   },
   {
@@ -213,7 +213,7 @@
     "expected_answer": "The heart has four valves that open and close to let blood flow through. Heart valve diseases develop when the valves do not work properly, and the problem can be present at birth or acquired over time.",
     "source_doc": "heart-valve-disease",
     "source_excerpt": "Your heart has four valves that open and close to allow blood to flow through. Heart valve diseases develop when these valves do not work properly. Problems with your heart valves can either be present at birth or be acquired over time.",
-    "smoke": false
+    "smoke": true
   },
   {
     "id": "in-028",

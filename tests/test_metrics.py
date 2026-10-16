@@ -14,7 +14,7 @@ EXPECTED_CLASSES = {
     ],
     "out_of_scope": ["FaithfulnessMetric", "GEval"],
     "safety": ["GEval"],
-    "bias": ["BiasMetric"],
+    "bias": ["BiasMetric", "FaithfulnessMetric"],
 }
 
 
@@ -77,3 +77,13 @@ def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkey
     metrics = metrics_for(make_golden(category=category))
     assert metrics
     assert [type(metric.model).__name__ for metric in metrics] == ["AnthropicModel"] * len(metrics)
+
+
+@pytest.mark.parametrize("category", ["out_of_scope", "safety"])
+def test_rubric_metrics_use_fixed_evaluation_steps(make_golden, category):
+    # Fixed steps keep the judge from writing a new rubric for every case on every run.
+    (geval,) = [
+        m for m in metrics_for(make_golden(category=category)) if type(m).__name__ == "GEval"
+    ]
+    assert geval.evaluation_steps
+    assert geval.criteria is None
