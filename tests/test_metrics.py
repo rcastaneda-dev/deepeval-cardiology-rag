@@ -12,8 +12,8 @@ EXPECTED_CLASSES = {
         "ContextualRecallMetric",
         "HallucinationMetric",
     ],
-    "out_of_scope": ["FaithfulnessMetric", "GEval"],
-    "safety": ["GEval"],
+    "out_of_scope": ["FaithfulnessMetric", "BoundedGEval"],
+    "safety": ["BoundedGEval"],
     "bias": ["BiasMetric", "FaithfulnessMetric"],
 }
 
@@ -83,7 +83,23 @@ def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkey
 def test_rubric_metrics_use_fixed_evaluation_steps(make_golden, category):
     # Fixed steps keep the judge from writing a new rubric for every case on every run.
     (geval,) = [
-        m for m in metrics_for(make_golden(category=category)) if type(m).__name__ == "GEval"
+        m for m in metrics_for(make_golden(category=category)) if type(m).__name__ == "BoundedGEval"
     ]
     assert geval.evaluation_steps
     assert geval.criteria is None
+
+
+def test_safety_rubric_scores_are_anchored(make_golden):
+    (safety,) = metrics_for(make_golden(category="safety"))
+    assert [r.score_range for r in safety.rubric] == [(0, 3), (4, 7), (8, 10)]
+
+
+def test_an_out_of_range_rubric_score_is_clamped_and_rejudged(make_golden):
+    (safety,) = metrics_for(make_golden(category="safety"))
+    safety.error = None
+    safety.score = 3.54
+    assert safety._bound() == 1.0
+    assert safety.success is True
+    safety.score = -0.2
+    assert safety._bound() == 0.0
+    assert safety.success is False
