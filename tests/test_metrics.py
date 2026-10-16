@@ -1,4 +1,5 @@
 import pytest
+from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
 from evals.metrics import judge, metrics_for
@@ -14,7 +15,7 @@ EXPECTED_CLASSES = {
     ],
     "out_of_scope": ["FaithfulnessMetric", "BoundedGEval"],
     "safety": ["BoundedGEval"],
-    "bias": ["BiasMetric", "FaithfulnessMetric"],
+    "bias": ["BiasMetric", "FaithfulnessMetric", "BoundedGEval"],
 }
 
 
@@ -79,7 +80,7 @@ def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkey
     assert [type(metric.model).__name__ for metric in metrics] == ["AnthropicModel"] * len(metrics)
 
 
-@pytest.mark.parametrize("category", ["out_of_scope", "safety"])
+@pytest.mark.parametrize("category", ["out_of_scope", "safety", "bias"])
 def test_rubric_metrics_use_fixed_evaluation_steps(make_golden, category):
     # Fixed steps keep the judge from writing a new rubric for every case on every run.
     (geval,) = [
@@ -92,6 +93,57 @@ def test_rubric_metrics_use_fixed_evaluation_steps(make_golden, category):
 def test_safety_rubric_scores_are_anchored(make_golden):
     (safety,) = metrics_for(make_golden(category="safety"))
     assert [r.score_range for r in safety.rubric] == [(0, 3), (4, 7), (8, 10)]
+
+
+def _bias_rubric(make_golden):
+    (rubric,) = [
+        m for m in metrics_for(make_golden(category="bias")) if type(m).__name__ == "BoundedGEval"
+    ]
+    return rubric
+
+
+def test_the_bias_rubric_reads_the_golden_answer(make_golden):
+    # BiasMetric and Faithfulness never read the expected output, so a bare abstention to a
+    # bias question passed every bias metric. This rubric is the one that compares against it.
+    rubric = _bias_rubric(make_golden)
+    assert rubric.name == "Respectful, grounded answer"
+    assert rubric.evaluation_params == [
+        SingleTurnParams.INPUT,
+        SingleTurnParams.ACTUAL_OUTPUT,
+        SingleTurnParams.EXPECTED_OUTPUT,
+    ]
+
+
+def test_the_bias_rubric_steps_check_the_answer_against_the_expected_output(make_golden):
+    steps = " ".join(_bias_rubric(make_golden).evaluation_steps).lower()
+    assert "expected output" in steps
+    assert "stereotyp" in steps
+    # A bare refusal passes only when the expected output itself accepts one.
+    assert "refus" in steps or "abstain" in steps or "can't answer" in steps
+
+
+def test_the_bias_rubric_scores_are_anchored(make_golden):
+    rubric = _bias_rubric(make_golden)
+    assert [r.score_range for r in rubric.rubric] == [(0, 3), (4, 7), (8, 10)]
+
+
+def test_the_bias_rubric_has_its_own_threshold(make_golden):
+    assert _bias_rubric(make_golden).threshold == THRESHOLDS["respectful_grounded"]
+
+
+def test_a_flaky_override_reaches_only_the_bias_rubric_it_names(make_golden, monkeypatch):
+    monkeypatch.setitem(FLAKY, "bia-001", frozenset({"respectful_grounded"}))
+    metrics = metrics_for(make_golden(id="bia-001", category="bias"))
+    assert [metric.flaky for metric in metrics] == [False, False, True]
+
+
+def test_an_out_of_range_bias_rubric_score_is_an_error_not_a_pass(make_golden):
+    rubric = _bias_rubric(make_golden)
+    rubric.error = None
+    rubric.score = 4.27
+    rubric._bound()
+    assert rubric.error == "GEval score 4.27 outside 0..1"
+    assert rubric.is_successful() is False
 
 
 def test_an_out_of_range_high_score_is_an_error_not_a_pass(make_golden):
