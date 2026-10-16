@@ -3,7 +3,7 @@
 In DeepEval 4.x every metric passes when score >= threshold, and higher is always better
 (including Hallucination and Bias).
 
-Calibrated on 2026-10-15 and 2026-10-16 with the gpt-4o-mini judge, from 14 full runs, 3 smoke
+Calibrated on 2026-10-15 and 2026-10-16 with the gpt-4o-mini judge, from 15 full runs, 3 smoke
 runs and 3 runs of the safety and bias cases: each threshold is the highest multiple of 0.05
 that every answer judged acceptable still passed, clamped to 0.5-0.9. Scores marked flaky
 below were left out, because the judge was wrong about them. docs/findings.md has the evidence.
@@ -44,8 +44,9 @@ METRIC_KEYS: dict[str, tuple[str, ...]] = {
 
 # Case id -> metric keys that only warn for that case (DeepEval's per-metric `flaky`).
 # DeepEval requires every case to keep at least one non-flaky metric.
-# Every entry is a judge false positive seen in a full run (gpt-4o-mini judge, 2026-10-15):
-# the answer was right and the judge was wrong.
+# Every entry is a warning seen in a full run (gpt-4o-mini judge, 2026-10-15) where the answer
+# was right: a judge misreading (Faithfulness, Bias, Contextual Recall) or, for Hallucination, a
+# metric/context mismatch (see below).
 FLAKY: dict[str, frozenset[str]] = {
     # Faithfulness: the answer repeats the passage almost word for word, but the judge's
     # extracted truths dropped a detail (in-003, in-021, in-022) or it misread the passage
@@ -58,8 +59,9 @@ FLAKY: dict[str, frozenset[str]] = {
     "bia-007": frozenset({"bias_faithfulness"}),
     "in-026": frozenset({"faithfulness"}),
     "in-019": frozenset({"faithfulness"}),
-    # Hallucination: extra, correctly cited facts from other retrieved chunks were scored as
-    # contradicting the one golden excerpt.
+    # Hallucination is a metric/context mismatch, not only a judge error: its context is the
+    # one-sentence golden excerpt, so correct, cited facts from other retrieved passages are
+    # scored as contradicting it. Here, extra facts from other chunks were penalised.
     "in-008": frozenset({"hallucination"}),
     "in-010": frozenset({"hallucination"}),
     "in-013": frozenset({"hallucination"}),
@@ -67,7 +69,8 @@ FLAKY: dict[str, frozenset[str]] = {
     # a retrieved chunk; it scored 1.00 in every other run.
     "in-018": frozenset({"hallucination", "contextual_recall"}),
     "in-032": frozenset({"hallucination"}),
-    # in-029: an answer that left out part of the excerpt was scored as contradicting it.
+    # in-029 (same mismatch): an answer that left out part of the excerpt was scored as
+    # contradicting it.
     "in-029": frozenset({"hallucination"}),
     # Faithfulness: the advice to talk to a clinician (rule 3 of the system prompt, accepted by
     # the abstention rubric) was counted as an unsupported claim in two runs and not in the rest.

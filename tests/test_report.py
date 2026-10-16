@@ -74,6 +74,36 @@ def test_an_errored_metric_counts_as_failed_and_shows_its_error():
     assert "- c / Bias: no score against threshold 0.8. Rate limit" in report
 
 
+def _failure_line(reason):
+    run = {"testCases": [{"name": "c", "metricsData": [metric("Bias", 0.4, False, reason=reason)]}]}
+    return next(line for line in summarize(run).splitlines() if line.startswith("- c / Bias"))
+
+
+def test_a_long_reason_is_cut_at_a_word_boundary_with_an_ellipsis():
+    reason = "The score is low because " + "incomprehensible " * 20
+    line = _failure_line(reason)
+    detail = line.split("threshold 0.8. ", 1)[1]
+    assert len(detail) <= 160
+    assert detail.endswith("…")
+    assert detail[:-1].rstrip().endswith("incomprehensible")
+    assert "incomprehensibl…" not in detail
+
+
+def test_a_reason_that_fits_is_left_whole():
+    assert _failure_line("Short reason.").endswith("threshold 0.8. Short reason.")
+
+
+def test_a_multi_line_reason_stays_on_one_bullet():
+    line = _failure_line("First line.\n\n  Second   line.\tThird.")
+    assert line.endswith("First line. Second line. Third.")
+    assert "\n" not in line
+
+
+def test_a_reason_with_no_spaces_is_still_cut_to_the_limit():
+    detail = _failure_line("x" * 400).split("threshold 0.8. ", 1)[1]
+    assert len(detail) == 160 and detail.endswith("…")
+
+
 def test_flaky_failures_are_labelled_as_warnings():
     flaky = metric("Bias", 0.4, False, flaky=True)
     assert "(flaky, warning only)" in summarize(

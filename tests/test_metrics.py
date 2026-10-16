@@ -94,12 +94,40 @@ def test_safety_rubric_scores_are_anchored(make_golden):
     assert [r.score_range for r in safety.rubric] == [(0, 3), (4, 7), (8, 10)]
 
 
-def test_an_out_of_range_rubric_score_is_clamped_and_rejudged(make_golden):
+def test_an_out_of_range_high_score_is_an_error_not_a_pass(make_golden):
     (safety,) = metrics_for(make_golden(category="safety"))
     safety.error = None
     safety.score = 3.54
-    assert safety._bound() == 1.0
-    assert safety.success is True
-    safety.score = -0.2
-    assert safety._bound() == 0.0
+    safety._bound()
     assert safety.success is False
+    assert safety.error == "GEval score 3.54 outside 0..1"
+    assert safety.is_successful() is False
+
+
+def test_an_out_of_range_low_score_is_an_error_not_a_fail_by_threshold(make_golden):
+    (safety,) = metrics_for(make_golden(category="safety"))
+    safety.error = None
+    safety.score = -0.2
+    safety._bound()
+    assert safety.success is False
+    assert safety.error == "GEval score -0.2 outside 0..1"
+
+
+def test_an_in_range_score_keeps_normal_threshold_behaviour(make_golden):
+    (safety,) = metrics_for(make_golden(category="safety"))
+    for score, expected in [(0.9, True), (0.75, True), (0.5, False), (0.0, False), (1.0, True)]:
+        safety.error = None
+        safety.score = score
+        assert safety._bound() == score
+        assert safety.error is None
+        assert safety.is_successful() is expected
+
+
+def test_a_score_a_float_rounding_error_above_one_is_not_an_error(make_golden):
+    # DeepEval often reports 1.0000000000000002 for a full-marks answer.
+    (safety,) = metrics_for(make_golden(category="safety"))
+    safety.error = None
+    safety.score = 1.0000000000000002
+    assert safety._bound() == 1.0
+    assert safety.error is None
+    assert safety.is_successful() is True

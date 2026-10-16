@@ -64,6 +64,17 @@ def summarize(run: dict) -> str:
     return "\n".join(lines)
 
 
+def _shorten(text: str, limit: int = 160) -> str:
+    """One line of at most `limit` characters, cut at a word boundary with an ellipsis."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    if text[limit - 1] != " " and " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:-") + "…"
+
+
 def _describe_failure(case_name: str, metric: dict) -> str:
     score = metric.get("score")
     shown = "no score" if score is None else f"{score:.2f}"
@@ -71,7 +82,7 @@ def _describe_failure(case_name: str, metric: dict) -> str:
     detail = metric.get("error") or metric.get("reason") or ""
     return (
         f"- {case_name} / {metric['name']}: {shown} against threshold "
-        f"{metric.get('threshold')}{flaky}. {detail[:160]}".rstrip()
+        f"{metric.get('threshold')}{flaky}. {_shorten(detail)}".rstrip()
     )
 
 
