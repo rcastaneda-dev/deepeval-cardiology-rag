@@ -10,7 +10,7 @@ A cardiology question-answering assistant built on US federal health documents, 
 
 - **Retrieval and generation are evaluated separately**, so a failing answer points at the right component.
 - **The judge is a different model family from the generator** (Claude answers, OpenAI judges), which avoids a model grading its own style.
-- **A quality gate with cost controls:** a 15-case smoke subset on every pull request, the full suite on demand and weekly, and paid jobs skipped when API keys are unavailable.
+- **A quality gate with cost controls:** a 15-case smoke subset on every pull request, the full suite on demand and weekly, and a gate that fails closed: `main` only takes pull requests whose checks are green, and a run without API keys is a failure, not a skip.
 - **Honest limits:** where the metrics disagree with a human reader is written up in [docs/findings.md](docs/findings.md).
 
 ## How it works
@@ -64,7 +64,7 @@ Pass rates describe agreement with the golden cases under the thresholds in [eva
 
 ## CI
 
-Pull requests are gated by the 15-case smoke subset: if any of those cases fails a non-flaky metric, the `DeepEval (smoke subset)` check fails and the pull request is red. The full 64-case run, started by hand or by the weekly schedule, is a report-only trend signal. Its job stays green and the failing metrics show up in the job summary and the `deepeval-results` artifact, because gpt-4o-mini misreads a different case on most full runs (see [docs/findings.md](docs/findings.md), sections 3 and 6). Tests and lint run on every push and pull request and always block. The badge above shows the last run of this workflow, so it is green whenever the tests pass and the job completes; it does not report full-suite metrics. The report-only full run also stays green if the run itself crashes, so read its job summary rather than the badge. A scheduled or manual run still fails, and turns the badge red, if the API keys are missing.
+Pull requests are gated by the 15-case smoke subset: if any of those cases fails a non-flaky metric, the `DeepEval (smoke subset)` check fails and the pull request is red. `main` is protected: `unit tests and lint` and `DeepEval (smoke subset)` are required checks (pinned to GitHub Actions), the branch must be up to date with `main`, changes arrive only through pull requests, force pushes are refused, and the rule applies to admins too, so a red check blocks the merge for everyone. The full 64-case run, started by hand or by the weekly schedule, is a report-only trend signal. Its job stays green and the failing metrics show up in the job summary and the `deepeval-results` artifact, because gpt-4o-mini misreads a different case on most full runs (see [docs/findings.md](docs/findings.md), sections 3 and 6). Tests and lint run on every push and pull request and always block. The badge above shows the last run of this workflow, so it is green whenever the tests pass and the job completes; it does not report full-suite metrics. The report-only full run also stays green if the run itself crashes, so read its job summary rather than the badge. Every run fails if the API keys are missing, including a pull request from a fork (GitHub does not share secrets with forks), so a run that scored nothing can never pass; to gate a fork's change, re-open it from a branch in this repository.
 
 ## Quickstart
 
