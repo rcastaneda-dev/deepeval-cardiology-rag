@@ -1,0 +1,300 @@
+import asyncio
+import json
+
+import pytest
+
+from evals.thresholds import FLAKY, METRIC_KEYS
+from scripts import judge_stability
+
+
+def snapshot_for(goldens):
+    return {
+        "version": 1,
+        "cases": [
+            {
+                "id": golden.id,
+                "question": golden.question,
+                "answer": f"Recorded answer to {golden.id}.",
+                "cited_ids": ["a#0"],
+                "chunks": [{"id": "a#0", "doc_id": "a", "text": "Passage.", "score": 0.9}],
+            }
+            for golden in goldens
+        ],
+    }
+
+
+class FakeMetric:
+    """Stands in for a DeepEval metric: no judge, no API call. The FakeJudge says what it scores."""
+
+    def __init__(self, judge, key):
+        self.judge, self.key = judge, key
+        self.score = None
+        self.error = None
+        self.evaluation_cost = None
+
+    async def a_measure(self, test_case, **kwargs):
+        judge = self.judge
+        judge.measured.append(self)
+        judge.test_cases.append((self.key, test_case))
+        judge.in_flight += 1
+        judge.peak = max(judge.peak, judge.in_flight)
+        await asyncio.sleep(0.005)
+        judge.in_flight -= 1
+        which = (test_case.actual_output, self.key)
+        nth = judge.calls.get(which, 0)
+        judge.calls[which] = nth + 1
+        scores = judge.plan.get(which, [1.0])
+        outcome = scores[nth % len(scores)]
+        if isinstance(outcome, Exception):
+            raise outcome
+        self.score = outcome
+        self.evaluation_cost = 0.01
+        return self.score
+
+    def is_successful(self):
+        return self.error is None and self.score >= 0.5
+
+
+class FakeJudge:
+    """Builds FakeMetrics like metric_specs_for. `plan` maps (answer, key) to the scores its
+    judgings take in turn; an exception in the list is raised from that judging."""
+
+    def __init__(self, plan=None):
+        self.plan = plan or {}
+        self.calls = {}
+        self.measured = []
+        self.test_cases = []
+        self.in_flight = 0
+        self.peak = 0
+
+    def specs_for(self, golden):
+        return [(key, FakeMetric(self, key)) for key in METRIC_KEYS[golden.category]]
+
+    def answers_judged(self, key):
+        return [tc.actual_output for k, tc in self.test_cases if k == key]
+
+
+def run(goldens, judge, **kwargs):
+    kwargs.setdefault("times", 3)
+    snapshot = snapshot_for(goldens)
+    return asyncio.run(judge_stability.run(snapshot, goldens, specs_for=judge.specs_for, **kwargs))
+
+
+def test_every_judging_uses_new_metric_objects(make_golden):
+    judge = FakeJudge()
+    run([make_golden()], judge, times=4, keys=["faithfulness", "hallucination"])
+    assert len(judge.measured) == 4 * 2
+    assert len({id(metric) for metric in judge.measured}) == 4 * 2
+
+
+def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, monkeypatch):
+    monkeypatch.setitem(FLAKY, "saf-001", frozenset({"safety"}))
+    judge = FakeJudge({("Recorded answer to in-001.", "faithfulness"): [1.0, 0.2, 1.0]})
+    safety = make_golden(id="saf-001", category="safety", question="Can I stop?", smoke=True)
+    results = run([make_golden(), safety], judge, keys=["faithfulness", "safety"])
+    assert results["rows"] == [
+        {
+            "case_id": "in-001",
+            "key": "faithfulness",
+            "strict": True,
+            "smoke": False,
+            "scores": [1.0, 0.2, 1.0],
+            "passed": [True, False, True],
+            "errors": [None, None, None],
+        },
+        {
+            "case_id": "saf-001",
+            "key": "safety",
+            "strict": False,
+            "smoke": True,
+            "scores": [1.0, 1.0, 1.0],
+            "passed": [True, True, True],
+            "errors": [None, None, None],
+        },
+    ]
+    assert results["known_bad"] == []
+    assert results["cost"] == pytest.approx(0.01 * 3 * 2)
+
+
+def test_without_a_key_filter_every_metric_of_the_category_is_judged(make_golden):
+    results = run([make_golden(category="bias", id="bia-001")], FakeJudge(), times=1)
+    assert [row["key"] for row in results["rows"]] == list(METRIC_KEYS["bias"])
+
+
+def test_a_failed_judge_call_is_a_failed_judging_and_the_others_still_run(make_golden):
+    scores = [1.0, RuntimeError("rate limited"), 1.0]
+    judge = FakeJudge({("Recorded answer to in-001.", "faithfulness"): scores})
+    (row,) = run([make_golden()], judge, keys=["faithfulness"])["rows"]
+    assert row["scores"] == [1.0, None, 1.0]
+    assert row["passed"] == [True, False, True]
+    assert row["errors"] == [None, "RuntimeError: rate limited", None]
+
+
+def test_a_metric_that_reports_its_own_error_is_a_failed_judging(make_golden):
+    class OutOfRange(FakeMetric):
+        async def a_measure(self, test_case, **kwargs):
+            await super().a_measure(test_case, **kwargs)
+            self.score, self.error = 4.27, "GEval score 4.27 outside 0..1"
+            return self.score
+
+    judge = FakeJudge()
+    judge.specs_for = lambda golden: [("faithfulness", OutOfRange(judge, "faithfulness"))]
+    (row,) = run([make_golden()], judge, times=1, keys=["faithfulness"])["rows"]
+    assert row["scores"] == [4.27]
+    assert row["passed"] == [False]
+    assert row["errors"] == ["GEval score 4.27 outside 0..1"]
+
+
+def test_at_most_eight_cases_are_judged_at_once(make_golden):
+    judge = FakeJudge()
+    goldens = [make_golden(id=f"in-{n:03d}", question=f"Question {n}?") for n in range(12)]
+    run(goldens, judge, times=2, keys=["faithfulness"])
+    assert judge.peak == 8
+
+
+def known_bad_entry(**overrides):
+    fields = {
+        "case_id": "in-001",
+        "kind": "invented dose",
+        "answer": "Take 500 mg daily.",
+        "must_fail": ["faithfulness"],
+    }
+    return {**fields, **overrides}
+
+
+def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_replaced(make_golden):
+    judge = FakeJudge({("Take 500 mg daily.", "faithfulness"): [0.2, 0.9, 0.2]})
+    golden = make_golden()
+    results = run([golden], judge, known_bad=[known_bad_entry(must_fail=["faithfulness"])])
+    # The recorded answer is judged on all five checks; the known-bad one on must_fail alone.
+    assert judge.answers_judged("faithfulness").count("Take 500 mg daily.") == 3
+    assert judge.answers_judged("hallucination") == ["Recorded answer to in-001."] * 3
+    (bad_case,) = {
+        (tc.input, tc.expected_output, tuple(tc.retrieval_context))
+        for _, tc in judge.test_cases
+        if tc.actual_output == "Take 500 mg daily."
+    }
+    assert bad_case == (golden.question, golden.expected_answer, ("Passage.",))
+    assert results["known_bad"] == [
+        {
+            "case_id": "in-001",
+            "kind": "invented dose",
+            "key": "faithfulness",
+            "scores": [0.2, 0.9, 0.2],
+            "passed": [False, True, False],
+            "errors": [None, None, None],
+        }
+    ]
+    assert [row["scores"] for row in results["rows"]][0] == [1.0, 1.0, 1.0]
+
+
+def test_the_key_filter_narrows_the_known_bad_keys_too(make_golden):
+    entry = known_bad_entry(must_fail=["faithfulness", "hallucination"])
+    results = run([make_golden()], FakeJudge(), keys=["hallucination"], known_bad=[entry])
+    assert [(r["case_id"], r["key"]) for r in results["known_bad"]] == [("in-001", "hallucination")]
+    other = known_bad_entry(must_fail=["faithfulness"])
+    assert (
+        run([make_golden()], FakeJudge(), keys=["hallucination"], known_bad=[other])["known_bad"]
+        == []
+    )
+
+
+# main ---------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def cli(tmp_path, monkeypatch, make_golden):
+    goldens = [
+        make_golden(),
+        make_golden(id="saf-001", category="safety", question="Can I stop my pills?", smoke=True),
+    ]
+    judge = FakeJudge()
+    monkeypatch.setattr(judge_stability, "load_goldens", lambda: goldens)
+    monkeypatch.setattr(judge_stability, "metric_specs_for", judge.specs_for)
+    monkeypatch.setenv("JUDGE_MODEL", "gpt-4o-mini")
+    snapshot_path = tmp_path / "answers.json"
+    snapshot_path.write_text(json.dumps(snapshot_for(goldens)), encoding="utf-8")
+    out = tmp_path / "results" / "stability.json"
+
+    def call(*args, times=1):
+        argv = ["--snapshot", str(snapshot_path), "--times", str(times), "--out", str(out)]
+        return judge_stability.main([*argv, *map(str, args)])
+
+    call.judge, call.snapshot_path, call.goldens, call.out = judge, snapshot_path, goldens, out
+    return call
+
+
+def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):
+    assert cli(times=2) == 0
+    results = json.loads(cli.out.read_text(encoding="utf-8"))
+    assert results["snapshot"] == str(cli.snapshot_path)
+    assert results["times"] == 2
+    assert results["judge"] == "gpt-4o-mini"
+    assert results["cost"] == pytest.approx(0.01 * 2 * 6)  # 5 in_corpus checks and 1 safety
+    assert len(results["rows"]) == 6
+    assert (results["rows"][-1]["case_id"], results["rows"][-1]["key"]) == ("saf-001", "safety")
+    printed = capsys.readouterr().out
+    assert "| in-001 | faithfulness |" in printed
+    assert str(cli.out) in printed
+
+
+def test_cases_and_keys_narrow_the_run(cli):
+    assert cli("--cases", "saf-001", "--keys", "safety,faithfulness") == 0
+    rows = json.loads(cli.out.read_text(encoding="utf-8"))["rows"]
+    assert [(r["case_id"], r["key"]) for r in rows] == [("saf-001", "safety")]
+
+
+def test_a_case_with_none_of_the_chosen_keys_is_not_judged(cli):
+    assert cli("--keys", "safety") == 0
+    assert {key for key, _ in cli.judge.test_cases} == {"safety"}
+    assert {tc.name for _, tc in cli.judge.test_cases} == {"saf-001"}
+
+
+def test_known_bad_entries_for_unselected_cases_are_left_out(cli, tmp_path):
+    entries = [
+        {"case_id": "saf-001", "kind": "a", "answer": "Stop.", "must_fail": ["safety"]},
+        {"case_id": "in-001", "kind": "b", "answer": "Wrong.", "must_fail": ["faithfulness"]},
+    ]
+    path = tmp_path / "known_bad.json"
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    assert cli("--cases", "saf-001", "--known-bad", path) == 0
+    known_bad = json.loads(cli.out.read_text(encoding="utf-8"))["known_bad"]
+    assert [(r["case_id"], r["kind"]) for r in known_bad] == [("saf-001", "a")]
+
+
+def test_the_script_refuses_a_snapshot_that_does_not_match_the_dataset(cli, capsys):
+    broken = snapshot_for(cli.goldens)
+    broken["cases"][0]["question"] = "An older question?"
+    cli.snapshot_path.write_text(json.dumps(broken), encoding="utf-8")
+    assert cli() != 0
+    assert not cli.out.exists()
+    assert not cli.judge.test_cases
+    assert "in-001: question changed since the snapshot" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["--cases", "zzz-001"], "zzz-001"),
+        (["--keys", "nonsense"], "nonsense"),
+    ],
+)
+def test_the_script_refuses_a_selection_it_cannot_run(cli, capsys, args, message):
+    assert cli(*args) != 0
+    assert not cli.out.exists()
+    assert not cli.judge.test_cases
+    assert message in capsys.readouterr().err
+
+
+def test_the_script_refuses_to_judge_nothing(cli, capsys):
+    assert cli(times=0) != 0
+    assert "--times" in capsys.readouterr().err
+
+
+def test_the_script_refuses_a_known_bad_file_with_problems_before_judging(cli, tmp_path, capsys):
+    path = tmp_path / "known_bad.json"
+    path.write_text(json.dumps([{"case_id": "zzz-001"}]), encoding="utf-8")
+    assert cli("--known-bad", path) != 0
+    assert not cli.out.exists()
+    assert not cli.judge.test_cases
+    assert "zzz-001" in capsys.readouterr().err

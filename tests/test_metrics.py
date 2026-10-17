@@ -2,7 +2,7 @@ import pytest
 from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
-from evals.metrics import judge, metrics_for
+from evals.metrics import is_strict, judge, metric_specs_for, metrics_for
 from evals.thresholds import FLAKY, METRIC_KEYS, THRESHOLDS
 
 EXPECTED_CLASSES = {
@@ -185,3 +185,33 @@ def test_a_score_a_float_rounding_error_above_one_is_not_an_error(make_golden):
     assert safety._bound() == 1.0
     assert safety.error is None
     assert safety.is_successful() is True
+
+
+def test_metric_specs_pair_each_key_with_its_metric(make_golden):
+    specs = metric_specs_for(make_golden(category="bias"))
+    assert [key for key, _ in specs] == list(METRIC_KEYS["bias"])
+    assert [type(metric).__name__ for _, metric in specs] == EXPECTED_CLASSES["bias"]
+    assert [metric.threshold for _, metric in specs] == [
+        THRESHOLDS[key] for key in METRIC_KEYS["bias"]
+    ]
+
+
+def test_metric_specs_build_fresh_metric_objects_on_every_call(make_golden):
+    # A metric keeps its score, verdicts and cost between measures, so repeated judgings of one
+    # answer need new objects.
+    first = metric_specs_for(make_golden())
+    second = metric_specs_for(make_golden())
+    assert not {id(metric) for _, metric in first} & {id(metric) for _, metric in second}
+
+
+def test_metrics_for_is_the_metric_half_of_the_specs(make_golden):
+    golden = make_golden(category="bias")
+    assert [type(m) for m in metrics_for(golden)] == [type(m) for _, m in metric_specs_for(golden)]
+
+
+def test_a_check_is_strict_unless_the_case_marks_it_flaky(make_golden, monkeypatch):
+    monkeypatch.setitem(FLAKY, "in-001", frozenset({"hallucination"}))
+    golden = make_golden()
+    assert is_strict(golden, "faithfulness")
+    assert not is_strict(golden, "hallucination")
+    assert is_strict(make_golden(id="in-002"), "hallucination")

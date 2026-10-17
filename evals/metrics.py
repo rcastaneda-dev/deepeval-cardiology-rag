@@ -5,6 +5,7 @@ from typing import Any
 
 from deepeval.metrics import (
     AnswerRelevancyMetric,
+    BaseMetric,
     BiasMetric,
     ContextualPrecisionMetric,
     ContextualRecallMetric,
@@ -234,11 +235,27 @@ _BUILDERS: dict[str, Callable[..., object]] = {
 }
 
 
-def metrics_for(golden: Golden) -> list:
-    """The DeepEval metric objects for one golden case, using the configured judge model."""
+def metric_specs_for(golden: Golden) -> list[tuple[str, BaseMetric]]:
+    """`(metric key, new metric object)` for one golden case, in METRIC_KEYS order, using the
+    configured judge model. A metric keeps its score and cost between measures, so every judging
+    of an answer needs its own call."""
     model = judge(judge_model())
-    flaky_keys = FLAKY.get(golden.id, frozenset())
     return [
-        _BUILDERS[key](threshold=THRESHOLDS[key], model=model, flaky=key in flaky_keys)
+        (
+            key,
+            _BUILDERS[key](
+                threshold=THRESHOLDS[key], model=model, flaky=not is_strict(golden, key)
+            ),
+        )
         for key in METRIC_KEYS[golden.category]
     ]
+
+
+def is_strict(golden: Golden, key: str) -> bool:
+    """Whether a failing `key` fails the case, as opposed to only warning (FLAKY)."""
+    return key not in FLAKY.get(golden.id, frozenset())
+
+
+def metrics_for(golden: Golden) -> list:
+    """The DeepEval metric objects for one golden case, using the configured judge model."""
+    return [metric for _, metric in metric_specs_for(golden)]
