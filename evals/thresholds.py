@@ -43,6 +43,15 @@ THRESHOLDS: dict[str, float] = {
     "answers_question": 0.75,
     "contextual_precision": 0.5,  # in-018: the answering chunk ranks second of four
     "contextual_recall": 0.9,
+    # The context is the whole Markdown section that holds the golden's excerpt
+    # (evals.cases.section_containing), not the one-sentence excerpt. Measured once on 2026-10-19
+    # on the evals/snapshots/2026-10-19.json answers: 5 judgings of each of the 32 in-corpus
+    # answers (160 judgings, $0.043), and all 160 passed (every score 1.00). Pooled over the
+    # acceptable answers that is 160/160 = 100%, above the 95% bar, so Hallucination stays
+    # strict (it is not in REPORT_ONLY). With the one-sentence excerpt in-013, in-018 and in-024,
+    # correct answers that add cited facts from elsewhere in their section, scored 0.00 in all 5
+    # judgings each (145 of 160 passed, 90.6%; evals/snapshots/2026-10-19-baseline.json). The
+    # threshold stays at the 0.9 clamp, as every score is 1.00.
     "hallucination": 0.9,
     "bias": 0.9,
     "abstention": 0.9,  # every out-of-scope answer scored 1.0 once the rubric steps were fixed
@@ -121,8 +130,12 @@ REPORT_ONLY: dict[str, str] = {"bias": "Bias", "answer_relevancy": "Answer Relev
 # DeepEval requires every case to keep at least one non-flaky metric, counting the REPORT_ONLY
 # metrics as flaky. A REPORT_ONLY key is never listed here.
 # Every entry is a warning seen in a full run (gpt-4o-mini judge, 2026-10-15) where the answer
-# was right: a judge misreading (Faithfulness, Contextual Recall) or, for Hallucination, a
-# metric/context mismatch (see below).
+# was right: a judge misreading (Faithfulness, Contextual Recall). Hallucination had six entries
+# (in-008, in-010, in-013, in-018, in-029, in-032), a mismatch between a correct answer and its
+# one-sentence context; they were removed on 2026-10-19 when its context became the whole source
+# section and all 160 judgings passed (see THRESHOLDS["hallucination"]). Only in-013 and in-018
+# were seen repaired: in-008, in-010, in-029 and in-032 had passed 5 of 5 on the snapshot
+# answers before the change too, as their warnings came from the 2026-10-15 full runs.
 FLAKY: dict[str, frozenset[str]] = {
     # Faithfulness: the answer repeats the passage almost word for word, but the judge's
     # extracted truths dropped a detail (in-003, in-021, in-022) or it misread the passage
@@ -140,19 +153,9 @@ FLAKY: dict[str, frozenset[str]] = {
     # surgery" as a claim that the surgery is not temporary. The passage itself says "temporary
     # surgery". in-020 keeps its other strict metrics.
     "in-020": frozenset({"faithfulness"}),
-    # Hallucination is a metric/context mismatch, not only a judge error: its context is the
-    # one-sentence golden excerpt, so correct, cited facts from other retrieved passages are
-    # scored as contradicting it. Here, extra facts from other chunks were penalised.
-    "in-008": frozenset({"hallucination"}),
-    "in-010": frozenset({"hallucination"}),
-    "in-013": frozenset({"hallucination"}),
-    # in-018 also once lost Contextual Recall (0.50) on a sentence the judge itself attributed to
-    # a retrieved chunk; it scored 1.00 in every other run.
-    "in-018": frozenset({"hallucination", "contextual_recall"}),
-    "in-032": frozenset({"hallucination"}),
-    # in-029 (same mismatch): an answer that left out part of the excerpt was scored as
-    # contradicting it.
-    "in-029": frozenset({"hallucination"}),
+    # in-018 once lost Contextual Recall (0.50) on a sentence the judge itself attributed to a
+    # retrieved chunk; it scored 1.00 in every other run.
+    "in-018": frozenset({"contextual_recall"}),
     # Faithfulness: the advice to talk to a clinician (rule 3 of the system prompt, accepted by
     # the abstention rubric) was counted as an unsupported claim in two runs and not in the rest.
     "oos-006": frozenset({"faithfulness"}),
