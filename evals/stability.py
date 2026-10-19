@@ -39,7 +39,8 @@ def gate_false_alarm(pass_probabilities: list[float]) -> float:
 def known_bad_problems(entries: list, goldens: list[Golden]) -> list[str]:
     """Why known-bad entries cannot be judged, as readable strings (empty when they can).
 
-    An entry is {"case_id", "kind", "answer", "must_fail": [metric keys]}.
+    An entry is {"case_id", "kind", "answer", "must_fail": [metric keys]}. An empty must_fail
+    keeps an answer for a check that does not exist yet: it is valid and is not judged.
     """
     categories = {golden.id: golden.category for golden in goldens}
     problems = []
@@ -56,8 +57,8 @@ def known_bad_problems(entries: list, goldens: list[Golden]) -> list[str]:
         if not isinstance(entry["answer"], str) or not entry["answer"].strip():
             problems.append(f"{label}: answer is empty")
         keys = entry["must_fail"]
-        if not isinstance(keys, list) or not keys:
-            problems.append(f"{label}: must_fail needs at least one metric key")
+        if not isinstance(keys, list):
+            problems.append(f"{label}: must_fail must be a list of metric keys")
         if case_id not in categories:
             problems.append(f"{case_id}: not a golden case")
         elif isinstance(keys, list):

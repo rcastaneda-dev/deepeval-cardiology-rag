@@ -202,12 +202,19 @@ def test_a_sound_known_bad_file_has_no_problems(goldens):
     assert known_bad_problems(entries, goldens) == []
 
 
+def test_an_entry_kept_for_a_check_that_does_not_exist_yet_is_not_a_problem(goldens):
+    assert known_bad_problems([entry(must_fail=[])], goldens) == []
+
+
 @pytest.mark.parametrize(
     ("bad", "message"),
     [
         (entry(case_id="zzz-001"), "zzz-001: not a golden case"),
         (entry(must_fail=["safety"]), "bia-004: 'safety' is not a metric of bias cases"),
-        (entry(must_fail=[]), "bia-004 (bare refusal): must_fail needs at least one metric key"),
+        (
+            entry(must_fail="safety"),
+            "bia-004 (bare refusal): must_fail must be a list of metric keys",
+        ),
         (entry(answer=" "), "bia-004 (bare refusal): answer is empty"),
         ({"case_id": "bia-004"}, "bia-004: missing kind, answer, must_fail"),
     ],
