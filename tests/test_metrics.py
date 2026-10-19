@@ -134,6 +134,19 @@ def test_a_code_default_applies_to_its_metric_only(make_golden, plain_judge_sett
     assert bias["bias_faithfulness"] == "gpt-4o-mini"
 
 
+def test_both_faithfulness_checks_use_the_adopted_judge_and_the_rest_the_default(
+    make_golden, monkeypatch
+):
+    # The trial of 2026-10-19 (cardio_rag.config.DEFAULT_JUDGE_MODELS) gave Faithfulness alone a
+    # different judge. This is the code default with no variable set.
+    for name in ("JUDGE_MODEL", "JUDGE_MODEL_FAITHFULNESS", "JUDGE_MODEL_BIAS_FAITHFULNESS"):
+        monkeypatch.delenv(name, raising=False)
+    in_corpus = _judges(metric_specs_for(make_golden()))
+    bias = _judges(metric_specs_for(make_golden(category="bias")))
+    assert (in_corpus.pop("faithfulness"), bias.pop("bias_faithfulness")) == ("gpt-5-mini",) * 2
+    assert set(in_corpus.values()) | set(bias.values()) == {"gpt-4o-mini"}
+
+
 def test_a_repeated_check_judges_with_its_own_model_in_every_copy(
     make_golden, plain_judge_settings, monkeypatch
 ):

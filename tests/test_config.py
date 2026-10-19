@@ -98,3 +98,13 @@ def test_every_code_default_names_a_metric_key():
     from evals.thresholds import THRESHOLDS
 
     assert set(DEFAULT_JUDGE_MODELS) <= set(THRESHOLDS)
+
+
+def test_every_code_default_judge_is_a_model_deepeval_prices():
+    # DeepEval reports a judge's cost only for a model it has prices for, and the cost is how a
+    # paid run is held to its budget.
+    from deepeval.models.llms.constants import OPENAI_MODELS_DATA
+
+    for model in DEFAULT_JUDGE_MODELS.values():
+        assert model in OPENAI_MODELS_DATA, model
+        assert OPENAI_MODELS_DATA[model].input_price > 0, model
