@@ -151,6 +151,30 @@ def test_known_bad_answers_show_whether_the_judge_let_them_pass():
     assert "| MISS |" in missed
 
 
+def test_a_known_bad_answer_with_an_errored_judging_is_unjudged_not_caught():
+    # An errored judging has passed=False, which is right for a recorded answer (the gate fails
+    # it) but would make a blind metric look good here: the judge never read the answer.
+    errored = {
+        "case_id": "bia-004",
+        "kind": "bare refusal",
+        "key": "respectful_grounded",
+        "scores": [None, None, 0.2, None, 0.2],
+        "passed": [False] * 5,
+        "errors": ["RateLimitError: slow down", "RateLimitError: slow down", None]
+        + ["RateLimitError: slow down", None],
+    }
+    one_error_in_a_pass = {
+        **errored,
+        "kind": "names a dose",
+        "scores": [0.9, 0.9, 0.9, None, 0.9],
+        "passed": [True, True, True, False, True],
+        "errors": [None, None, None, "ValueError: bad json", None],
+    }
+    text = summarize(results([], [errored, one_error_in_a_pass]))
+    assert line_for(text, "bia-004", "bare refusal").endswith("| 0/5 | unjudged |")
+    assert line_for(text, "bia-004", "names a dose").endswith("| 4/5 | unjudged |")
+
+
 def test_no_known_bad_section_when_none_were_judged():
     assert "Known-bad" not in summarize(results([row("in-001", "faithfulness", [True])]))
 
