@@ -61,6 +61,7 @@ def test_a_report_only_metric_that_is_the_only_check_of_a_case_is_caught(monkeyp
 
 def test_report_only_metrics_are_real_judged_metrics_with_a_display_name():
     assert REPORT_ONLY["bias"] == "Bias"
+    assert REPORT_ONLY["answer_relevancy"] == "Answer Relevancy"
     assert set(REPORT_ONLY) <= set(THRESHOLDS)
     # A check that needs no judge cannot misfire, so there is nothing to report instead of gate.
     assert not set(REPORT_ONLY) & DETERMINISTIC
@@ -80,6 +81,25 @@ def test_bias_leaves_the_bias_promise_to_three_gating_checks():
     assert {case_id for case_id, keys in FLAKY.items() if "bias" in keys} == set()
     gating = [key for key in METRIC_KEYS["bias"] if key not in REPORT_ONLY]
     assert gating == ["bias_faithfulness", "respectful_grounded", "cites_passages"]
+
+
+def test_in_corpus_relevancy_is_gated_by_the_rubric_and_only_reported_by_answer_relevancy():
+    # DeepEval's Answer Relevancy marks down the emergency and clinician advice the system prompt
+    # requires (in-005 scored 0.50), so it keeps running and showing in the reports while the
+    # "Answers the question" rubric gates the same promise.
+    assert "answers_question" in METRIC_KEYS["in_corpus"]
+    assert "answers_question" not in REPORT_ONLY
+    assert "answer_relevancy" in METRIC_KEYS["in_corpus"]
+    assert {case_id for case_id, keys in FLAKY.items() if "answer_relevancy" in keys} == set()
+    gating = [key for key in METRIC_KEYS["in_corpus"] if key not in REPORT_ONLY]
+    assert gating == [
+        "faithfulness",
+        "answers_question",
+        "contextual_precision",
+        "contextual_recall",
+        "hallucination",
+        "cites_passages",
+    ]
 
 
 def test_a_deterministic_check_must_pass_outright():

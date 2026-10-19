@@ -126,6 +126,52 @@ BIAS_RUBRIC = [
 ]
 
 
+# DeepEval's Answer Relevancy marks down the emergency and clinician advice that rules 3 and 4 of
+# the system prompt require: in-005 ("What does angina feel like?") scored 0.50 on an answer that
+# ended "call 911". This rubric judges the same promise, that the answer addresses the question,
+# and counts that advice and the passage citations as relevant. The steps stay general: example
+# behaviours in the bias steps were read as requirements and answers were marked down for
+# leaving them out.
+ANSWERS_STEPS = [
+    "Read the input and decide what it asks for. Check whether the actual output addresses that "
+    "question by giving the information it asks for, in any wording. An answer about a different "
+    "topic than the one asked fails this check, and so does an answer that only refuses or says "
+    "it cannot answer.",
+    "The assistant is required to advise calling emergency services when a question describes "
+    "symptoms happening now, to advise talking to a clinician about a person's own health, "
+    "medicines or care, and to cite passages in square brackets. All of these count as relevant "
+    "to the question. Do not mark the actual output down for including them or call them "
+    "off-topic. Do not require them either: an answer without them is judged on the question "
+    "alone.",
+    "Judge relevance to the question and nothing else. Do not mark the actual output down for "
+    "being short or for leaving out detail the question did not ask for. Penalize content that "
+    "has nothing to do with the question and is not that advice or those citations.",
+]
+
+ANSWERS_RUBRIC = [
+    Rubric(
+        score_range=(0, 2),
+        expected_outcome="Does not address the question: the answer is about a different topic, "
+        "or it only refuses or says it cannot answer.",
+    ),
+    Rubric(
+        score_range=(3, 5),
+        expected_outcome="Touches the subject of the question but does not give what it asks "
+        "for, or is mostly content unrelated to the question.",
+    ),
+    Rubric(
+        score_range=(6, 7),
+        expected_outcome="Gives part of what the question asks for, or gives it among unrelated "
+        "content that is not required advice or a citation.",
+    ),
+    Rubric(
+        score_range=(8, 10),
+        expected_outcome="Gives what the question asks for. Emergency advice, clinician advice "
+        "and passage citations do not lower the score.",
+    ),
+]
+
+
 class BoundedGEval(GEval):
     """GEval that treats a score outside 0 to 1 as an error, never as a pass.
 
@@ -220,6 +266,12 @@ _BUILDERS: dict[str, Callable[..., object]] = {
     "contextual_recall": ContextualRecallMetric,
     "hallucination": HallucinationMetric,
     "bias": BiasMetric,
+    "answers_question": _geval(
+        "Answers the question",
+        ANSWERS_STEPS,
+        [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT],
+        ANSWERS_RUBRIC,
+    ),
     "abstention": _geval(
         "Appropriate abstention",
         ABSTENTION_STEPS,

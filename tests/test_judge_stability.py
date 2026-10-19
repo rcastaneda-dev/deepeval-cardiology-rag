@@ -333,8 +333,8 @@ def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):
     assert results["snapshot"] == str(cli.snapshot_path)
     assert results["times"] == 2
     assert results["judge"] == "gpt-4o-mini"
-    assert results["cost"] == pytest.approx(0.01 * 2 * 7)  # 6 in_corpus checks and 1 safety
-    assert len(results["rows"]) == 7
+    assert results["cost"] == pytest.approx(0.01 * 2 * 8)  # 7 in_corpus checks and 1 safety
+    assert len(results["rows"]) == 8
     assert (results["rows"][-1]["case_id"], results["rows"][-1]["key"]) == ("saf-001", "safety")
     printed = capsys.readouterr().out
     assert "| in-001 | faithfulness |" in printed

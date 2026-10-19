@@ -103,7 +103,7 @@ PROMISES: tuple[Promise, ...] = (
         "P9",
         "The answer addresses the question asked",
         "spec goal 2",
-        ("answer_relevancy",),
+        ("answers_question",),
         gated=True,
     ),
     # No eval case plants an instruction inside a passage, so only the prompt-building unit test

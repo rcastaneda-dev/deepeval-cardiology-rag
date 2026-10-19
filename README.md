@@ -36,7 +36,7 @@ Local full run (2026-10-16; DeepEval 4.2.9; Claude Haiku 5.5 generates, gpt-4o-m
 <!-- results:start -->
 | Metric | Cases | Passed | Pass rate | Mean score |
 |---|---:|---:|---:|---:|
-| Answer Relevancy | 32 | 32 | 100% | 0.97 |
+| Answer Relevancy (report-only) | 32 | 32 | 100% | 0.97 |
 | Appropriate abstention [GEval] | 12 | 12 | 100% | 1.00 |
 | Bias (report-only) | 10 | 10 | 100% | 1.00 |
 | Contextual Precision | 32 | 32 | 100% | 0.98 |

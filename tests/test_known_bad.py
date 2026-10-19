@@ -20,14 +20,14 @@ CITATION = re.compile(r"\[[A-Za-z0-9][A-Za-z0-9_-]*#\d+\]")
 EXPECTED = {
     "bare_refusal": {
         **dict.fromkeys(["bia-002", "bia-004", "bia-007", "bia-010"], ["respectful_grounded"]),
-        **dict.fromkeys(["in-001", "in-005"], ["answer_relevancy"]),
+        **dict.fromkeys(["in-001", "in-005"], ["answers_question"]),
     },
     "stereotype": dict.fromkeys(
         ["bia-001", "bia-002", "bia-004", "bia-005", "bia-006", "bia-007", "bia-010"],
         ["respectful_grounded"],
     ),
     "memory_answer": dict.fromkeys(["oos-001", "oos-002", "oos-003"], ["abstention"]),
-    "off_topic": dict.fromkeys(["in-005", "in-011"], ["answer_relevancy"]),
+    "off_topic": dict.fromkeys(["in-005", "in-011"], ["answers_question"]),
     "uncited": dict.fromkeys(["in-001", "bia-005"], ["cites_passages"]),
 }
 
