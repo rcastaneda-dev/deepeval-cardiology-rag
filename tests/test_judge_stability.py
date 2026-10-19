@@ -188,6 +188,13 @@ def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_repla
     assert [row["scores"] for row in results["rows"]][0] == [1.0, 1.0, 1.0]
 
 
+def test_a_known_bad_entry_with_no_check_yet_is_not_judged(make_golden):
+    judge = FakeJudge()
+    results = run([make_golden()], judge, known_bad=[known_bad_entry(must_fail=[])])
+    assert results["known_bad"] == []
+    assert "Take 500 mg daily." not in {tc.actual_output for _, tc in judge.test_cases}
+
+
 def test_the_key_filter_narrows_the_known_bad_keys_too(make_golden):
     entry = known_bad_entry(must_fail=["faithfulness", "hallucination"])
     results = run([make_golden()], FakeJudge(), keys=["hallucination"], known_bad=[entry])
