@@ -3,7 +3,7 @@ from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
 from evals.metrics import is_strict, judge, metric_specs_for, metrics_for
-from evals.thresholds import FLAKY, METRIC_KEYS, THRESHOLDS
+from evals.thresholds import DETERMINISTIC, FLAKY, METRIC_KEYS, THRESHOLDS, keys_for
 
 EXPECTED_CLASSES = {
     "in_corpus": [
@@ -12,10 +12,12 @@ EXPECTED_CLASSES = {
         "ContextualPrecisionMetric",
         "ContextualRecallMetric",
         "HallucinationMetric",
+        "CitesRetrievedPassages",
     ],
-    "out_of_scope": ["FaithfulnessMetric", "BoundedGEval"],
+    "out_of_scope": ["FaithfulnessMetric", "BoundedGEval", "ExactRefusal"],
+    # EmergencyFirst joins it only on emergency cases (see below).
     "safety": ["BoundedGEval"],
-    "bias": ["BiasMetric", "FaithfulnessMetric", "BoundedGEval"],
+    "bias": ["BiasMetric", "FaithfulnessMetric", "BoundedGEval", "CitesRetrievedPassages"],
 }
 
 
@@ -31,17 +33,16 @@ def test_every_category_is_covered_by_this_test():
 
 @pytest.mark.parametrize("category", sorted(EXPECTED_CLASSES))
 def test_each_category_gets_its_metrics_with_the_configured_thresholds(make_golden, category):
-    metrics = metrics_for(make_golden(category=category))
+    golden = make_golden(category=category)
+    metrics = metrics_for(golden)
     assert [type(metric).__name__ for metric in metrics] == EXPECTED_CLASSES[category]
-    assert [metric.threshold for metric in metrics] == [
-        THRESHOLDS[key] for key in METRIC_KEYS[category]
-    ]
+    assert [metric.threshold for metric in metrics] == [THRESHOLDS[key] for key in keys_for(golden)]
 
 
 def test_a_flaky_override_reaches_only_the_named_metric(make_golden, monkeypatch):
     monkeypatch.setitem(FLAKY, "in-001", frozenset({"contextual_recall"}))
     metrics = metrics_for(make_golden())
-    assert [metric.flaky for metric in metrics] == [False, False, False, True, False]
+    assert [metric.flaky for metric in metrics] == [False, False, False, True, False, False]
 
 
 def test_default_judge_is_the_openai_model_name(monkeypatch):
@@ -75,9 +76,10 @@ def test_an_unpriced_claude_model_still_builds(monkeypatch):
 def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkeypatch, category):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
     monkeypatch.setenv("JUDGE_MODEL", "claude-haiku-5-5")
-    metrics = metrics_for(make_golden(category=category))
-    assert metrics
-    assert [type(metric.model).__name__ for metric in metrics] == ["AnthropicModel"] * len(metrics)
+    specs = metric_specs_for(make_golden(category=category))
+    judged = [metric for key, metric in specs if key not in DETERMINISTIC]
+    assert judged
+    assert [type(metric.model).__name__ for metric in judged] == ["AnthropicModel"] * len(judged)
 
 
 @pytest.mark.parametrize("category", ["out_of_scope", "safety", "bias"])
@@ -136,7 +138,7 @@ def test_the_bias_rubric_has_its_own_threshold(make_golden):
 def test_a_flaky_override_reaches_only_the_bias_rubric_it_names(make_golden, monkeypatch):
     monkeypatch.setitem(FLAKY, "bia-001", frozenset({"respectful_grounded"}))
     metrics = metrics_for(make_golden(id="bia-001", category="bias"))
-    assert [metric.flaky for metric in metrics] == [False, False, True]
+    assert [metric.flaky for metric in metrics] == [False, False, True, False]
 
 
 def test_an_out_of_range_bias_rubric_score_is_an_error_not_a_pass(make_golden):
@@ -215,3 +217,24 @@ def test_a_check_is_strict_unless_the_case_marks_it_flaky(make_golden, monkeypat
     assert is_strict(golden, "faithfulness")
     assert not is_strict(golden, "hallucination")
     assert is_strict(make_golden(id="in-002"), "hallucination")
+
+
+def test_emergency_first_runs_only_on_emergency_cases(make_golden):
+    plain = metric_specs_for(make_golden(id="saf-003", category="safety"))
+    assert [key for key, _ in plain] == ["safety"]
+    urgent = metric_specs_for(make_golden(id="saf-001", category="safety", emergency=True))
+    assert [key for key, _ in urgent] == ["safety", "emergency_first"]
+    assert [type(metric).__name__ for _, metric in urgent] == ["BoundedGEval", "EmergencyFirst"]
+
+
+def test_deterministic_checks_are_built_at_their_own_threshold_without_a_judge(make_golden):
+    golden = make_golden(id="saf-001", category="safety", emergency=True)
+    (check,) = [metric for key, metric in metric_specs_for(golden) if key == "emergency_first"]
+    assert check.threshold == THRESHOLDS["emergency_first"] == 1.0
+    assert check.model is None
+
+
+def test_a_flaky_override_reaches_a_deterministic_check_like_any_other(make_golden, monkeypatch):
+    monkeypatch.setitem(FLAKY, "saf-001", frozenset({"emergency_first"}))
+    golden = make_golden(id="saf-001", category="safety", emergency=True)
+    assert [metric.flaky for metric in metrics_for(golden)] == [False, True]

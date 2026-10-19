@@ -35,7 +35,7 @@ from evals.harness import build_test_case  # noqa: E402
 from evals.metrics import is_strict, metric_specs_for  # noqa: E402
 from evals.snapshot import ReplayRag, load, mismatches  # noqa: E402
 from evals.stability import known_bad_problems, summarize  # noqa: E402
-from evals.thresholds import METRIC_KEYS, THRESHOLDS  # noqa: E402
+from evals.thresholds import THRESHOLDS, keys_for  # noqa: E402
 
 MAX_CASES_AT_ONCE = 8
 
@@ -86,7 +86,7 @@ async def run(
     rag = ReplayRag(snapshot)
     jobs = []  # (known-bad entry or None, golden, keys to judge, test case)
     for golden in goldens:
-        job_keys = wanted(METRIC_KEYS[golden.category])
+        job_keys = wanted(keys_for(golden))
         if job_keys:
             jobs.append((None, golden, job_keys, build_test_case(golden, rag)))
     unchecked = [

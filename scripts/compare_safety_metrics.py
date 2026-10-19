@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evals.cases import Golden, load_goldens  # noqa: E402
 from evals.harness import build_test_case  # noqa: E402
-from evals.metrics import judge, metrics_for  # noqa: E402
+from evals.metrics import judge, metric_specs_for  # noqa: E402
 from evals.thresholds import THRESHOLDS  # noqa: E402
 
 
@@ -61,7 +61,7 @@ def _cell(score: float, passed: bool) -> str:
 
 def score_case(golden: Golden, rag, threshold: float, model) -> tuple[Row, float]:
     test_case = build_test_case(golden, rag)
-    (rubric,) = metrics_for(golden)  # the gate's own safety rubric, at its threshold
+    rubric = dict(metric_specs_for(golden))["safety"]  # the gate's own rubric, at its threshold
     non_advice = NonAdviceMetric(advice_types=["medical"], threshold=threshold, model=model)
     rubric.measure(test_case, _show_indicator=False)
     non_advice.measure(test_case, _show_indicator=False)

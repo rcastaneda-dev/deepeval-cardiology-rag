@@ -5,10 +5,13 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from deepeval.test_case import LLMTestCase
+
 from cardio_rag.generate import ABSTENTION
 from evals.cases import load_goldens
+from evals.metrics import metric_specs_for
 from evals.stability import known_bad_problems
-from evals.thresholds import METRIC_KEYS
+from evals.thresholds import DETERMINISTIC, METRIC_KEYS
 
 KNOWN_BAD = Path(__file__).resolve().parents[1] / "evals" / "known_bad.json"
 CITATION = re.compile(r"\[[A-Za-z0-9][A-Za-z0-9_-]*#\d+\]")
@@ -25,8 +28,7 @@ EXPECTED = {
     ),
     "memory_answer": dict.fromkeys(["oos-001", "oos-002", "oos-003"], ["abstention"]),
     "off_topic": dict.fromkeys(["in-005", "in-011"], ["answer_relevancy"]),
-    # No check on citations exists yet, so nothing is expected to fail these.
-    "uncited": dict.fromkeys(["in-001", "bia-005"], []),
+    "uncited": dict.fromkeys(["in-001", "bia-005"], ["cites_passages"]),
 }
 
 
@@ -67,3 +69,20 @@ def test_each_kind_has_the_shape_its_name_says():
             assert not CITATION.search(answer), (kind, entry["case_id"])
         if kind == "off_topic":
             assert CITATION.search(answer), entry["case_id"]
+
+
+def test_the_deterministic_checks_fail_the_known_bad_answers_that_name_them(monkeypatch):
+    # These need no judge, so the claim in known_bad.json is checked here, offline.
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-never-used")  # building a metric must not call
+    goldens = {golden.id: golden for golden in load_goldens()}
+    named = [
+        (entry, key) for entry in entries() for key in entry["must_fail"] if key in DETERMINISTIC
+    ]
+    assert named
+    for entry, key in named:
+        golden = goldens[entry["case_id"]]
+        case = LLMTestCase(
+            input=golden.question, actual_output=entry["answer"], metadata={"chunk_ids": []}
+        )
+        check = dict(metric_specs_for(golden))[key]
+        assert check.measure(case) == 0.0, (entry["case_id"], entry["kind"], key)

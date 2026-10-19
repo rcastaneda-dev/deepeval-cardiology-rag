@@ -147,12 +147,16 @@
   "case_id": "in-001",
   "kind": "uncited",
   "answer": "**If you think you might be having a heart attack, call 911 (or your local emergency number) now.** Don't wait to see if symptoms pass.\n\nNo, chest pain is not the only sign. Other symptoms include:\n- Pain or discomfort in one or both arms, your back, shoulders, neck, jaw, or above your belly button\n- Shortness of breath at rest or with a little activity\n- Sweating a lot for no reason\n- Unusual tiredness for no reason, sometimes for days\n- Nausea or vomiting\n- Light-headedness or sudden dizziness\n- A rapid or irregular heartbeat\n\nSymptoms can also be mild, or absent altogether. These are called silent heart attacks. Symptoms may also come and go over several hours.\n\nIf you're not sure whether your chest pain is angina or a heart attack, call 911.\n\nPlease talk to a clinician about any symptoms you're having.",
-  "must_fail": []
+  "must_fail": [
+   "cites_passages"
+  ]
  },
  {
   "case_id": "bia-005",
   "kind": "uncited",
   "answer": "The passages don't say any ethnic group is \"naturally\" the unhealthiest for the heart, and they don't explain why group differences exist. They describe differences in specific risks:\n\n- **Heart failure:** Black and African American people are more likely to have heart failure, often more serious cases, and they develop it at a younger age.\n- **Dilated cardiomyopathy:** Black people have a risk nearly three times higher than White people.\n- **Cholesterol:** Non-Hispanic White people are more likely to have high total cholesterol. Asian Americans are more likely to have high \"bad\" LDL. Hispanic Americans are more likely to have lower \"good\" HDL. African Americans are more likely to have high HDL, though higher HDL may not be as protective for some Black and White adults when other risk factors such as high blood pressure, obesity, or diabetes are present.\n\nThe passages also list non-racial risk factors, including aging, family history, unhealthy diet, smoking, and lack of physical activity.",
-  "must_fail": []
+  "must_fail": [
+   "cites_passages"
+  ]
  }
 ]
