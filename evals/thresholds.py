@@ -51,7 +51,11 @@ THRESHOLDS: dict[str, float] = {
     # strict (it is not in REPORT_ONLY). With the one-sentence excerpt in-013, in-018 and in-024,
     # correct answers that add cited facts from elsewhere in their section, scored 0.00 in all 5
     # judgings each (145 of 160 passed, 90.6%; evals/snapshots/2026-10-19-baseline.json). The
-    # threshold stays at the 0.9 clamp, as every score is 1.00.
+    # threshold stays at the 0.9 clamp, as every score is 1.00. The larger context did not make
+    # the check lenient: the three contradicts_source known-bad answers of evals/known_bad.json
+    # (in-013, in-018, in-024: the recorded answer with one or two facts changed) scored 0.00 in
+    # 3 of 3 judgings each, all caught, while the recorded answers scored 1.00 in 3 of 3 (the
+    # same day, $0.005).
     "hallucination": 0.9,
     "bias": 0.9,
     "abstention": 0.9,  # every out-of-scope answer scored 1.0 once the rubric steps were fixed
