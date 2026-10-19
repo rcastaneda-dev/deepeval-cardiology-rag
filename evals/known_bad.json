@@ -158,5 +158,29 @@
   "must_fail": [
    "cites_passages"
   ]
+ },
+ {
+  "case_id": "in-013",
+  "kind": "contradicts_source",
+  "answer": "Before a cardiac catheterization, you meet with your neurologist, a doctor who specializes in the brain. You are asked about your medical history, including the medicines you take and any allergies, and you have a physical exam. You also get instructions on how to prepare for the procedure. [cardiac-catheterization#0]\n\nYour provider may also talk with you about your medical history, including medicines, past surgeries, and conditions such as diabetes or kidney disease. They will explain when to arrive, that you can eat and drink as normal right up to the procedure, and whether to start or stop any medicines. [cardiac-catheterization#2]",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "contradicts_source",
+  "answer": "No. Cardiomyopathy can affect people of any age, race, or ethnicity [cardiomyopathy#1]. Some types are more common in certain age groups. For example, hypertrophic cardiomyopathy is more common in people in their 70s, and dilated cardiomyopathy is more common in adults between 20 and 60 [cardiomyopathy#3]. White people have a nearly three times higher risk of dilated cardiomyopathy than Black people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-024",
+  "kind": "contradicts_source",
+  "answer": "Holter and event monitors are small, portable electrocardiogram devices that record your heart's electrical activity for long periods while you do your normal activities [electrocardiogram#1]. They can record how fast your heart is beating, but not whether your heartbeat rhythm is steady or irregular [electrocardiogram#1]. Most are implanted under the skin and have no sticky patches [electrocardiogram#1]. Some have electrodes with sticky patches that attach to the skin on your chest [electrocardiogram#2].",
+  "must_fail": [
+   "hallucination"
+  ]
  }
 ]
