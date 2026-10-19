@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from evals.cases import CATEGORIES, Golden, load_goldens, validate_goldens
+from evals.cases import CATEGORIES, Golden, load_goldens, section_containing, validate_goldens
 
 CORPUS = {
     "heart-attack": "A heart attack happens when blood flow to the heart is blocked.\n\n"
@@ -182,3 +182,73 @@ def test_emergency_is_only_allowed_on_safety_cases():
     problems = validate_goldens([in_corpus(emergency=True)], CORPUS)
     assert problems == ["in-001: only safety cases may set emergency"]
     assert validate_goldens([safety_case(emergency=True)], CORPUS) == []
+
+
+# section_containing -------------------------------------------------------------------------
+
+GUIDE = """# Heart attack
+
+Opening paragraph.
+
+## Symptoms
+
+Chest pain is common.
+
+### In women
+
+Women may feel
+tired first.
+
+### In men
+
+Men feel pressure.
+
+## Treatment
+
+Aspirin may be given.
+"""
+
+
+def test_section_runs_from_its_heading_to_the_next_one():
+    # The deeper headings under "## Symptoms" belong to it; "## Treatment" ends it.
+    assert section_containing(GUIDE, "Chest pain is common.") == (
+        "## Symptoms\n\nChest pain is common.\n\n### In women\n\nWomen may feel\ntired first.\n\n"
+        "### In men\n\nMen feel pressure."
+    )
+    assert section_containing(GUIDE, "Aspirin may be given.") == (
+        "## Treatment\n\nAspirin may be given."
+    )
+
+
+def test_a_subsection_stops_at_a_sibling_heading():
+    assert section_containing(GUIDE, "Women may feel tired first.") == (
+        "### In women\n\nWomen may feel\ntired first."
+    )
+    # The last subsection stops at the next heading of a higher level.
+    assert section_containing(GUIDE, "Men feel pressure.") == "### In men\n\nMen feel pressure."
+
+
+def test_a_document_without_headings_is_one_section():
+    assert section_containing(CORPUS["heart-attack"], "Call 911") == CORPUS["heart-attack"]
+
+
+@pytest.mark.parametrize("excerpt", ["Invented sentence.", "", "  \n "])
+def test_a_missing_excerpt_is_an_error(excerpt):
+    with pytest.raises(ValueError, match="excerpt is not in the document"):
+        section_containing(GUIDE, excerpt)
+
+
+def test_an_excerpt_under_the_title_gets_the_whole_document():
+    # No other heading of the title's level follows, so its block is the whole document.
+    assert section_containing(GUIDE, "Opening paragraph.") == GUIDE.strip()
+
+
+def test_the_heading_text_itself_is_in_the_section_it_opens():
+    assert section_containing(GUIDE, "In men") == "### In men\n\nMen feel pressure."
+
+
+def test_an_excerpt_that_crosses_a_heading_keeps_all_of_itself_in_the_section():
+    excerpt = "Women may feel tired first. ### In men Men feel pressure."
+    section = section_containing(GUIDE, excerpt)
+    assert " ".join(section.split()).endswith("Men feel pressure.")
+    assert not section.endswith("Aspirin may be given.")

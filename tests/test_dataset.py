@@ -2,7 +2,7 @@
 
 from cardio_rag.config import CORPUS_DIR
 from cardio_rag.index import load_corpus
-from evals.cases import CATEGORIES, load_goldens, validate_goldens
+from evals.cases import CATEGORIES, _normalize, load_goldens, section_containing, validate_goldens
 from evals.thresholds import FLAKY, REPORT_ONLY, keys_for
 
 MINIMUM_CASES = {"in_corpus": 30, "out_of_scope": 10, "safety": 10, "bias": 10}
@@ -10,6 +10,14 @@ MINIMUM_CASES = {"in_corpus": 30, "out_of_scope": 10, "safety": 10, "bias": 10}
 
 def test_the_dataset_is_internally_consistent_and_matches_the_corpus():
     assert validate_goldens(load_goldens(), load_corpus(CORPUS_DIR)) == []
+
+
+def test_every_excerpt_has_a_section_in_its_source_document():
+    # Hallucination's context is this section, so a live run must never raise while finding it.
+    corpus = load_corpus(CORPUS_DIR)
+    for golden in load_goldens("in_corpus"):
+        section = section_containing(corpus[golden.source_doc], golden.source_excerpt)
+        assert _normalize(golden.source_excerpt) in _normalize(section), golden.id
 
 
 def test_each_category_has_enough_cases():

@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from cardio_rag.config import Settings
+from cardio_rag.config import CORPUS_DIR, Settings
+from cardio_rag.index import load_corpus
 from cardio_rag.wiring import build_pipeline
 from evals import snapshot
 from evals.cases import load_goldens
@@ -43,3 +44,9 @@ def rag():
     if path:
         return replay_pipeline(path)
     return build_pipeline(Settings.from_env(), rebuild=True)
+
+
+@pytest.fixture(scope="session")
+def corpus():
+    """The corpus on disk, so Hallucination's context is the whole section around each excerpt."""
+    return load_corpus(CORPUS_DIR)

@@ -84,6 +84,34 @@ def run(goldens, judge, **kwargs):
     return asyncio.run(judge_stability.run(snapshot, goldens, specs_for=judge.specs_for, **kwargs))
 
 
+SOURCE = "# Heart attack\n\n## Symptoms\n\nBlood flow is blocked. Pain.\n\n## Treatment\n\nAspirin."
+SECTION = "## Symptoms\n\nBlood flow is blocked. Pain."
+
+
+def test_without_a_corpus_the_context_is_the_excerpt(make_golden):
+    judge = FakeJudge()
+    run([make_golden()], judge, times=1, keys=["hallucination"])
+    assert [tc.context for _, tc in judge.test_cases] == [["Blood flow is blocked."]]
+
+
+def test_with_a_corpus_the_recorded_and_known_bad_answers_get_the_whole_section(make_golden):
+    judge = FakeJudge()
+    entry = known_bad_entry(must_fail=["hallucination"])
+    run(
+        [make_golden()],
+        judge,
+        times=1,
+        keys=["hallucination"],
+        known_bad=[entry],
+        corpus={"heart-attack": SOURCE},
+    )
+    assert {tc.actual_output for _, tc in judge.test_cases} == {
+        "Recorded answer to in-001.",
+        "Take 500 mg daily.",
+    }
+    assert [tc.context for _, tc in judge.test_cases] == [[SECTION]] * 2
+
+
 def test_every_judging_uses_new_metric_objects(make_golden):
     judge = FakeJudge()
     run([make_golden()], judge, times=4, keys=["faithfulness", "hallucination"])
@@ -290,6 +318,7 @@ def cli(tmp_path, monkeypatch, make_golden):
     ]
     judge = FakeJudge()
     monkeypatch.setattr(judge_stability, "load_goldens", lambda: goldens)
+    monkeypatch.setattr(judge_stability, "load_corpus", lambda corpus_dir: {"heart-attack": SOURCE})
     monkeypatch.setattr(judge_stability, "metric_specs_for", judge.specs_for)
     monkeypatch.setenv("JUDGE_MODEL", "gpt-4o-mini")
     snapshot_path = tmp_path / "answers.json"
@@ -325,6 +354,11 @@ def test_the_metrics_the_script_builds_are_plain_even_when_the_gate_repeats(
         "BoundedGEval",
         "CitesRetrievedPassages",
     ]
+
+
+def test_the_script_judges_hallucination_against_the_whole_section_of_the_corpus(cli):
+    assert cli("--keys", "hallucination") == 0
+    assert [tc.context for _, tc in cli.judge.test_cases] == [[SECTION]]
 
 
 def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):

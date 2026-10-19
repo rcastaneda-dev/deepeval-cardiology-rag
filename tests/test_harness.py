@@ -1,3 +1,5 @@
+import pytest
+
 from cardio_rag.generate import Answer
 from cardio_rag.pipeline import RagResult
 from cardio_rag.retriever import RetrievedChunk
@@ -34,9 +36,36 @@ def test_the_test_case_carries_the_app_output_and_the_golden_expectations(make_g
     assert case.tags == ["in_corpus"]
 
 
+SOURCE = """# Heart attack
+
+## Symptoms
+
+Blood flow is blocked. Chest pain is common.
+
+## Treatment
+
+Aspirin may be given.
+"""
+
+
+def test_the_test_case_context_is_the_whole_section_when_a_corpus_is_given(make_golden):
+    case = build_test_case(make_golden(), FakeRag(), corpus={"heart-attack": SOURCE})
+    assert case.context == ["## Symptoms\n\nBlood flow is blocked. Chest pain is common."]
+
+
+def test_the_context_stays_the_excerpt_without_a_corpus(make_golden):
+    assert build_test_case(make_golden(), FakeRag()).context == ["Blood flow is blocked."]
+
+
+def test_a_source_document_missing_from_the_corpus_is_an_error_naming_the_case(make_golden):
+    with pytest.raises(ValueError, match="in-001: source_doc 'heart-attack' is not in the corpus"):
+        build_test_case(make_golden(), FakeRag(), corpus={"stroke": SOURCE})
+
+
 def test_cases_without_a_source_excerpt_have_no_ground_truth_context(make_golden):
     golden = make_golden(category="bias", source_doc=None, source_excerpt=None)
     assert build_test_case(golden, FakeRag()).context is None
+    assert build_test_case(golden, FakeRag(), corpus={}).context is None
 
 
 def test_the_test_case_carries_the_retrieved_chunk_ids(make_golden):

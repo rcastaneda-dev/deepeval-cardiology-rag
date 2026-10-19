@@ -8,7 +8,8 @@ every check K times with new metric objects each time, and writes the scores and
 --out as JSON, then prints them as Markdown with the estimated false-alarm rate of the
 pull-request gate. Each check is measured K times on every case (a DeepEval metric makes
 several judge calls per measure), so a run is paid; at most 8 cases are judged at once. It is
-not part of the quality gate.
+not part of the quality gate. As in the gate, the context Hallucination compares an answer with
+is the whole section of the corpus document that holds the golden's excerpt.
 
 Each of the K judgings is one plain metric, whatever JUDGE_REPEATS says: the gate takes the
 median of three judgings of a check, and this script measures how often a single judging flips.
@@ -30,8 +31,9 @@ from pathlib import Path
 # Run as a file (`python scripts/judge_stability.py`), so make the repo root importable.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from cardio_rag.config import judge_model  # noqa: E402
+from cardio_rag.config import CORPUS_DIR, judge_model  # noqa: E402
 from cardio_rag.generate import extract_citations  # noqa: E402
+from cardio_rag.index import load_corpus  # noqa: E402
 from cardio_rag.retriever import RetrievedChunk  # noqa: E402
 from evals.cases import Golden, load_goldens  # noqa: E402
 from evals.harness import build_test_case  # noqa: E402
@@ -77,14 +79,22 @@ async def _judge(golden, test_case, keys, times, specs_for, gate) -> tuple[dict,
 
 
 async def run(
-    snapshot: dict, goldens: list[Golden], *, times: int, specs_for, keys=None, known_bad=()
+    snapshot: dict,
+    goldens: list[Golden],
+    *,
+    times: int,
+    specs_for,
+    keys=None,
+    known_bad=(),
+    corpus=None,
 ) -> dict:
     """Judge every golden's recorded answer, and every known-bad entry, `times` times.
 
     `keys` limits the checks (None means all of a case's own); `known_bad` entries must name
-    cases in `goldens`. Returns the rows, known_bad, unchecked and cost of the results file;
-    unchecked lists the known-bad entries with an empty must_fail (no check for them yet), which
-    are not judged.
+    cases in `goldens`. With `corpus`, a case's ground-truth context is the whole section of its
+    source document that holds the excerpt (build_test_case), as in the gate. Returns the rows,
+    known_bad, unchecked and cost of the results file; unchecked lists the known-bad entries with
+    an empty must_fail (no check for them yet), which are not judged.
     """
     gate = asyncio.Semaphore(MAX_CASES_AT_ONCE)
     by_id = {golden.id: golden for golden in goldens}
@@ -98,7 +108,7 @@ async def run(
     for golden in goldens:
         job_keys = wanted(keys_for(golden))
         if job_keys:
-            jobs.append((None, golden, job_keys, build_test_case(golden, rag)))
+            jobs.append((None, golden, job_keys, build_test_case(golden, rag, corpus)))
     unchecked = [
         {"case_id": entry["case_id"], "kind": entry["kind"]}
         for entry in known_bad
@@ -115,7 +125,7 @@ async def run(
             replaced = ReplayRag(
                 {"cases": [{**case, "answer": entry["answer"], "cited_ids": cited_ids}]}
             )
-            jobs.append((entry, golden, job_keys, build_test_case(golden, replaced)))
+            jobs.append((entry, golden, job_keys, build_test_case(golden, replaced, corpus)))
 
     outcomes = await asyncio.gather(
         *(
@@ -172,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         return _refuse(f"--keys names no metric: {', '.join(unknown_keys)}")
 
     try:
+        corpus = load_corpus(CORPUS_DIR)
         snapshot = load(args.snapshot)
         known_bad = json.loads(args.known_bad.read_text(encoding="utf-8")) if args.known_bad else []
     except (OSError, ValueError) as error:
@@ -197,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             specs_for=single_judging_specs,
             keys=args.keys,
             known_bad=[entry for entry in known_bad if entry["case_id"] in chosen],
+            corpus=corpus,
         )
     )
     results = {
