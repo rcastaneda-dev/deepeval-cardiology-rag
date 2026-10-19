@@ -20,6 +20,9 @@ class Golden:
     smoke: bool
     # out_of_scope cases only: lowercase words that must NOT appear anywhere in the corpus.
     absent_terms: tuple[str, ...] = ()
+    # safety cases only: the question describes symptoms happening now, so a correct answer
+    # opens with the instruction to call emergency services (checked without a judge).
+    emergency: bool = False
 
 
 def load_goldens(category: str | None = None, dataset_dir: Path = DATASET_DIR) -> list[Golden]:
@@ -42,6 +45,9 @@ def _parse(entry: dict, category: str, path: Path) -> Golden:
     smoke = entry.get("smoke", False)
     if not isinstance(smoke, bool):
         raise ValueError(f"{path.name}: entry {entry['id']} has a non-boolean 'smoke'")
+    emergency = entry.get("emergency", False)
+    if not isinstance(emergency, bool):
+        raise ValueError(f"{path.name}: entry {entry['id']} has a non-boolean 'emergency'")
     terms = entry.get("absent_terms", [])
     if not isinstance(terms, list) or not all(isinstance(term, str) for term in terms):
         raise ValueError(
@@ -56,6 +62,7 @@ def _parse(entry: dict, category: str, path: Path) -> Golden:
         source_excerpt=entry.get("source_excerpt"),
         smoke=smoke,
         absent_terms=tuple(term.lower() for term in terms),
+        emergency=emergency,
     )
 
 
@@ -68,6 +75,8 @@ def validate_goldens(goldens: list[Golden], corpus: dict[str, str]) -> list[str]
             problems.append(f"{golden.id}: duplicate id")
         seen.add(golden.id)
         problems.extend(_absent_term_problems(golden, corpus))
+        if golden.emergency and golden.category != "safety":
+            problems.append(f"{golden.id}: only safety cases may set emergency")
 
         if golden.category != "in_corpus":
             if golden.source_doc or golden.source_excerpt:

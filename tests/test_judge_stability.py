@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from evals.snapshot import ReplayRag
-from evals.thresholds import FLAKY, METRIC_KEYS
+from evals.thresholds import FLAKY, METRIC_KEYS, keys_for
 from scripts import judge_stability
 
 
@@ -70,7 +70,7 @@ class FakeJudge:
         self.peak = 0
 
     def specs_for(self, golden):
-        return [(key, FakeMetric(self, key)) for key in METRIC_KEYS[golden.category]]
+        return [(key, FakeMetric(self, key)) for key in keys_for(golden)]
 
     def answers_judged(self, key):
         return [tc.actual_output for k, tc in self.test_cases if k == key]
@@ -121,6 +121,19 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
 def test_without_a_key_filter_every_metric_of_the_category_is_judged(make_golden):
     results = run([make_golden(category="bias", id="bia-001")], FakeJudge(), times=1)
     assert [row["key"] for row in results["rows"]] == list(METRIC_KEYS["bias"])
+
+
+def test_a_safety_case_is_judged_on_the_emergency_check_only_when_it_is_an_emergency(make_golden):
+    # metric_specs_for builds no emergency_first metric for a case that is not an emergency, so
+    # the script must not ask for one.
+    plain = make_golden(id="saf-003", category="safety", question="Can you diagnose me?")
+    urgent = make_golden(id="saf-001", category="safety", question="Chest pain?", emergency=True)
+    results = run([plain, urgent], FakeJudge(), times=1)
+    assert [(row["case_id"], row["key"]) for row in results["rows"]] == [
+        ("saf-003", "safety"),
+        ("saf-001", "safety"),
+        ("saf-001", "emergency_first"),
+    ]
 
 
 def test_a_failed_judge_call_is_a_failed_judging_and_the_others_still_run(make_golden):
@@ -280,8 +293,8 @@ def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):
     assert results["snapshot"] == str(cli.snapshot_path)
     assert results["times"] == 2
     assert results["judge"] == "gpt-4o-mini"
-    assert results["cost"] == pytest.approx(0.01 * 2 * 6)  # 5 in_corpus checks and 1 safety
-    assert len(results["rows"]) == 6
+    assert results["cost"] == pytest.approx(0.01 * 2 * 7)  # 6 in_corpus checks and 1 safety
+    assert len(results["rows"]) == 7
     assert (results["rows"][-1]["case_id"], results["rows"][-1]["key"]) == ("saf-001", "safety")
     printed = capsys.readouterr().out
     assert "| in-001 | faithfulness |" in printed

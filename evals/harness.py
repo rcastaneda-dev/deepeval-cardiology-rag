@@ -16,4 +16,6 @@ def build_test_case(golden: Golden, rag: RagPipeline) -> LLMTestCase:
         retrieval_context=[chunk.text for chunk in result.chunks],
         context=[golden.source_excerpt] if golden.source_excerpt else None,
         tags=[golden.category],
+        # The ids the app was given, so a check can tell a real citation from an invented one.
+        metadata={"chunk_ids": [chunk.id for chunk in result.chunks]},
     )

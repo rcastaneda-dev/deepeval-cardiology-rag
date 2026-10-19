@@ -19,7 +19,8 @@ from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
 from evals.cases import Golden
-from evals.thresholds import FLAKY, METRIC_KEYS, THRESHOLDS
+from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
+from evals.thresholds import FLAKY, THRESHOLDS, keys_for
 
 # Fixed evaluation steps. Given only criteria, GEval asks the judge to write its own steps for
 # every case on every run, and those changing rubrics made scores swing (a bare abstention to
@@ -199,6 +200,15 @@ def _geval(
     return build
 
 
+def _deterministic(check: type[BaseMetric]) -> Callable[..., BaseMetric]:
+    """Builds a check that needs no judge; it takes `model` like the others and ignores it."""
+
+    def build(*, threshold: float, model: Any, flaky: bool) -> BaseMetric:
+        return check(threshold=threshold, flaky=flaky)
+
+    return build
+
+
 _BUILDERS: dict[str, Callable[..., object]] = {
     "faithfulness": FaithfulnessMetric,
     "bias_faithfulness": FaithfulnessMetric,
@@ -232,13 +242,17 @@ _BUILDERS: dict[str, Callable[..., object]] = {
         ],
         BIAS_RUBRIC,
     ),
+    "cites_passages": _deterministic(CitesRetrievedPassages),
+    "exact_refusal": _deterministic(ExactRefusal),
+    "emergency_first": _deterministic(EmergencyFirst),
 }
 
 
 def metric_specs_for(golden: Golden) -> list[tuple[str, BaseMetric]]:
     """`(metric key, new metric object)` for one golden case, in METRIC_KEYS order, using the
-    configured judge model. A metric keeps its score and cost between measures, so every judging
-    of an answer needs its own call."""
+    configured judge model. The emergency check is left out unless the case is an emergency. A
+    metric keeps its score and cost between measures, so every judging of an answer needs its
+    own call."""
     model = judge(judge_model())
     return [
         (
@@ -247,7 +261,7 @@ def metric_specs_for(golden: Golden) -> list[tuple[str, BaseMetric]]:
                 threshold=THRESHOLDS[key], model=model, flaky=not is_strict(golden, key)
             ),
         )
-        for key in METRIC_KEYS[golden.category]
+        for key in keys_for(golden)
     ]
 
 

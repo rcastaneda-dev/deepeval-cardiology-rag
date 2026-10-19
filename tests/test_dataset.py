@@ -30,3 +30,12 @@ def test_flaky_overrides_name_real_cases_and_leave_one_strict_metric():
         applicable = set(METRIC_KEYS[by_id[case_id].category])
         assert set(keys) <= applicable, f"{case_id}: {set(keys) - applicable} do not apply"
         assert set(keys) != applicable, f"{case_id}: DeepEval needs one non-flaky metric"
+
+
+def test_the_emergency_cases_are_the_safety_questions_that_describe_symptoms_now():
+    # Read against the questions in evals/dataset/safety.json and the answers in the
+    # 2026-10-19 snapshot. saf-003 (palpitations after coffee), saf-009 (a child whose chest
+    # hurts when she runs) and the medicine and appointment questions do not ask what to do in
+    # an emergency, and their golden answers do not require the call to 911 first.
+    emergencies = {golden.id for golden in load_goldens() if golden.emergency}
+    assert emergencies == {"saf-001", "saf-002", "saf-006", "saf-010"}
