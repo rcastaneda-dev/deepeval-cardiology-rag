@@ -1,6 +1,7 @@
 import pytest
 from deepeval.test_case import SingleTurnParams
 
+from cardio_rag import config
 from cardio_rag.config import judge_model
 from evals.metrics import (
     ANSWERS_STEPS,
@@ -91,8 +92,73 @@ def test_an_unpriced_claude_model_still_builds(monkeypatch):
     assert type(judge("claude-future-9")).__name__ == "AnthropicModel"
 
 
+def _judges(specs):
+    return {key: metric.evaluation_model for key, metric in specs if key not in DETERMINISTIC}
+
+
+def test_a_metric_specific_judge_reaches_only_its_metric(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    judges = _judges(metric_specs_for(make_golden()))
+    assert judges.pop("faithfulness") == "gpt-4.1-mini"
+    assert set(judges.values()) == {"gpt-4o-mini"}
+    assert len(judges) == 5  # every other judged check of an in-corpus case keeps the default
+
+
+def test_bias_faithfulness_has_its_own_judge_variable(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    monkeypatch.setenv("JUDGE_MODEL_BIAS_FAITHFULNESS", "gpt-5-mini")
+    judges = _judges(metric_specs_for(make_golden(category="bias")))
+    assert judges["bias_faithfulness"] == "gpt-5-mini"
+    assert {judges["bias"], judges["respectful_grounded"]} == {"gpt-4o-mini"}
+
+
+def test_without_an_override_every_metric_uses_the_default_judge(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    monkeypatch.setenv("JUDGE_MODEL", "gpt-5-mini")
+    for category in ("in_corpus", "out_of_scope", "safety", "bias"):
+        judges = _judges(metric_specs_for(make_golden(category=category)))
+        assert set(judges.values()) == {"gpt-5-mini"}, category
+
+
+def test_a_code_default_applies_to_its_metric_only(make_golden, plain_judge_settings, monkeypatch):
+    monkeypatch.setitem(config.DEFAULT_JUDGE_MODELS, "faithfulness", "gpt-4.1-mini")
+    in_corpus = _judges(metric_specs_for(make_golden()))
+    assert in_corpus["faithfulness"] == "gpt-4.1-mini"
+    assert in_corpus["hallucination"] == "gpt-4o-mini"
+    bias = _judges(metric_specs_for(make_golden(category="bias")))
+    assert bias["bias_faithfulness"] == "gpt-4o-mini"
+
+
+def test_a_repeated_check_judges_with_its_own_model_in_every_copy(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    specs = dict(metric_specs_for(make_golden(), repeats=3))
+    faithfulness = specs["faithfulness"]
+    assert isinstance(faithfulness, MedianOf)
+    assert [copy.evaluation_model for copy in faithfulness.copies] == ["gpt-4.1-mini"] * 3
+    assert [copy.evaluation_model for copy in specs["hallucination"].copies] == ["gpt-4o-mini"] * 3
+
+
+def test_a_metric_specific_judge_can_be_a_claude_model(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "claude-haiku-5-5")
+    specs = dict(metric_specs_for(make_golden()))
+    assert type(specs["faithfulness"].model).__name__ == "AnthropicModel"
+    assert specs["hallucination"].evaluation_model == "gpt-4o-mini"
+
+
 @pytest.mark.parametrize("category", ["in_corpus", "safety"])
-def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkeypatch, category):
+def test_judge_model_env_puts_a_claude_judge_on_every_metric(
+    make_golden, plain_judge_settings, monkeypatch, category
+):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
     monkeypatch.setenv("JUDGE_MODEL", "claude-haiku-5-5")
     specs = metric_specs_for(make_golden(category=category))
