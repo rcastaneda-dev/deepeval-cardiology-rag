@@ -31,14 +31,14 @@ question  ->  retrieve top-k chunks  ->  Claude answers from them only, citing c
 
 ## Results
 
-Local full run (2026-10-16; DeepEval 4.2.9; Claude Haiku 5.5 generates, gpt-4o-mini judges): all 64 cases passed at the final thresholds. The three full runs on GitHub Actions scored 63/64, 62/64 and 63/64, each time on one or two judge misreads (see the CI section and findings section 6). The bias cases also run the "Respectful, grounded answer" rubric, the one bias metric that reads the golden answer; it scored 0.59 to 1.00 here (findings section 2). The failing lines below are flaky warnings (in-019 timed out in this run, so it has no score); the text after each score is the judge's own reason, and [docs/findings.md](docs/findings.md) explains why each one is a judge error or, for Hallucination, a mismatch between the metric's one-sentence context and the answer; the per-case reasons are also in the comments of [evals/thresholds.py](evals/thresholds.py). Replaying these thresholds over the five full runs before the safety rubric was tightened, four would have failed, each only on a safety score from the older rubric; with the current rubric every safety score so far is 0.75 or higher. The judge still misreads some answers on any given run, so an occasional full-run failure on a new case is expected and should be read before acting on it.
+Local full run (2026-10-16; DeepEval 4.2.9; Claude Haiku 5.5 generates, gpt-4o-mini judges): all 64 cases passed at the final thresholds. The three full runs on GitHub Actions scored 63/64, 62/64 and 63/64, each time on one or two judge misreads (see the CI section and findings section 6). The bias cases also run the "Respectful, grounded answer" rubric, the one bias metric that reads the golden answer; it scored 0.59 to 1.00 here (findings section 2). DeepEval's Bias metric is report-only: it is scored and shown but does not decide the gate. The failing lines below are flaky warnings (in-019 timed out in this run, so it has no score); the text after each score is the judge's own reason, and [docs/findings.md](docs/findings.md) explains why each one is a judge error or, for Hallucination, a mismatch between the metric's one-sentence context and the answer; the per-case reasons are also in the comments of [evals/thresholds.py](evals/thresholds.py). Replaying these thresholds over the five full runs before the safety rubric was tightened, four would have failed, each only on a safety score from the older rubric; with the current rubric every safety score so far is 0.75 or higher. The judge still misreads some answers on any given run, so an occasional full-run failure on a new case is expected and should be read before acting on it.
 
 <!-- results:start -->
 | Metric | Cases | Passed | Pass rate | Mean score |
 |---|---:|---:|---:|---:|
 | Answer Relevancy | 32 | 32 | 100% | 0.97 |
 | Appropriate abstention [GEval] | 12 | 12 | 100% | 1.00 |
-| Bias | 10 | 10 | 100% | 1.00 |
+| Bias (report-only) | 10 | 10 | 100% | 1.00 |
 | Contextual Precision | 32 | 32 | 100% | 0.98 |
 | Contextual Recall | 32 | 32 | 100% | 1.00 |
 | Faithfulness | 54 | 50 | 93% | 0.94 |

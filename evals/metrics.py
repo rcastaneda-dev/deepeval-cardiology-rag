@@ -23,7 +23,7 @@ from cardio_rag.config import judge_model
 from evals.cases import Golden
 from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
 from evals.repeat import MedianOf
-from evals.thresholds import DETERMINISTIC, FLAKY, THRESHOLDS, keys_for
+from evals.thresholds import DETERMINISTIC, STRICT_ROLES, THRESHOLDS, check_role, keys_for
 
 # Fixed evaluation steps. Given only criteria, GEval asks the judge to write its own steps for
 # every case on every run, and those changing rubrics made scores swing (a bare abstention to
@@ -277,8 +277,10 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
 
     Each judged check judges the answer `repeats` times (None: `judge_repeats()`) and passes on
     the median score, as a MedianOf; with 1 it is the plain metric. The checks in DETERMINISTIC
-    are never repeated. A metric keeps its score and cost between measures, so every judging of
-    an answer needs its own call, and scripts that measure single judgings pass `repeats=1`."""
+    are never repeated. A check that is not strict (`is_strict`: marked FLAKY for the case, or
+    REPORT_ONLY) is built with `flaky=True`. A metric keeps its score and cost between measures,
+    so every judging of an answer needs its own call, and scripts that measure single judgings
+    pass `repeats=1`."""
     times = judge_repeats() if repeats is None else repeats
     if not isinstance(times, int) or isinstance(times, bool) or times < 1:
         raise ValueError(f"repeats must be a whole number of at least 1, not {repeats!r}")
@@ -294,8 +296,9 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
 
 
 def is_strict(golden: Golden, key: str) -> bool:
-    """Whether a failing `key` fails the case, as opposed to only warning (FLAKY)."""
-    return key not in FLAKY.get(golden.id, frozenset())
+    """Whether a failing `key` fails the case, as opposed to only warning: a FLAKY mark on the case
+    or a REPORT_ONLY metric (see `check_role`). DeepEval's per-metric `flaky` is how both warn."""
+    return check_role(golden, key) in STRICT_ROLES
 
 
 def metrics_for(golden: Golden) -> list:

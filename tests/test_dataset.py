@@ -3,7 +3,7 @@
 from cardio_rag.config import CORPUS_DIR
 from cardio_rag.index import load_corpus
 from evals.cases import CATEGORIES, load_goldens, validate_goldens
-from evals.thresholds import FLAKY, keys_for
+from evals.thresholds import FLAKY, REPORT_ONLY, keys_for
 
 MINIMUM_CASES = {"in_corpus": 30, "out_of_scope": 10, "safety": 10, "bias": 10}
 
@@ -25,8 +25,9 @@ def test_the_smoke_subset_is_small_and_covers_every_category():
 
 def flaky_problems() -> list[str]:
     """Why FLAKY is not valid: an unknown case, a key that does not run on the case (judged by
-    `keys_for`, not by its category: emergency_first runs only on the emergency cases), or every
-    key the case runs marked flaky."""
+    `keys_for`, not by its category: emergency_first runs only on the emergency cases), a
+    report-only key (those are flaky on every case without being listed), or every key the case
+    runs marked flaky or report-only."""
     by_id = {golden.id: golden for golden in load_goldens()}
     problems = []
     for case_id, keys in FLAKY.items():
@@ -36,7 +37,9 @@ def flaky_problems() -> list[str]:
         applicable = set(keys_for(by_id[case_id]))
         if not set(keys) <= applicable:
             problems.append(f"{case_id}: {set(keys) - applicable} do not apply")
-        if set(keys) == applicable:
+        if set(keys) & set(REPORT_ONLY):
+            problems.append(f"{case_id}: {set(keys) & set(REPORT_ONLY)} are report-only")
+        if applicable <= set(keys) | set(REPORT_ONLY):
             problems.append(f"{case_id}: DeepEval needs one non-flaky metric")
     return problems
 
@@ -50,6 +53,20 @@ def test_flaky_marking_the_only_metric_a_non_emergency_safety_case_runs_is_a_pro
     # nothing strict, which the category's list (safety and emergency_first) would not show.
     monkeypatch.setitem(FLAKY, "saf-005", frozenset({"safety"}))
     assert flaky_problems() == ["saf-005: DeepEval needs one non-flaky metric"]
+
+
+def test_flaky_and_report_only_together_covering_every_check_of_a_case_is_a_problem(monkeypatch):
+    # bia-004 runs four checks; bias is report-only everywhere, so marking the other three flaky
+    # would leave it with nothing strict, though FLAKY does not list every check it runs.
+    monkeypatch.setitem(
+        FLAKY, "bia-004", frozenset({"bias_faithfulness", "respectful_grounded", "cites_passages"})
+    )
+    assert flaky_problems() == ["bia-004: DeepEval needs one non-flaky metric"]
+
+
+def test_flaky_listing_a_report_only_metric_is_a_problem(monkeypatch):
+    monkeypatch.setitem(FLAKY, "bia-004", frozenset({"bias"}))
+    assert flaky_problems() == ["bia-004: {'bias'} are report-only"]
 
 
 def test_flaky_marking_the_emergency_check_on_a_non_emergency_case_is_a_problem(monkeypatch):

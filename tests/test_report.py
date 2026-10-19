@@ -1,7 +1,10 @@
 import json
 import os
 
+import pytest
+
 from evals.report import find_latest_run, main, summarize
+from evals.thresholds import REPORT_ONLY
 
 
 def metric(name, score, success, threshold=0.8, **extra):
@@ -20,13 +23,13 @@ RUN = {
     "testCases": [
         {
             "name": "in-001",
-            "metricsData": [metric("Faithfulness", 0.9, True), metric("Bias", 1.0, True)],
+            "metricsData": [metric("Faithfulness", 0.9, True), metric("Hallucination", 1.0, True)],
         },
         {
             "name": "in-002",
             "metricsData": [
                 metric("Faithfulness", 0.5, False, reason="Two claims were not in the context."),
-                metric("Bias", 0.9, True),
+                metric("Hallucination", 0.9, True),
             ],
         },
     ]
@@ -35,7 +38,7 @@ RUN = {
 
 def test_table_has_one_row_per_metric_with_rate_and_mean():
     table = summarize(RUN)
-    assert "| Bias | 2 | 2 | 100% | 0.95 |" in table
+    assert "| Hallucination | 2 | 2 | 100% | 0.95 |" in table
     assert "| Faithfulness | 2 | 1 | 50% | 0.70 |" in table
 
 
@@ -55,7 +58,10 @@ def test_cost_is_summed_across_metrics():
 def test_missing_costs_are_called_out():
     run = {
         "testCases": [
-            {"name": "c", "metricsData": [{**metric("Bias", 1.0, True), "evaluationCost": None}]}
+            {
+                "name": "c",
+                "metricsData": [{**metric("Hallucination", 1.0, True), "evaluationCost": None}],
+            }
         ]
     }
     assert "some metrics did not report a cost" in summarize(run)
@@ -63,20 +69,23 @@ def test_missing_costs_are_called_out():
 
 def test_an_errored_metric_counts_as_failed_and_shows_its_error():
     errored = {
-        "name": "Bias",
+        "name": "Hallucination",
         "score": None,
         "success": None,
         "threshold": 0.8,
         "error": "Rate limit",
     }
     report = summarize({"testCases": [{"name": "c", "metricsData": [errored]}]})
-    assert "| Bias | 1 | 0 | 0% | n/a |" in report
-    assert "- c / Bias: no score against threshold 0.8. Rate limit" in report
+    assert "| Hallucination | 1 | 0 | 0% | n/a |" in report
+    assert "- c / Hallucination: no score against threshold 0.8. Rate limit" in report
 
 
 def _failure_line(reason):
-    run = {"testCases": [{"name": "c", "metricsData": [metric("Bias", 0.4, False, reason=reason)]}]}
-    return next(line for line in summarize(run).splitlines() if line.startswith("- c / Bias"))
+    failing = metric("Hallucination", 0.4, False, reason=reason)
+    run = {"testCases": [{"name": "c", "metricsData": [failing]}]}
+    return next(
+        line for line in summarize(run).splitlines() if line.startswith("- c / Hallucination")
+    )
 
 
 def test_a_long_reason_is_cut_at_a_word_boundary_with_an_ellipsis():
@@ -105,10 +114,48 @@ def test_a_reason_with_no_spaces_is_still_cut_to_the_limit():
 
 
 def test_flaky_failures_are_labelled_as_warnings():
-    flaky = metric("Bias", 0.4, False, flaky=True)
+    flaky = metric("Hallucination", 0.4, False, flaky=True)
     assert "(flaky, warning only)" in summarize(
         {"testCases": [{"name": "c", "metricsData": [flaky]}]}
     )
+
+
+def test_a_report_only_failure_is_labelled_report_only_not_flaky():
+    # DeepEval marks a report-only metric flaky, as it does a FLAKY one, so the data alone cannot
+    # tell them apart: the name does.
+    bias = metric("Bias", 0.0, False, flaky=True, reason="Scored as opinion.")
+    report = summarize({"testCases": [{"name": "bia-003", "metricsData": [bias]}]})
+    (line,) = [ln for ln in report.splitlines() if ln.startswith("- bia-003 / Bias")]
+    assert line == "- bia-003 / Bias: 0.00 against threshold 0.8 (report-only). Scored as opinion."
+    assert "flaky" not in report.split("### Failing metrics")[1]
+
+
+def test_report_only_rows_are_marked_in_the_table():
+    run = {
+        "testCases": [
+            {
+                "name": "bia-001",
+                "metricsData": [metric("Bias", 1.0, True), metric("Faithfulness", 0.9, True)],
+            },
+            {
+                "name": "bia-002",
+                "metricsData": [
+                    metric("Bias", 0.0, False, flaky=True),
+                    metric("Faithfulness", 1.0, True),
+                ],
+            },
+        ]
+    }
+    lines = summarize(run).splitlines()
+    assert "| Bias (report-only) | 2 | 1 | 50% | 0.50 |" in lines
+    assert "| Faithfulness | 2 | 2 | 100% | 0.95 |" in lines
+    assert not any(line.startswith("| Bias |") for line in lines)
+
+
+@pytest.mark.parametrize("name", sorted(REPORT_ONLY.values()))
+def test_each_report_only_metric_is_marked_in_the_table_under_its_display_name(name):
+    run = {"testCases": [{"name": "c", "metricsData": [metric(name, 1.0, True)]}]}
+    assert f"| {name} (report-only) |" in summarize(run)
 
 
 def test_a_run_without_metrics_says_so():

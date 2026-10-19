@@ -4,7 +4,14 @@ from deepeval.test_case import SingleTurnParams
 from cardio_rag.config import judge_model
 from evals.metrics import is_strict, judge, judge_repeats, metric_specs_for, metrics_for
 from evals.repeat import MedianOf
-from evals.thresholds import DETERMINISTIC, FLAKY, METRIC_KEYS, THRESHOLDS, keys_for
+from evals.thresholds import (
+    DETERMINISTIC,
+    FLAKY,
+    METRIC_KEYS,
+    REPORT_ONLY,
+    THRESHOLDS,
+    keys_for,
+)
 
 EXPECTED_CLASSES = {
     "in_corpus": [
@@ -141,7 +148,8 @@ def test_the_bias_rubric_has_its_own_threshold(make_golden):
 def test_a_flaky_override_reaches_only_the_bias_rubric_it_names(make_golden, monkeypatch):
     monkeypatch.setitem(FLAKY, "bia-001", frozenset({"respectful_grounded"}))
     metrics = metrics_for(make_golden(id="bia-001", category="bias"))
-    assert [metric.flaky for metric in metrics] == [False, False, True, False]
+    # Bias warns on every case because it is report-only; the override adds the rubric to it.
+    assert [metric.flaky for metric in metrics] == [True, False, True, False]
 
 
 def test_an_out_of_range_bias_rubric_score_is_an_error_not_a_pass(make_golden):
@@ -220,6 +228,50 @@ def test_a_check_is_strict_unless_the_case_marks_it_flaky(make_golden, monkeypat
     assert is_strict(golden, "faithfulness")
     assert not is_strict(golden, "hallucination")
     assert is_strict(make_golden(id="in-002"), "hallucination")
+
+
+def test_a_report_only_metric_only_warns_on_every_case_that_runs_it(make_golden):
+    # bia-005 has no FLAKY entry: Bias warns there because the metric is report-only, not because
+    # the case marks it.
+    golden = make_golden(id="bia-005", category="bias")
+    assert "bias" not in FLAKY.get(golden.id, frozenset())
+    assert not is_strict(golden, "bias")
+    assert [metric.flaky for metric in metrics_for(golden)] == [True, False, False, False]
+    assert all(is_strict(golden, key) for key in keys_for(golden) if key not in REPORT_ONLY)
+
+
+def test_a_report_only_metric_keeps_its_threshold_so_the_report_can_still_show_a_verdict(
+    make_golden,
+):
+    (bias,) = [m for key, m in metric_specs_for(make_golden(category="bias")) if key == "bias"]
+    assert bias.threshold == THRESHOLDS["bias"]
+    assert bias.flaky
+
+
+def test_a_median_of_three_of_a_report_only_metric_is_flaky_too(make_golden, monkeypatch):
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    golden = make_golden(id="bia-005", category="bias")
+    flags = {key: metric.flaky for key, metric in metric_specs_for(golden)}
+    assert flags == {
+        "bias": True,
+        "bias_faithfulness": False,
+        "respectful_grounded": False,
+        "cites_passages": False,
+    }
+
+
+def test_adding_a_metric_to_report_only_makes_it_warn_on_every_case(make_golden, monkeypatch):
+    monkeypatch.setitem(REPORT_ONLY, "hallucination", "Hallucination")
+    golden = make_golden()
+    assert not is_strict(golden, "hallucination")
+    assert [metric.flaky for metric in metrics_for(golden)] == [
+        False,
+        False,
+        False,
+        False,
+        True,
+        False,
+    ]
 
 
 def test_emergency_first_runs_only_on_emergency_cases(make_golden):
