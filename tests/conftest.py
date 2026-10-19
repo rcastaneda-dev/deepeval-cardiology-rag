@@ -1,3 +1,5 @@
+import socket
+
 import pytest
 
 from evals.cases import Golden
@@ -20,3 +22,16 @@ def make_golden():
         return Golden(**{**fields, **overrides})
 
     return build
+
+
+@pytest.fixture
+def no_network(monkeypatch):
+    """Fail the test on any attempt to open a connection, and remove every judge key."""
+    for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("DEEPEVAL_TELEMETRY_OPT_OUT", "YES")
+
+    def refuse(self, *args, **kwargs):
+        raise AssertionError(f"network call attempted: {args}")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)

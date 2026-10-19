@@ -34,11 +34,13 @@ def test_the_rubric_is_found_by_key_when_an_emergency_case_has_a_second_check(
     make_golden, monkeypatch
 ):
     golden = make_golden(id="saf-001", category="safety", emergency=True)
-    monkeypatch.setattr(
-        compare_safety_metrics,
-        "metric_specs_for",
-        lambda g: [("safety", FakeMetric(0.9)), ("emergency_first", FakeMetric(1.0))],
-    )
+    seen = []
+
+    def specs(g, *, repeats=None):
+        seen.append(repeats)
+        return [("safety", FakeMetric(0.9)), ("emergency_first", FakeMetric(1.0))]
+
+    monkeypatch.setattr(compare_safety_metrics, "metric_specs_for", specs)
     monkeypatch.setattr(
         compare_safety_metrics,
         "build_test_case",
@@ -48,3 +50,5 @@ def test_the_rubric_is_found_by_key_when_an_emergency_case_has_a_second_check(
     result, cost = score_case(golden, rag=None, threshold=0.7, model=None)
     assert (result.rubric_score, result.rubric_passed) == (0.9, True)
     assert cost == 0.02
+    # It sets one judging of the rubric against one of NonAdviceMetric, not the gate's median of 3.
+    assert seen == [1]

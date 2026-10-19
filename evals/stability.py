@@ -8,9 +8,13 @@ steady enough to gate a pull request.
 import math
 
 from evals.cases import Golden
-from evals.thresholds import METRIC_KEYS, keys_for
+from evals.thresholds import DETERMINISTIC, METRIC_KEYS, keys_for
 
 _KNOWN_BAD_FIELDS = ("case_id", "kind", "answer", "must_fail")
+_NO_JUDGE_NOTE = (
+    "Checks that need no judge (" + ", ".join(sorted(DETERMINISTIC)) + ") are left out: "
+    "they cannot flip."
+)
 
 
 def flip_rate(verdicts: list[bool]) -> float:
@@ -102,7 +106,8 @@ def summarize(results: dict) -> str:
         "",
         "### By metric",
         "",
-        "Over every check on the recorded answers. An errored judging counts as a failed one.",
+        "Over every check the judge scores on the recorded answers. An errored judging counts as "
+        f"a failed one. {_NO_JUDGE_NOTE}",
         "",
         "| Metric | Checks | Mean flip rate | Fail rate | Failed every judging |",
         "|---|---:|---:|---:|---:|",
@@ -155,7 +160,8 @@ def summarize(results: dict) -> str:
 
 
 def _by_metric(rows: list[dict]) -> list[str]:
-    """A table row per metric key, in the order the keys first appear."""
+    """A table row per metric key the judge scores, in the order the keys first appear."""
+    rows = _judged(rows)
     lines = []
     for key in dict.fromkeys(row["key"] for row in rows):
         checks = [row for row in rows if row["key"] == key]
@@ -166,6 +172,12 @@ def _by_metric(rows: list[dict]) -> list[str]:
         fail_rate = failed / judgings if judgings else 0.0
         lines.append(f"| {key} | {len(checks)} | {mean_flip:.1%} | {fail_rate:.1%} | {always} |")
     return lines
+
+
+def _judged(rows: list[dict]) -> list[dict]:
+    """The rows of checks the judge scores. The deterministic ones cannot flip, so counting them
+    in a flip or failure rate would only dilute it."""
+    return [row for row in rows if row["key"] not in DETERMINISTIC]
 
 
 def _judgings(count: int) -> str:
@@ -186,6 +198,10 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
     its `times` judgings gets a pass rate of 1 and never fails in the estimate, which is too
     kind: no failure in 5 judgings is still consistent with a failure rate of up to 43%.
 
+    The checks that need no judge (DETERMINISTIC) are left out: they cannot flip, so counting
+    them would dilute the rate, and a failure of one is a defect in the answer or the check, not
+    noise. The by-case table still lists them.
+
     The interval says how much that matters. Method: pool the judgings of all strict smoke
     checks into one failure rate, take its Wilson 95% interval, and send the two ends and the
     rate itself through the gate arithmetic, where every one of the m strict checks must pass
@@ -195,9 +211,11 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
     first figures put each failure on the check that showed it, which gives a higher chance of
     a red run for the same number of failures, so they can lie above the interval.
     """
-    checks = [row for row in rows if row["smoke"] and row["strict"] and row["passed"]]
+    checks = [row for row in _judged(rows) if row["smoke"] and row["strict"] and row["passed"]]
     if not checks:
-        return "No strict check on a smoke case was judged, so there is no gate estimate."
+        return (
+            "No strict check on a smoke case was scored by the judge, so there is no gate estimate."
+        )
     rates = [sum(row["passed"]) / len(row["passed"]) for row in checks]
     cases = len({row["case_id"] for row in checks})
     single = gate_false_alarm(rates)
@@ -220,7 +238,7 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
         f"Basis: {failed} of {_judgings(judgings)} of those strict smoke checks failed (an "
         f"errored judging counts as a failure). They are judgings of recorded answers taken to "
         f"be acceptable, so this is judge noise only; variation in what the generator writes is "
-        f"not included. "
+        f"not included. {_NO_JUDGE_NOTE} "
         f"A check with no failure in {_judgings(times)} is counted as never failing, so these "
         f"figures can be too low. Pooling all {_judgings(judgings)}, and taking every check as "
         f"equally likely to fail, the 95% Wilson interval for the chance of a red run is "
