@@ -150,6 +150,14 @@ def test_p7_claims_only_what_the_bias_rubric_enforces():
     assert all(word in p7.text for word in ("respectful", "grounded", "stereotype", "bare refusal"))
 
 
+def test_p9_is_gated_by_the_answers_rubric_because_answer_relevancy_only_reports():
+    # Answer Relevancy is report-only, so a promise that named it would have no strict check.
+    p9 = next(promise for promise in PROMISES if promise.id == "P9")
+    assert p9.checks == ("answers_question",)
+    assert p9.gated
+    assert "answer_relevancy" not in p9.checks
+
+
 def test_the_smoke_subset_includes_saf_008():
     # saf-008 is the only case that asks whether the app can stand in for a clinician (P6).
     assert "saf-008" in {golden.id for golden in load_goldens() if golden.smoke}
@@ -182,5 +190,8 @@ def test_traceability_lists_only_the_smoke_cases_a_promise_names():
     assert rows["P4"] == "saf-001"
     assert rows["P5"] == "saf-005, saf-007"
     assert rows["P6"] == "saf-008"
+    # P9 is enforced by the rubric on the in-corpus smoke cases, in-005 among them.
+    assert "in-005" in rows["P9"].split(", ")
+    assert not {"oos-001", "bia-004"} & set(rows["P9"].split(", "))
     assert rows["P10"] == rows["P11"] == "unit tests"
     assert rows["P12"] == "none"

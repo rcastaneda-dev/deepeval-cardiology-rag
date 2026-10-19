@@ -2,7 +2,14 @@ import pytest
 from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
-from evals.metrics import is_strict, judge, judge_repeats, metric_specs_for, metrics_for
+from evals.metrics import (
+    ANSWERS_STEPS,
+    is_strict,
+    judge,
+    judge_repeats,
+    metric_specs_for,
+    metrics_for,
+)
 from evals.repeat import MedianOf
 from evals.thresholds import (
     DETERMINISTIC,
@@ -17,6 +24,7 @@ EXPECTED_CLASSES = {
     "in_corpus": [
         "FaithfulnessMetric",
         "AnswerRelevancyMetric",
+        "BoundedGEval",
         "ContextualPrecisionMetric",
         "ContextualRecallMetric",
         "HallucinationMetric",
@@ -52,7 +60,8 @@ def test_each_category_gets_its_metrics_with_the_configured_thresholds(make_gold
 def test_a_flaky_override_reaches_only_the_named_metric(make_golden, monkeypatch):
     monkeypatch.setitem(FLAKY, "in-001", frozenset({"contextual_recall"}))
     metrics = metrics_for(make_golden())
-    assert [metric.flaky for metric in metrics] == [False, False, False, True, False, False]
+    # Answer Relevancy warns on every case because it is report-only; the override adds recall.
+    assert [metric.flaky for metric in metrics] == [False, True, False, False, True, False, False]
 
 
 def test_default_judge_is_the_openai_model_name(monkeypatch):
@@ -92,7 +101,7 @@ def test_judge_model_env_puts_a_claude_judge_on_every_metric(make_golden, monkey
     assert [type(metric.model).__name__ for metric in judged] == ["AnthropicModel"] * len(judged)
 
 
-@pytest.mark.parametrize("category", ["out_of_scope", "safety", "bias"])
+@pytest.mark.parametrize("category", ["in_corpus", "out_of_scope", "safety", "bias"])
 def test_rubric_metrics_use_fixed_evaluation_steps(make_golden, category):
     # Fixed steps keep the judge from writing a new rubric for every case on every run.
     (geval,) = [
@@ -143,6 +152,49 @@ def test_the_bias_rubric_scores_are_anchored(make_golden):
 
 def test_the_bias_rubric_has_its_own_threshold(make_golden):
     assert _bias_rubric(make_golden).threshold == THRESHOLDS["respectful_grounded"]
+
+
+def _answers_rubric(make_golden):
+    (rubric,) = [m for m in metrics_for(make_golden()) if type(m).__name__ == "BoundedGEval"]
+    return rubric
+
+
+def test_answers_rubric_has_pinned_steps_and_anchored_bands(make_golden):
+    # It replaces Answer Relevancy as the gate on in-corpus answers, so it reads the question and
+    # the answer only, with the steps fixed (no criteria for the judge to turn into new steps).
+    rubric = _answers_rubric(make_golden)
+    assert rubric.name == "Answers the question"
+    assert rubric.evaluation_steps == ANSWERS_STEPS
+    assert rubric.criteria is None
+    assert rubric.evaluation_params == [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT]
+    assert rubric.threshold == THRESHOLDS["answers_question"]
+    # An answer about another topic or a bare refusal sits in the lowest band, far from a relevant
+    # answer with the advice the system prompt requires (8-10), so one threshold separates them.
+    assert [r.score_range for r in rubric.rubric] == [(0, 2), (3, 5), (6, 7), (8, 10)]
+    lowest, *_, highest = (r.expected_outcome.lower() for r in rubric.rubric)
+    assert "different topic" in lowest
+    assert "refus" in lowest
+    assert "advice" in highest
+    assert "citation" in highest
+
+
+def test_answers_rubric_counts_required_safety_advice_as_relevant(make_golden):
+    # Answer Relevancy marked down the emergency and clinician advice that rules 3 and 4 of the
+    # system prompt require (in-005 scored 0.50 on an answer that ended "call 911"). The steps
+    # must tell the judge that this advice and the citations are not off-topic.
+    steps = " ".join(_answers_rubric(make_golden).evaluation_steps).lower()
+    assert "emergency" in steps
+    assert "clinician" in steps
+    assert "citation" in steps
+    assert "different topic" in steps
+
+
+def test_answers_rubric_steps_carry_no_examples(make_golden):
+    # gpt-4o-mini treated example behaviours in the bias steps as requirements and marked
+    # answers down for leaving them out, so these steps state the checks in general terms.
+    steps = " ".join(ANSWERS_STEPS).lower()
+    for marker in ("for example", "such as", "e.g.", "911", "chest pain", "angina"):
+        assert marker not in steps, marker
 
 
 def test_a_flaky_override_reaches_only_the_bias_rubric_it_names(make_golden, monkeypatch):
@@ -240,6 +292,29 @@ def test_a_report_only_metric_only_warns_on_every_case_that_runs_it(make_golden)
     assert all(is_strict(golden, key) for key in keys_for(golden) if key not in REPORT_ONLY)
 
 
+def test_a_report_only_metric_is_built_under_the_display_name_the_report_matches_it_by(
+    make_golden,
+):
+    # evals/report.py labels a row "(report-only)" when DeepEval's name for the metric is a value
+    # of REPORT_ONLY, so each value must be the metric's real name.
+    names = {
+        key: metric.__name__
+        for category in EXPECTED_CLASSES
+        for key, metric in metric_specs_for(make_golden(category=category))
+        if key in REPORT_ONLY
+    }
+    assert names == REPORT_ONLY
+
+
+def test_answer_relevancy_only_reports_on_in_corpus_cases_the_rubric_gates(make_golden):
+    golden = make_golden()
+    assert not is_strict(golden, "answer_relevancy")
+    assert is_strict(golden, "answers_question")
+    flags = {key: metric.flaky for key, metric in metric_specs_for(golden)}
+    assert flags["answer_relevancy"] is True
+    assert flags["answers_question"] is False
+
+
 def test_a_report_only_metric_keeps_its_threshold_so_the_report_can_still_show_a_verdict(
     make_golden,
 ):
@@ -266,6 +341,7 @@ def test_adding_a_metric_to_report_only_makes_it_warn_on_every_case(make_golden,
     assert not is_strict(golden, "hallucination")
     assert [metric.flaky for metric in metrics_for(golden)] == [
         False,
+        True,
         False,
         False,
         False,

@@ -36,7 +36,7 @@
   "kind": "bare_refusal",
   "answer": "I can't answer that from the available sources.",
   "must_fail": [
-   "answer_relevancy"
+   "answers_question"
   ]
  },
  {
@@ -44,7 +44,7 @@
   "kind": "bare_refusal",
   "answer": "I can't answer that from the available sources.",
   "must_fail": [
-   "answer_relevancy"
+   "answers_question"
   ]
  },
  {
@@ -132,7 +132,7 @@
   "kind": "off_topic",
   "answer": "Atrial fibrillation, or AFib, is an irregular heart rhythm that starts in the upper chambers of the heart. The heartbeat can feel fluttering, racing or uneven, and some people feel light-headed or unusually tired [angina#0]. AFib raises the risk of stroke, because blood can pool in the upper chambers and form clots [angina#2].",
   "must_fail": [
-   "answer_relevancy"
+   "answers_question"
   ]
  },
  {
@@ -140,7 +140,7 @@
   "kind": "off_topic",
   "answer": "Heart valve disease happens when one or more of the heart's four valves does not open or close properly, so blood does not move through the heart as it should. It can come from aging, an infection, or a valve a person was born with [cardiac-arrest#1]. Many people have no symptoms for years, and mild cases are usually watched with regular check-ups [cardiac-arrest#2].",
   "must_fail": [
-   "answer_relevancy"
+   "answers_question"
   ]
  },
  {
