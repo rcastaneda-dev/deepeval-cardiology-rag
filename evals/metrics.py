@@ -19,7 +19,7 @@ from deepeval.metrics.g_eval import Rubric
 from deepeval.models import AnthropicModel
 from deepeval.test_case import SingleTurnParams
 
-from cardio_rag.config import judge_model
+from cardio_rag.config import judge_model_for
 from evals.cases import Golden
 from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
 from evals.repeat import MedianOf
@@ -324,8 +324,9 @@ def judge_repeats() -> int:
 
 
 def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tuple[str, BaseMetric]]:
-    """`(metric key, new metric object)` for one golden case, in keys_for order, using the
-    configured judge model. The emergency check is left out unless the case is an emergency.
+    """`(metric key, new metric object)` for one golden case, in keys_for order. Each uses the
+    judge model configured for its key (`judge_model_for`). The emergency check is left out
+    unless the case is an emergency.
 
     Each judged check judges the answer `repeats` times (None: `judge_repeats()`) and passes on
     the median score, as a MedianOf; with 1 it is the plain metric. The checks in DETERMINISTIC
@@ -336,11 +337,13 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
     times = judge_repeats() if repeats is None else repeats
     if not isinstance(times, int) or isinstance(times, bool) or times < 1:
         raise ValueError(f"repeats must be a whole number of at least 1, not {repeats!r}")
-    model = judge(judge_model())
     specs = []
     for key in keys_for(golden):
         build = partial(
-            _BUILDERS[key], threshold=THRESHOLDS[key], model=model, flaky=not is_strict(golden, key)
+            _BUILDERS[key],
+            threshold=THRESHOLDS[key],
+            model=judge(judge_model_for(key)),
+            flaky=not is_strict(golden, key),
         )
         repeated = times > 1 and key not in DETERMINISTIC
         specs.append((key, MedianOf(build, times) if repeated else build()))
@@ -354,5 +357,5 @@ def is_strict(golden: Golden, key: str) -> bool:
 
 
 def metrics_for(golden: Golden) -> list:
-    """The DeepEval metric objects for one golden case, using the configured judge model."""
+    """The DeepEval metric objects for one golden case, each with its configured judge model."""
     return [metric for _, metric in metric_specs_for(golden)]

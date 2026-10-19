@@ -119,7 +119,9 @@ def test_every_judging_uses_new_metric_objects(make_golden):
     assert len({id(metric) for metric in judge.measured}) == 4 * 2
 
 
-def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, monkeypatch):
+def test_a_row_per_case_and_key_records_scores_passes_and_flags(
+    make_golden, plain_judge_settings, monkeypatch
+):
     monkeypatch.setitem(FLAKY, "saf-001", frozenset({"safety"}))
     judge = FakeJudge({("Recorded answer to in-001.", "faithfulness"): [1.0, 0.2, 1.0]})
     safety = make_golden(id="saf-001", category="safety", question="Can I stop?", smoke=True)
@@ -128,6 +130,7 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
         {
             "case_id": "in-001",
             "key": "faithfulness",
+            "judge": "gpt-4o-mini",
             "strict": True,
             "role": "strict",
             "smoke": False,
@@ -138,6 +141,7 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
         {
             "case_id": "saf-001",
             "key": "safety",
+            "judge": "gpt-4o-mini",
             "strict": False,
             "role": "flaky",
             "smoke": True,
@@ -148,6 +152,29 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
     ]
     assert results["known_bad"] == []
     assert results["cost"] == pytest.approx(0.01 * 3 * 2)
+
+
+def test_a_row_records_the_judge_model_of_its_own_metric(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    # Faithfulness may use another model than the other checks, so each row says which it used.
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    entry = known_bad_entry(must_fail=["faithfulness", "hallucination"])
+    results = run(
+        [make_golden()],
+        FakeJudge(),
+        times=1,
+        keys=["faithfulness", "hallucination"],
+        known_bad=[entry],
+    )
+    assert {row["key"]: row["judge"] for row in results["rows"]} == {
+        "faithfulness": "gpt-4.1-mini",
+        "hallucination": "gpt-4o-mini",
+    }
+    assert {row["key"]: row["judge"] for row in results["known_bad"]} == {
+        "faithfulness": "gpt-4.1-mini",
+        "hallucination": "gpt-4o-mini",
+    }
 
 
 def test_a_row_names_the_role_of_its_check_and_keeps_strict_as_a_flag_for_older_readers(
@@ -222,7 +249,9 @@ def known_bad_entry(**overrides):
     return {**fields, **overrides}
 
 
-def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_replaced(make_golden):
+def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_replaced(
+    make_golden, plain_judge_settings
+):
     judge = FakeJudge({("Take 500 mg daily.", "faithfulness"): [0.2, 0.9, 0.2]})
     golden = make_golden()
     results = run([golden], judge, known_bad=[known_bad_entry(must_fail=["faithfulness"])])
@@ -240,6 +269,7 @@ def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_repla
             "case_id": "in-001",
             "kind": "invented dose",
             "key": "faithfulness",
+            "judge": "gpt-4o-mini",
             "scores": [0.2, 0.9, 0.2],
             "passed": [False, True, False],
             "errors": [None, None, None],
@@ -373,6 +403,21 @@ def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):
     printed = capsys.readouterr().out
     assert "| in-001 | faithfulness |" in printed
     assert str(cli.out) in printed
+
+
+def test_the_top_level_judge_stays_the_default_while_each_row_names_its_own(
+    cli, plain_judge_settings, monkeypatch, capsys
+):
+    monkeypatch.setenv("JUDGE_MODEL", "gpt-4o-mini")
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    assert cli("--keys", "faithfulness,hallucination") == 0
+    results = json.loads(cli.out.read_text(encoding="utf-8"))
+    assert results["judge"] == "gpt-4o-mini"
+    assert {row["key"]: row["judge"] for row in results["rows"]} == {
+        "faithfulness": "gpt-4.1-mini",
+        "hallucination": "gpt-4o-mini",
+    }
+    assert "Judge gpt-4o-mini (faithfulness: gpt-4.1-mini)," in capsys.readouterr().out
 
 
 def test_cases_and_keys_narrow_the_run(cli):

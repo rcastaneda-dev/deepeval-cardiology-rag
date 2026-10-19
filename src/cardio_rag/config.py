@@ -36,6 +36,19 @@ def judge_model() -> str:
     return os.environ.get("JUDGE_MODEL", "gpt-4o-mini")
 
 
+# Metric key -> the judge model that metric uses when JUDGE_MODEL_<KEY> is not set. Empty: every
+# metric uses judge_model(). A trial adds an entry only for a metric whose judge it replaced.
+DEFAULT_JUDGE_MODELS: dict[str, str] = {}
+
+
+def judge_model_for(metric_key: str) -> str:
+    """The judge model for one metric key: the environment variable JUDGE_MODEL_<KEY> in capitals
+    (JUDGE_MODEL_FAITHFULNESS), else its entry in DEFAULT_JUDGE_MODELS, else judge_model().
+    A variable that is empty or only spaces counts as not set."""
+    chosen = os.environ.get(f"JUDGE_MODEL_{metric_key.upper()}", "").strip()
+    return chosen or DEFAULT_JUDGE_MODELS.get(metric_key) or judge_model()
+
+
 @dataclass(frozen=True)
 class Settings:
     generator_model: str

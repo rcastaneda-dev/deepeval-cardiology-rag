@@ -619,3 +619,32 @@ def test_without_a_note_the_summary_is_exactly_what_it_was():
     assert summarize(results(rows), note=None) == plain
     assert summarize(results(rows), note="") == plain
     assert plain.splitlines()[1:3] == ["", "### By metric"]
+
+
+# A metric with its own judge model ---------------------------------------------------------------
+
+
+def test_the_header_names_the_metrics_whose_judge_differs_from_the_default():
+    rows = [
+        {**row("in-001", "faithfulness", [True] * 5), "judge": "gpt-4.1-mini"},
+        {**row("in-001", "hallucination", [True] * 5), "judge": "gpt-4o-mini"},
+    ]
+    bad = {
+        "case_id": "oos-001",
+        "kind": "memory answer",
+        "key": "faithfulness",
+        "judge": "gpt-4.1-mini",
+        "scores": [0.0],
+        "passed": [False],
+        "errors": [None],
+    }
+    text = summarize(results(rows, [bad]))
+    assert text.splitlines()[0].startswith(
+        "Judge gpt-4o-mini (faithfulness: gpt-4.1-mini), 5 judgings of each check on"
+    )
+
+
+def test_the_header_is_unchanged_when_every_row_used_the_default_judge_or_names_none():
+    older = [row("in-001", "faithfulness", [True] * 5)]
+    same = [{**older[0], "judge": "gpt-4o-mini"}]
+    assert summarize(results(same)) == summarize(results(older))

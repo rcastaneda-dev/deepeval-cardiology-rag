@@ -2,6 +2,7 @@ import socket
 
 import pytest
 
+from cardio_rag import config
 from evals.cases import Golden
 
 
@@ -22,6 +23,14 @@ def make_golden():
         return Golden(**{**fields, **overrides})
 
     return build
+
+
+@pytest.fixture
+def plain_judge_settings(monkeypatch):
+    """No judge variable set and no code default, whatever the repository adopts."""
+    for name in ("JUDGE_MODEL", "JUDGE_MODEL_FAITHFULNESS", "JUDGE_MODEL_BIAS_FAITHFULNESS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(config, "DEFAULT_JUDGE_MODELS", {})
 
 
 @pytest.fixture

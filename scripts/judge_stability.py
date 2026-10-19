@@ -20,6 +20,10 @@ from the new answer), on the keys in must_fail only. An empty must_fail is not j
 summary counts those entries as having no check yet. An answer the judge passes in most
 judgings is a miss, and one with any errored judging is unjudged. --cases and --keys narrow
 the known-bad entries as well as the recorded answers.
+
+A metric may use another judge model than the rest (JUDGE_MODEL_<KEY>, such as
+JUDGE_MODEL_FAITHFULNESS, or cardio_rag.config.DEFAULT_JUDGE_MODELS). Every row and known-bad
+entry records the "judge" its check used; the top-level "judge" is the default, JUDGE_MODEL.
 """
 
 import argparse
@@ -31,7 +35,7 @@ from pathlib import Path
 # Run as a file (`python scripts/judge_stability.py`), so make the repo root importable.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from cardio_rag.config import CORPUS_DIR, judge_model  # noqa: E402
+from cardio_rag.config import CORPUS_DIR, judge_model, judge_model_for  # noqa: E402
 from cardio_rag.generate import extract_citations  # noqa: E402
 from cardio_rag.index import load_corpus  # noqa: E402
 from cardio_rag.retriever import RetrievedChunk  # noqa: E402
@@ -145,9 +149,15 @@ async def run(
                     "role": check_role(golden, key),
                     "smoke": golden.smoke,
                 }
-                rows.append({"case_id": golden.id, "key": key, **flags, **found[key]})
+                label = {"case_id": golden.id, "key": key, "judge": judge_model_for(key)}
+                rows.append({**label, **flags, **found[key]})
             else:
-                label = {"case_id": golden.id, "kind": entry["kind"], "key": key}
+                label = {
+                    "case_id": golden.id,
+                    "kind": entry["kind"],
+                    "key": key,
+                    "judge": judge_model_for(key),
+                }
                 bad.append({**label, **found[key]})
     return {"rows": rows, "known_bad": bad, "unchecked": unchecked, "cost": cost}
 

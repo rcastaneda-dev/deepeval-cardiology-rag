@@ -103,7 +103,8 @@ def summarize(results: dict, note: str | None = None) -> str:
     for what a reader needs to know about the results that the file does not say."""
     rows = results["rows"]
     lines = [
-        f"Judge {results['judge']}, {results['times']} judgings of each check on "
+        f"Judge {results['judge']}{_other_judges(results)}, {results['times']} judgings of each "
+        f"check on "
         f"{results['snapshot']}. Judge cost reported by DeepEval: ${results['cost']:.4f}",
         "",
         *([note, ""] if note else []),
@@ -160,6 +161,18 @@ def summarize(results: dict, note: str | None = None) -> str:
             )
     lines += ["", _gate_estimate(rows, results["times"])]
     return "\n".join(lines)
+
+
+def _other_judges(results: dict) -> str:
+    """` (key: model, ...)` for the checks judged by another model than the results' default
+    judge, so the header does not claim one model judged everything. Empty when each row used the
+    default or, as in older results, names none."""
+    others = {
+        entry["key"]: entry["judge"]
+        for entry in [*results["rows"], *results["known_bad"]]
+        if entry.get("judge") not in (None, results["judge"])
+    }
+    return f" ({', '.join(f'{key}: {model}' for key, model in others.items())})" if others else ""
 
 
 def _by_metric(rows: list[dict]) -> list[str]:
