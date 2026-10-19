@@ -12,5 +12,5 @@ from evals.params import all_case_params
 
 
 @pytest.mark.parametrize("golden", all_case_params())
-def test_rag_quality(golden, rag):
-    assert_test(test_case=build_test_case(golden, rag), metrics=metrics_for(golden))
+def test_rag_quality(golden, rag, corpus):
+    assert_test(test_case=build_test_case(golden, rag, corpus), metrics=metrics_for(golden))

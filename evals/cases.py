@@ -1,6 +1,7 @@
 """Golden test cases: loading and validation. Pure Python, no DeepEval import."""
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -117,3 +118,47 @@ def _absent_term_problems(golden: Golden, corpus: dict[str, str]) -> list[str]:
 
 def _normalize(text: str) -> str:
     return " ".join(text.split())
+
+
+_HEADING = re.compile(r"^(#{1,6})[ \t]", re.MULTILINE)
+
+
+def section_containing(document: str, excerpt: str) -> str:
+    """The Markdown section of `document` that holds `excerpt`, whitespace ignored.
+
+    It runs from the nearest heading at or above the excerpt down to the next heading of the same
+    or a higher level, so deeper headings stay inside it. An excerpt under the document's title,
+    or before its first heading, gets the whole document, as no other heading of that level
+    follows. A section never ends inside the excerpt. A document with no heading is one section.
+    Raises ValueError if the excerpt is not in the document.
+    """
+    wanted = _normalize(excerpt)
+    collapsed, offsets = _collapse(document)
+    found = collapsed.find(wanted) if wanted else -1
+    if found < 0:
+        raise ValueError(f"the excerpt is not in the document: {wanted[:60]!r}")
+    first, last = offsets[found], offsets[found + len(wanted) - 1]
+
+    headings = [(match.start(), len(match.group(1))) for match in _HEADING.finditer(document)]
+    above = [heading for heading in headings if heading[0] <= first]
+    start, level = above[-1] if above else (0, 0)
+    end = next((at for at, deeper in headings if at > last and deeper <= level), len(document))
+    return document[start:end].strip()
+
+
+def _collapse(text: str) -> tuple[str, list[int]]:
+    """`text` with each run of whitespace made one space and the ends trimmed (`_normalize`),
+    and the offset in `text` of every character of the result."""
+    chars: list[str] = []
+    offsets: list[int] = []
+    for offset, char in enumerate(text):
+        if not char.isspace():
+            chars.append(char)
+            offsets.append(offset)
+        elif chars and chars[-1] != " ":
+            chars.append(" ")
+            offsets.append(offset)
+    if chars and chars[-1] == " ":
+        chars.pop()
+        offsets.pop()
+    return "".join(chars), offsets
