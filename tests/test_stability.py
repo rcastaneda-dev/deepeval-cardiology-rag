@@ -465,9 +465,11 @@ def test_a_known_bad_entry_that_cannot_be_judged_is_named_before_any_judging(gol
 
 
 # Reconciling the headline with the interval ---------------------------------------------------
-# The headline puts each failed judging on the check that showed it. The interval spreads the
-# failures over every check. With many checks and few failures the two disagree, and the headline
-# can lie outside the interval: the paragraph then says why instead of leaving the reader to guess.
+# The headline puts each failed judging on the check that showed it and counts every other check as
+# never failing. The interval spreads the failures over every check. With many checks and few
+# failures the two disagree, and the headline can lie outside the interval: the paragraph then says
+# what each assumes and that neither is an upper limit, because the headline sets the other checks
+# to never failing (the paragraph itself says the figures can be too low).
 
 
 def spotless(count):
@@ -490,12 +492,23 @@ def test_a_headline_outside_the_interval_is_reconciled_with_it():
     assert "single judging 20.0%, median of 3 10.4%" in text
     assert "0.0% to 7.7% for the median of 3 (estimate 0.3%)" in text
     assert (
-        "The first two figures put the failed judging on the check that showed it "
-        "(in-005 answer_relevancy passed 4 of 5), treating that check as failing at its "
-        "observed rate; the interval assumes instead that the failure was noise spread evenly "
-        "over all 46 checks. With median-of-3 the true figure could be anywhere from about 0.0% "
-        "to about 10.4%; these judgings cannot say which."
+        "The headline figures (20.0% and 10.4%) put the failed judging on the check that "
+        "showed it (in-005 answer_relevancy passed 4 of 5), treating that check as failing at "
+        "its observed rate and the other 45 checks as never failing; the interval assumes "
+        "instead that the failure was noise spread evenly over all 46 checks. Neither is an "
+        "upper limit: if the other checks fail even occasionally, the true figure is higher "
+        "than both."
     ) in text
+
+
+def test_the_reconciliation_gives_no_range_that_reads_as_a_bound_on_the_true_figure():
+    # 10.4% sets the other 45 checks to never failing, so it is not a ceiling; 7.7% bounds the
+    # failure rate at 95% only if every check were equally likely to fail.
+    text = gate_text(*spotless(45), *misses(4))
+    assert "anywhere from" not in text
+    assert "cannot say which" not in text
+    assert "The first two figures" not in text
+    assert "Neither is an upper limit" in text
 
 
 def test_the_interval_is_labelled_as_conditional_on_every_check_being_equally_likely_to_fail():
@@ -511,35 +524,35 @@ def test_a_headline_inside_the_interval_needs_no_reconciling_sentence():
     text = gate_text(*misses(4, 3))
     assert "median of 3 41.9%" in text
     assert "6.4% to 87.9% for the median of 3" in text
-    assert "The first two figures" not in text
-    assert "cannot say which" not in text
+    assert "The headline figures" not in text
+    assert "upper limit" not in text
 
 
 def test_a_spotless_run_needs_no_reconciling_sentence():
     text = gate_text(*spotless(20))
     assert "single judging 0.0%, median of 3 0.0%" in text
-    assert "The first two figures" not in text
+    assert "The headline figures" not in text
 
 
 def test_several_failed_checks_are_all_named_and_the_wording_is_plural():
     text = gate_text(*spotless(44), *misses(4, 4))
-    assert "median of 3 19.7%" in text
     assert (
-        "put the failed judgings on the checks that showed them "
-        "(in-005 answer_relevancy passed 4 of 5; in-006 answer_relevancy passed 4 of 5), "
-        "treating each of those checks as failing at its observed rate; the interval assumes "
-        "instead that the failures were noise spread evenly over all 46 checks."
+        "The headline figures (36.0% and 19.7%) put the failed judgings on the checks that "
+        "showed them (in-005 answer_relevancy passed 4 of 5; in-006 answer_relevancy passed 4 "
+        "of 5), treating each of those checks as failing at its observed rate and the other 44 "
+        "checks as never failing; the interval assumes instead that the failures were noise "
+        "spread evenly over all 46 checks. Neither is an upper limit: if the other checks fail "
+        "even occasionally, the true figure is higher than both."
     ) in text
-    assert "could be anywhere from about 0.1% to about 19.7%" in text
 
 
 def test_one_check_that_failed_several_judgings_is_one_check_with_several_failures():
     text = gate_text(*spotless(45), *misses(3))
     assert (
-        "put the failed judgings on the check that showed them "
-        "(in-005 answer_relevancy passed 3 of 5), treating that check as failing at its "
-        "observed rate; the interval assumes instead that the failures were noise spread "
-        "evenly over all 46 checks."
+        "The headline figures (40.0% and 35.2%) put the failed judgings on the check that "
+        "showed them (in-005 answer_relevancy passed 3 of 5), treating that check as failing "
+        "at its observed rate and the other 45 checks as never failing; the interval assumes "
+        "instead that the failures were noise spread evenly over all 46 checks."
     ) in text
 
 
@@ -547,13 +560,62 @@ def test_only_the_first_five_failed_checks_are_named_and_the_rest_are_counted():
     # Eight checks that never passed: the median-of-3 headline is 100.0% and the interval, which
     # spreads 40 failures in 230 judgings over all 46 checks, stops just short of it.
     text = gate_text(*spotless(38), *misses(*[0] * 8))
-    assert "median of 3 100.0%" in text
+    assert "The headline figures (100.0% and 100.0%)" in text
     assert "(in-005 answer_relevancy passed 0 of 5; " in text
-    assert "in-009 answer_relevancy passed 0 of 5; and 3 more)" in text
+    assert (
+        "in-009 answer_relevancy passed 0 of 5; and 3 more), treating each of those checks as "
+        "failing at its observed rate and the other 38 checks as never failing;"
+    ) in text
     assert "in-010 answer_relevancy" not in text
+
+
+def test_a_single_other_check_is_worded_in_the_singular():
+    # Three checks that failed and one that did not: the headline reads 100.0% against an
+    # interval that ends at 97.4%.
+    text = gate_text(*spotless(1), *misses(0, 4, 4))
+    assert (
+        "and the other check as never failing; the interval assumes instead that the failures "
+        "were noise spread evenly over all 4 checks. Neither is an upper limit: if the other "
+        "check fails even occasionally, the true figure is higher than both."
+    ) in text
+
+
+def test_when_every_check_failed_there_are_no_other_checks_to_call_never_failing():
+    # Two checks, one never passing and one passing 4 of 5: the headline is 100.0%, the interval
+    # ends at 99.4%. No check is left that the headline treats as never failing.
+    text = gate_text(*misses(0, 4))
+    assert (
+        "treating each of those checks as failing at its observed rate; the interval assumes "
+        "instead that the failures were noise spread evenly over all 2 checks. Neither is an "
+        "upper limit on the true figure."
+    ) in text
+    assert "and the other" not in text
 
 
 def test_the_reconciliation_ends_the_paragraph_after_the_interval():
     text = gate_text(*spotless(45), *misses(4))
-    assert text.index("95% Wilson interval") < text.index("The first two figures")
-    assert text.endswith("these judgings cannot say which.")
+    assert text.index("95% Wilson interval") < text.index("The headline figures")
+    assert text.endswith("the true figure is higher than both.")
+
+
+# A note under the header -----------------------------------------------------------------------
+
+
+def test_a_note_is_printed_as_one_line_under_the_header():
+    rows = [row("in-001", "faithfulness", [True] * 5)]
+    plain = summarize(results(rows))
+    noted = summarize(results(rows), note="Roles are those in force at the time.")
+    lines = noted.splitlines()
+    assert lines[0].startswith("Judge gpt-4o-mini, 5 judgings of each check on")
+    assert lines[1:5] == ["", "Roles are those in force at the time.", "", "### By metric"]
+    assert noted == plain.replace(
+        "\n\n### By metric", "\n\nRoles are those in force at the time.\n\n### By metric", 1
+    )
+
+
+def test_without_a_note_the_summary_is_exactly_what_it_was():
+    rows = [row("in-001", "faithfulness", [True] * 5)]
+    plain = summarize(results(rows))
+    assert summarize(results(rows), note=None) == plain
+    assert summarize(results(rows), note="") == plain
+    assert plain.splitlines()[1:3] == ["", "### By metric"]
