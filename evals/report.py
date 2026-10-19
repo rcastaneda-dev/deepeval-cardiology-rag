@@ -10,12 +10,19 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from evals.thresholds import REPORT_ONLY
+
 
 def find_latest_run(folder: Path) -> Path:
     runs = sorted(folder.glob("test_run_*.json"), key=lambda path: path.stat().st_mtime)
     if not runs:
         raise FileNotFoundError(f"No test_run_*.json files in {folder}")
     return runs[-1]
+
+
+def _is_report_only(metric_name: str) -> bool:
+    """Whether DeepEval's `metric_name` is one of the REPORT_ONLY metrics: shown, never gating."""
+    return metric_name in REPORT_ONLY.values()
 
 
 def summarize(run: dict) -> str:
@@ -54,7 +61,8 @@ def summarize(run: dict) -> str:
         row = stats[name]
         mean = f"{row['score_total'] / row['scored']:.2f}" if row["scored"] else "n/a"
         rate = f"{row['passed'] / row['cases']:.0%}"
-        lines.append(f"| {name} | {row['cases']:.0f} | {row['passed']:.0f} | {rate} | {mean} |")
+        shown = f"{name} (report-only)" if _is_report_only(name) else name
+        lines.append(f"| {shown} | {row['cases']:.0f} | {row['passed']:.0f} | {rate} | {mean} |")
 
     total_cost = sum(row["cost"] for row in stats.values())
     qualifier = " (some metrics did not report a cost)" if costs_missing else ""
@@ -78,11 +86,15 @@ def _shorten(text: str, limit: int = 160) -> str:
 def _describe_failure(case_name: str, metric: dict) -> str:
     score = metric.get("score")
     shown = "no score" if score is None else f"{score:.2f}"
-    flaky = " (flaky, warning only)" if metric.get("flaky") else ""
+    # DeepEval marks a report-only metric flaky too, so the name is checked first.
+    if _is_report_only(metric["name"]):
+        label = " (report-only)"
+    else:
+        label = " (flaky, warning only)" if metric.get("flaky") else ""
     detail = metric.get("error") or metric.get("reason") or ""
     return (
         f"- {case_name} / {metric['name']}: {shown} against threshold "
-        f"{metric.get('threshold')}{flaky}. {_shorten(detail)}".rstrip()
+        f"{metric.get('threshold')}{label}. {_shorten(detail)}".rstrip()
     )
 
 

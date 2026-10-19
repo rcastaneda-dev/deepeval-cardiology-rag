@@ -1,5 +1,13 @@
 from evals.cases import CATEGORIES, load_goldens
-from evals.thresholds import DETERMINISTIC, FLAKY, METRIC_KEYS, THRESHOLDS, keys_for
+from evals.thresholds import (
+    DETERMINISTIC,
+    FLAKY,
+    METRIC_KEYS,
+    REPORT_ONLY,
+    THRESHOLDS,
+    check_role,
+    keys_for,
+)
 
 
 def test_every_category_has_a_metric_list():
@@ -19,24 +27,59 @@ def test_flaky_entries_name_real_metrics():
 
 
 def cases_without_a_strict_metric() -> list[str]:
-    """The cases in FLAKY that are not goldens, or whose flaky marks cover every check that runs
-    for them (`keys_for`, so a non-emergency safety case counts `safety` alone)."""
-    by_id = {golden.id: golden for golden in load_goldens()}
-    return [
-        case_id
-        for case_id, flaky_keys in FLAKY.items()
-        if case_id not in by_id or not set(keys_for(by_id[case_id])) - set(flaky_keys)
+    """The FLAKY entries that are not goldens, then the goldens whose checks (`keys_for`, so a
+    non-emergency safety case counts `safety` alone) are all flaky for them or report-only."""
+    goldens = load_goldens()
+    known = {golden.id for golden in goldens}
+    unknown = [case_id for case_id in FLAKY if case_id not in known]
+    return unknown + [
+        golden.id
+        for golden in goldens
+        if not set(keys_for(golden)) - set(FLAKY.get(golden.id, ())) - set(REPORT_ONLY)
     ]
 
 
-def test_every_case_keeps_a_strict_metric_after_its_flaky_overrides():
-    # DeepEval needs at least one non-flaky metric per case, or a flaky override gates nothing.
+def test_every_case_keeps_a_strict_metric_after_flaky_and_report_only():
+    # DeepEval needs at least one non-flaky metric per case, or a case gates nothing. A report-only
+    # metric is flaky on every case, so it does not count as strict either.
     assert cases_without_a_strict_metric() == []
 
 
 def test_a_flaky_mark_on_the_only_check_a_non_emergency_safety_case_runs_is_caught(monkeypatch):
     monkeypatch.setitem(FLAKY, "saf-005", frozenset({"safety"}))
     assert cases_without_a_strict_metric() == ["saf-005"]
+
+
+def test_a_report_only_metric_that_is_the_only_check_of_a_case_is_caught(monkeypatch):
+    # A non-emergency safety case runs `safety` alone, so reporting only on it leaves those cases
+    # with nothing that gates; the emergency cases keep emergency_first.
+    monkeypatch.setitem(REPORT_ONLY, "safety", "Medical safety [GEval]")
+    caught = cases_without_a_strict_metric()
+    assert "saf-005" in caught
+    assert not {"saf-001", "saf-002", "saf-006", "saf-010"} & set(caught)
+
+
+def test_report_only_metrics_are_real_judged_metrics_with_a_display_name():
+    assert REPORT_ONLY["bias"] == "Bias"
+    assert set(REPORT_ONLY) <= set(THRESHOLDS)
+    # A check that needs no judge cannot misfire, so there is nothing to report instead of gate.
+    assert not set(REPORT_ONLY) & DETERMINISTIC
+    assert all(name.strip() for name in REPORT_ONLY.values())
+
+
+def test_flaky_never_lists_a_report_only_metric():
+    # FLAKY is a recorded judge error on one case; a report-only metric is flaky on every case by
+    # policy, in REPORT_ONLY alone. Listing it in both would say two different things.
+    assert not any(set(keys) & set(REPORT_ONLY) for keys in FLAKY.values())
+
+
+def test_bias_leaves_the_bias_promise_to_three_gating_checks():
+    # The seven cases whose Bias verdict misfired (bia-001, 002, 003, 004, 006, 009, 010) are no
+    # longer FLAKY entries; Bias is report-only and the rubric, bias Faithfulness and the citation
+    # check gate the bias category.
+    assert {case_id for case_id, keys in FLAKY.items() if "bias" in keys} == set()
+    gating = [key for key in METRIC_KEYS["bias"] if key not in REPORT_ONLY]
+    assert gating == ["bias_faithfulness", "respectful_grounded", "cites_passages"]
 
 
 def test_a_deterministic_check_must_pass_outright():
@@ -67,3 +110,20 @@ def test_the_emergency_check_applies_only_to_cases_marked_as_emergencies(make_go
     assert keys_for(make_golden(category="safety")) == ("safety",)
     assert keys_for(make_golden(category="safety", emergency=True)) == ("safety", "emergency_first")
     assert keys_for(make_golden(category="bias")) == METRIC_KEYS["bias"]
+
+
+def test_a_checks_role_says_what_its_failure_does(make_golden, monkeypatch):
+    monkeypatch.setitem(FLAKY, "in-001", frozenset({"hallucination"}))
+    golden = make_golden()
+    assert check_role(golden, "faithfulness") == "strict"
+    assert check_role(golden, "hallucination") == "flaky"
+    assert check_role(golden, "cites_passages") == "deterministic"
+    assert check_role(make_golden(id="bia-005", category="bias"), "bias") == "report-only"
+
+
+def test_a_report_only_metric_is_report_only_on_every_case_even_one_marked_flaky(
+    make_golden, monkeypatch
+):
+    monkeypatch.setitem(FLAKY, "bia-001", frozenset({"bias"}))
+    assert check_role(make_golden(id="bia-001", category="bias"), "bias") == "report-only"
+    assert check_role(make_golden(id="bia-002", category="bias"), "bias") == "report-only"
