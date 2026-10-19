@@ -36,9 +36,28 @@ def judge_model() -> str:
     return os.environ.get("JUDGE_MODEL", "gpt-4o-mini")
 
 
-# Metric key -> the judge model that metric uses when JUDGE_MODEL_<KEY> is not set. Empty: every
-# metric uses judge_model(). A trial adds an entry only for a metric whose judge it replaced.
-DEFAULT_JUDGE_MODELS: dict[str, str] = {}
+# Metric key -> the judge model that metric uses when JUDGE_MODEL_<KEY> is not set; a metric with
+# no entry uses judge_model(). Both Faithfulness checks use gpt-5-mini, chosen by the trial of
+# 2026-10-19 on the 54 faithfulness and bias_faithfulness answers of evals/snapshots/2026-10-19.json
+# (3 judgings of each, the same answers for every judge). "Listed" is the nine answers that had a
+# FLAKY faithfulness entry; "fell" is an answer that passed 3 of 3 under gpt-4o-mini and did not;
+# "caught" is the contradicts_source answers (in-013, in-018, in-024) that failed most judgings.
+#   judge          listed passing 3 of 3   fell                 caught   cost
+#   gpt-4o-mini    6 of 9                  -                    2 of 3   $0.14
+#   gpt-4.1-mini   9 of 9                  in-028 (0 of 3)      3 of 3   $0.41
+#   gpt-5-mini     9 of 9                  none                 3 of 3   $1.36
+# gpt-4.1-mini was rejected for in-028. Its answer restates the passage and the golden, but the
+# judge scored it 0.50 in all 3 judgings: it read "(regurgitation)" as the name of the leak alone,
+# so "valve flaps ... the wrong size or shape, so the valve leaks" was not a definition of it, and
+# its extracted truths left out the sentence defining stenosis. The abstention answers that give
+# a fact from memory (oos-001, 002, 003) passed Faithfulness under every judge, because
+# Faithfulness only looks for contradictions of the context; the abstention rubric catches them.
+# gpt-4.1 was not run, as gpt-5-mini qualified first. gpt-5-mini costs about 10 times as much per
+# judging as gpt-4o-mini ($0.0076 against $0.0008) and its 180 judgings took 12 minutes.
+DEFAULT_JUDGE_MODELS: dict[str, str] = {
+    "faithfulness": "gpt-5-mini",
+    "bias_faithfulness": "gpt-5-mini",
+}
 
 
 def judge_model_for(metric_key: str) -> str:

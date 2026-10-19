@@ -88,6 +88,8 @@ Both model APIs are pay-as-you-go. A full run of the suite costs about $0.11 (ab
 
 The default judge is OpenAI `gpt-4o-mini`, and the thresholds were calibrated with it. Setting `JUDGE_MODEL` to a Claude model (for example `JUDGE_MODEL=claude-haiku-5-5`) uses Claude as the judge instead. That judge is the same model family as the generator, so it may favor answers written in its own style, and its scores will not match the calibrated thresholds exactly.
 
+The two Faithfulness checks (on factual answers and on bias answers) are the exception: they use OpenAI `gpt-5-mini`, set in `DEFAULT_JUDGE_MODELS` in `src/cardio_rag/config.py`, because `gpt-4o-mini` misread correct answers on that check. On the 54 recorded answers `gpt-5-mini` passed all nine answers that had a flaky Faithfulness entry in 3 of 3 judgings (`gpt-4o-mini` passed six of nine in the same run) and failed no answer that `gpt-4o-mini` passed. It also catches the answers that contradict their source, which `gpt-4o-mini` missed once. The price is about ten times per judging ($0.0076 against $0.0008), so a pull-request smoke run costs about $0.3 more in Faithfulness judgings and a full run about $1.1 more (estimated from the trial, not measured in a gate run). `JUDGE_MODEL` does not change these two checks. To change one metric's judge, set `JUDGE_MODEL_` and the metric key in capitals (`JUDGE_MODEL_FAITHFULNESS=gpt-4o-mini` goes back to the old judge for that check); the variable beats the code default.
+
 ## Limits
 
 - The corpus is small and the golden answers come only from it. A passing run means the app stays faithful to those documents, not that its content is clinically right.
