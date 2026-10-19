@@ -104,8 +104,7 @@ def summarize(results: dict, note: str | None = None) -> str:
     rows = results["rows"]
     lines = [
         f"Judge {results['judge']}{_other_judges(results)}, {results['times']} judgings of each "
-        f"check on "
-        f"{results['snapshot']}. Judge cost reported by DeepEval: ${results['cost']:.4f}",
+        f"check on {results['snapshot']}. Judge cost reported by DeepEval: ${results['cost']:.4f}",
         "",
         *([note, ""] if note else []),
         "### By metric",
