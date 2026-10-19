@@ -115,12 +115,6 @@ def test_one_valid_citation_is_enough_when_the_others_are_malformed():
     assert CitesRetrievedPassages().measure(case("Yes [a#0]. Also [angina #1].")) == 1.0
 
 
-def test_cites_needs_the_ids_the_harness_records():
-    bare = LLMTestCase(input="A question?", actual_output="Yes [a#0].")
-    with pytest.raises(ValueError, match="chunk_ids"):
-        CitesRetrievedPassages().measure(bare)
-
-
 def test_cites_with_nothing_retrieved_fails_any_citation():
     metric = CitesRetrievedPassages()
     assert metric.measure(case("Yes [a#0].", chunk_ids=())) == 0.0
@@ -246,6 +240,63 @@ def test_the_async_measure_gives_the_same_result(check):
     assert asynchronous.evaluation_cost == 0.0
 
 
+# Unusable input ------------------------------------------------------------------------------
+# The gate must never pass a case a check could not read, and a raised error is a stack trace in
+# a CI log. So an unusable input is a failed check with a readable error, never an exception.
+
+
+def unreadable(**fields):
+    return LLMTestCase(input="A question?", **fields)
+
+
+NO_IDS = unreadable(actual_output="Yes [a#0].")
+NONE_IDS = unreadable(actual_output="Yes [a#0].", metadata={"chunk_ids": None})
+TEXT_IDS = unreadable(actual_output="Yes [a#0].", metadata={"chunk_ids": "a#0"})
+NO_ANSWER = unreadable(actual_output=None, metadata={"chunk_ids": ["a#0"]})
+
+UNUSABLE = [
+    pytest.param(CitesRetrievedPassages, NO_IDS, "chunk_ids", id="cites-missing-ids"),
+    pytest.param(CitesRetrievedPassages, NONE_IDS, "['chunk_ids'] is None", id="cites-none-ids"),
+    pytest.param(CitesRetrievedPassages, TEXT_IDS, "list of passage ids", id="cites-text-ids"),
+    pytest.param(CitesRetrievedPassages, NO_ANSWER, "actual_output is None", id="cites-no-answer"),
+    pytest.param(ExactRefusal, NO_ANSWER, "actual_output is None", id="refusal-no-answer"),
+    pytest.param(EmergencyFirst, NO_ANSWER, "actual_output is None", id="emergency-no-answer"),
+]
+
+
+@pytest.mark.parametrize(("check", "unusable", "message"), UNUSABLE)
+def test_an_unusable_input_fails_the_check_with_a_readable_error_instead_of_raising(
+    check, unusable, message
+):
+    metric = check()
+    assert metric.measure(unusable) == 0.0
+    assert (metric.score, metric.success, metric.is_successful()) == (0.0, False, False)
+    assert message in metric.error
+    assert metric.evaluation_cost == 0.0
+
+
+@pytest.mark.parametrize(("check", "unusable", "message"), UNUSABLE)
+def test_the_async_measure_fails_an_unusable_input_the_same_way(check, unusable, message):
+    metric = check()
+    assert asyncio.run(metric.a_measure(unusable, _show_indicator=False)) == 0.0
+    assert (metric.success, metric.is_successful()) == (False, False)
+    assert message in metric.error
+
+
+def test_a_check_that_met_an_unusable_input_reads_the_next_case_afresh():
+    metric = CitesRetrievedPassages()
+    metric.measure(NO_IDS)
+    assert metric.measure(case("Yes [a#0].")) == 1.0
+    assert (metric.error, metric.success) == (None, True)
+
+
+def test_an_empty_answer_is_a_failed_check_not_an_unusable_input():
+    metric = ExactRefusal()
+    assert metric.measure(case("")) == 0.0
+    assert metric.error is None
+    assert "starts with" in metric.reason
+
+
 # DeepEval acceptance ------------------------------------------------------------------------
 
 
@@ -283,3 +334,14 @@ def test_a_flaky_deterministic_check_only_warns(no_network):
         test_case=case("Yes [a#0]."),
         metrics=[CitesRetrievedPassages(), EmergencyFirst(flaky=True)],
     )
+
+
+@pytest.mark.parametrize("run_async", [True, False])
+@pytest.mark.parametrize(("check", "unusable", "message"), UNUSABLE)
+def test_deepeval_fails_a_case_a_check_could_not_read_and_shows_why(
+    no_network, check, unusable, message, run_async
+):
+    with pytest.raises(AssertionError) as failure:
+        assert_test(test_case=unusable, metrics=[check()], run_async=run_async)
+    assert check().__name__ in str(failure.value)
+    assert message in str(failure.value)
