@@ -7,6 +7,7 @@ from evals.stability import (
     median_of_three_pass,
     passes_majority,
     summarize,
+    wilson_interval,
 )
 
 
@@ -89,6 +90,33 @@ def test_summary_has_a_row_per_case_and_metric_and_the_gate_estimate():
     assert "$0.12" in text
 
 
+def test_a_table_per_metric_gives_checks_flip_rate_fail_rate_and_checks_that_always_fail():
+    text = summarize(
+        results(
+            [
+                row("in-001", "faithfulness", [True] * 5),
+                row("in-002", "faithfulness", [True, True, True, False, False]),
+                row("in-003", "faithfulness", [False] * 5, strict=False),
+                row("in-001", "hallucination", [True, False, True, True, True]),
+            ]
+        )
+    )
+    lines = text.splitlines()
+    assert "| Metric | Checks | Mean flip rate | Fail rate | Failed every judging |" in lines
+    # faithfulness: flip rates 0%, 40% and 0%; 7 of 15 judgings failed; one check always fails.
+    assert "| faithfulness | 3 | 13.3% | 46.7% | 1 |" in lines
+    assert "| hallucination | 1 | 20.0% | 20.0% | 0 |" in lines
+    assert lines.index("| faithfulness | 3 | 13.3% | 46.7% | 1 |") < lines.index(
+        "| Case | Metric | Scores | Passed | Flip rate | Strict |"
+    )
+
+
+def test_an_errored_judging_counts_as_a_failed_one_in_the_metric_table():
+    errored = row("in-001", "faithfulness", [True, True, True, True, False])
+    errored["scores"][4], errored["errors"][4] = None, "RateLimitError: slow down"
+    assert "| faithfulness | 1 | 20.0% | 20.0% | 0 |" in summarize(results([errored])).splitlines()
+
+
 def test_the_gate_estimate_counts_only_strict_checks_on_smoke_cases():
     # Strict smoke checks pass 0.8 and 0.6 of the time: one judging fails the gate 1 - 0.48 =
     # 52% of the time; with the median of three the checks pass 0.896 and 0.648 of the time.
@@ -106,6 +134,58 @@ def test_the_gate_estimate_counts_only_strict_checks_on_smoke_cases():
     assert "2 strict checks on 1 smoke case" in text
     assert "single judging 52.0%" in text
     assert "median of 3 41.9%" in text
+
+
+def test_wilson_interval_matches_the_published_values():
+    assert wilson_interval(3, 10) == pytest.approx((0.1078, 0.6032), abs=1e-4)
+    assert wilson_interval(5, 10) == pytest.approx((0.2366, 0.7634), abs=1e-4)
+    # No failure in ten judgings still leaves room for one: the upper end is 3.84 / 13.84.
+    assert wilson_interval(0, 10) == pytest.approx((0.0, 0.2775), abs=1e-4)
+    assert wilson_interval(10, 10) == pytest.approx((0.7225, 1.0), abs=1e-4)
+
+
+def gate_text(*rows):
+    return summarize(results(list(rows))).splitlines()[-1]
+
+
+def test_the_gate_estimate_states_what_it_is_based_on():
+    # Two strict smoke checks with 3 failed judgings in 10; the two other rows are not counted.
+    text = gate_text(
+        row("in-001", "faithfulness", [True, True, True, True, False]),
+        row("in-001", "answer_relevancy", [True, True, True, False, False]),
+        row("in-002", "faithfulness", [False] * 5, smoke=False),
+        row("in-001", "hallucination", [False] * 5, strict=False),
+    )
+    assert "3 of 10 judgings of those strict smoke checks failed" in text
+    assert "errored judging counts as a failure" in text
+    assert "recorded answers taken to be acceptable" in text
+    assert "judge noise only" in text
+    assert "variation in what the generator writes is not included" in text
+    assert "A check with no failure in 5 judgings is counted as never failing" in text
+
+
+def test_the_gate_estimate_gives_a_pooled_interval_for_the_chance_of_a_red_run():
+    # Pooling 3 failures in 10 judgings gives a Wilson interval of 10.8% to 60.3% for one judging
+    # failing; two checks must both pass, so one judging reds 1 - 0.892**2 = 20.4% to
+    # 1 - 0.397**2 = 84.3% of the runs (51.0% at 30%), and the median of 3 6.4% to 87.9% (38.5%).
+    text = gate_text(
+        row("in-001", "faithfulness", [True, True, True, True, False]),
+        row("in-001", "answer_relevancy", [True, True, True, False, False]),
+    )
+    assert "95% Wilson interval for the chance of a red run" in text
+    assert "20.4% to 84.3% for a single judging (estimate 51.0%)" in text
+    assert "6.4% to 87.9% for the median of 3 (estimate 38.5%)" in text
+    assert "every check as equally likely to fail" in text
+
+
+def test_a_spotless_run_still_leaves_a_range_for_the_chance_of_a_red_run():
+    text = gate_text(
+        row("in-001", "faithfulness", [True] * 5), row("in-001", "answer_relevancy", [True] * 5)
+    )
+    assert "single judging 0.0%, median of 3 0.0%" in text
+    assert "0 of 10 judgings of those strict smoke checks failed" in text
+    assert "0.0% to 47.8% for a single judging (estimate 0.0%)" in text
+    assert "0.0% to 34.1% for the median of 3 (estimate 0.0%)" in text
 
 
 def test_the_gate_estimate_says_so_when_no_strict_smoke_check_ran():
@@ -173,6 +253,47 @@ def test_a_known_bad_answer_with_an_errored_judging_is_unjudged_not_caught():
     text = summarize(results([], [errored, one_error_in_a_pass]))
     assert line_for(text, "bia-004", "bare refusal").endswith("| 0/5 | unjudged |")
     assert line_for(text, "bia-004", "names a dose").endswith("| 4/5 | unjudged |")
+
+
+UNCHECKED = [
+    {"case_id": "in-001", "kind": "uncited"},
+    {"case_id": "bia-005", "kind": "uncited"},
+]
+
+
+def test_the_known_bad_section_counts_entries_with_no_check_yet_that_are_not_judged():
+    caught = {
+        "case_id": "bia-004",
+        "kind": "bare refusal",
+        "key": "respectful_grounded",
+        "scores": [0.2] * 5,
+        "passed": [False] * 5,
+        "errors": [None] * 5,
+    }
+    text = summarize({**results([], [caught]), "unchecked": UNCHECKED})
+    assert (
+        "2 known-bad entries have no check yet (empty must_fail) and are not judged: "
+        "in-001 uncited, bia-005 uncited."
+    ) in text
+    assert text.index("2 known-bad entries have no check yet") > text.index("Known-bad answers")
+    assert "| caught |" in text
+
+
+def test_a_single_entry_with_no_check_yet_is_worded_in_the_singular_and_needs_no_table():
+    text = summarize({**results([]), "unchecked": UNCHECKED[:1]})
+    assert "### Known-bad answers" in text
+    assert (
+        "1 known-bad entry has no check yet (empty must_fail) and is not judged: in-001 uncited."
+        in text
+    )
+    assert "1 known-bad entry has no check yet (empty must_fail) and is not judged" in text
+    assert "| Case | Kind | Metric |" not in text
+
+
+def test_results_without_the_unchecked_list_say_nothing_of_it():
+    # Older results files have no such list; their summary must not claim to know the number.
+    assert "no check yet" not in summarize(results([], []))
+    assert "no check yet" not in summarize({**results([]), "unchecked": []})
 
 
 def test_no_known_bad_section_when_none_were_judged():

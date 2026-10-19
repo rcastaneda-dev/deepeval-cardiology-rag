@@ -11,8 +11,9 @@ several judge calls per measure), so a run is paid; at most 8 cases are judged a
 not part of the quality gate.
 
 --known-bad names a JSON list of {"case_id", "kind", "answer", "must_fail": [metric keys]}.
-Each entry is judged like the recorded case, with its answer replaced, on the keys in
-must_fail only (an empty must_fail is not judged); an answer the judge passes in most
+Each entry is judged like the recorded case, with its answer replaced (and its citations read
+from the new answer), on the keys in must_fail only. An empty must_fail is not judged: the
+summary counts those entries as having no check yet. An answer the judge passes in most
 judgings is a miss, and one with any errored judging is unjudged. --cases and --keys narrow
 the known-bad entries as well as the recorded answers.
 """
@@ -27,6 +28,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cardio_rag.config import judge_model  # noqa: E402
+from cardio_rag.generate import extract_citations  # noqa: E402
+from cardio_rag.retriever import RetrievedChunk  # noqa: E402
 from evals.cases import Golden, load_goldens  # noqa: E402
 from evals.harness import build_test_case  # noqa: E402
 from evals.metrics import is_strict, metric_specs_for  # noqa: E402
@@ -69,7 +72,9 @@ async def run(
     """Judge every golden's recorded answer, and every known-bad entry, `times` times.
 
     `keys` limits the checks (None means all of a case's own); `known_bad` entries must name
-    cases in `goldens`. Returns the rows, known_bad and cost of the results file.
+    cases in `goldens`. Returns the rows, known_bad, unchecked and cost of the results file;
+    unchecked lists the known-bad entries with an empty must_fail (no check for them yet), which
+    are not judged.
     """
     gate = asyncio.Semaphore(MAX_CASES_AT_ONCE)
     by_id = {golden.id: golden for golden in goldens}
@@ -84,11 +89,22 @@ async def run(
         job_keys = wanted(METRIC_KEYS[golden.category])
         if job_keys:
             jobs.append((None, golden, job_keys, build_test_case(golden, rag)))
+    unchecked = [
+        {"case_id": entry["case_id"], "kind": entry["kind"]}
+        for entry in known_bad
+        if not entry["must_fail"]
+    ]
     for entry in known_bad:
         golden = by_id[entry["case_id"]]
         job_keys = wanted(entry["must_fail"])
         if job_keys:
-            replaced = ReplayRag({"cases": [{**recorded[golden.id], "answer": entry["answer"]}]})
+            # Its citations are the ones it makes, not the recorded answer's.
+            case = recorded[golden.id]
+            chunks = [RetrievedChunk(**chunk) for chunk in case["chunks"]]
+            cited_ids = extract_citations(entry["answer"], chunks)
+            replaced = ReplayRag(
+                {"cases": [{**case, "answer": entry["answer"], "cited_ids": cited_ids}]}
+            )
             jobs.append((entry, golden, job_keys, build_test_case(golden, replaced)))
 
     outcomes = await asyncio.gather(
@@ -108,7 +124,7 @@ async def run(
             else:
                 label = {"case_id": golden.id, "kind": entry["kind"], "key": key}
                 bad.append({**label, **found[key]})
-    return {"rows": rows, "known_bad": bad, "cost": cost}
+    return {"rows": rows, "known_bad": bad, "unchecked": unchecked, "cost": cost}
 
 
 def _csv(text: str) -> list[str]:
@@ -148,6 +164,10 @@ def main(argv: list[str] | None = None) -> int:
     problems = mismatches(snapshot, goldens)
     if problems:
         return _refuse(f"{args.snapshot} does not match the dataset:\n" + "\n".join(problems))
+    try:
+        ReplayRag(snapshot)  # refuses cases that share a question
+    except ValueError as error:
+        return _refuse(f"{args.snapshot}: {error}")
     problems = known_bad_problems(known_bad, goldens)
     if problems:
         return _refuse(f"{args.known_bad} cannot be judged:\n" + "\n".join(problems))
