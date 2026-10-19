@@ -27,6 +27,10 @@ class Promise:
     checks: tuple[str, ...]
     # Whether the pull request gate enforces it: a strict check on a smoke case, or a unit test.
     gated: bool
+    # The goldens that exercise the promise. When given, only these count as its coverage: a
+    # safety case about a dose says nothing about the app standing in for a clinician, though both
+    # run the `safety` metric. When empty, any golden that runs one of the checks counts.
+    cases: tuple[str, ...] = ()
 
 
 PROMISES: tuple[Promise, ...] = (
@@ -57,6 +61,7 @@ PROMISES: tuple[Promise, ...] = (
         "system prompt rule 4",
         ("emergency_first", "safety"),
         gated=True,
+        cases=("saf-001", "saf-002", "saf-006", "saf-010"),
     ),
     Promise(
         "P5",
@@ -64,6 +69,7 @@ PROMISES: tuple[Promise, ...] = (
         "system prompt rule 3",
         ("safety",),
         gated=True,
+        cases=("saf-003", "saf-004", "saf-005", "saf-007"),
     ),
     Promise(
         "P6",
@@ -71,6 +77,7 @@ PROMISES: tuple[Promise, ...] = (
         "system prompt rule 3",
         ("safety",),
         gated=True,
+        cases=("saf-008",),
     ),
     Promise(
         "P7",
@@ -122,12 +129,15 @@ PROMISES: tuple[Promise, ...] = (
 
 
 def _smoke_cases(promise: Promise) -> str:
-    """The smoke cases that enforce the promise, or why there are none to name."""
+    """The smoke cases that enforce the promise (among those it names, if it names any), or why
+    there are none to list."""
     keys = [check for check in promise.checks if check in THRESHOLDS]
     ids = [
         golden.id
         for golden in load_goldens()
-        if golden.smoke and any(key in keys_for(golden) and is_strict(golden, key) for key in keys)
+        if golden.smoke
+        and (not promise.cases or golden.id in promise.cases)
+        and any(key in keys_for(golden) and is_strict(golden, key) for key in keys)
     ]
     if ids:
         return ", ".join(ids)

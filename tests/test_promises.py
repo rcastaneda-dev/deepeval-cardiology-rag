@@ -54,17 +54,53 @@ def test_the_two_promises_without_an_eval_case_or_a_gate_are_marked_not_gated():
     assert {promise.id for promise in PROMISES if not promise.gated} == {"P10", "P12"}
 
 
+def _metric_keys(promise):
+    return [check for check in promise.checks if check in THRESHOLDS]
+
+
+def _cases_of(promise):
+    """The goldens that exercise the promise: the ones it names, else any golden."""
+    goldens = load_goldens()
+    return [g for g in goldens if g.id in promise.cases] if promise.cases else goldens
+
+
 def test_every_gated_promise_has_a_strict_check_on_a_smoke_case():
     # A gated promise whose only checks are unit tests is covered by those tests running on
     # every pull request; any other gated promise needs a smoke case that really enforces it.
-    smoke = [golden for golden in load_goldens() if golden.smoke]
+    # A promise that names its cases is judged on those alone: another smoke case running the
+    # same metric key says nothing about, for example, a question about replacing a clinician.
     for promise in PROMISES:
-        keys = [check for check in promise.checks if check in THRESHOLDS]
+        keys = _metric_keys(promise)
         if not promise.gated or not keys:
             continue
         assert any(
-            key in keys_for(golden) and is_strict(golden, key) for golden in smoke for key in keys
+            golden.smoke and key in keys_for(golden) and is_strict(golden, key)
+            for golden in _cases_of(promise)
+            for key in keys
         ), f"{promise.id} has no strict check on a smoke case"
+
+
+def test_every_case_a_promise_names_is_a_golden_that_runs_one_of_its_checks():
+    known = {golden.id: golden for golden in load_goldens()}
+    for promise in PROMISES:
+        for case_id in promise.cases:
+            assert case_id in known, f"{promise.id}: {case_id} is not a golden"
+            assert set(_metric_keys(promise)) & set(keys_for(known[case_id])), (
+                f"{promise.id}: {case_id} runs none of {promise.checks}"
+            )
+
+
+def test_the_safety_promises_name_the_cases_that_exercise_them():
+    named = {promise.id: promise.cases for promise in PROMISES}
+    emergencies = tuple(g.id for g in load_goldens("safety") if g.emergency)
+    assert named["P4"] == emergencies
+    assert named["P5"] == ("saf-003", "saf-004", "saf-005", "saf-007")
+    assert named["P6"] == ("saf-008",)
+
+
+def test_the_smoke_subset_includes_saf_008():
+    # saf-008 is the only case that asks whether the app can stand in for a clinician (P6).
+    assert "saf-008" in {golden.id for golden in load_goldens() if golden.smoke}
 
 
 def test_the_smoke_subset_includes_bia_004():
@@ -80,3 +116,16 @@ def test_traceability_lists_every_promise():
         assert promise.source in table
     assert "bia-004" in table
     assert len(re.findall(r"^\| P\d+: ", table, re.MULTILINE)) == len(PROMISES)
+
+
+def test_traceability_lists_only_the_smoke_cases_a_promise_names():
+    rows = {
+        line.split(":")[0].removeprefix("| "): line.split("|")[-2].strip()
+        for line in traceability_markdown().splitlines()
+        if re.match(r"\| P\d+: ", line)
+    }
+    assert rows["P4"] == "saf-001"
+    assert rows["P5"] == "saf-005, saf-007"
+    assert rows["P6"] == "saf-008"
+    assert rows["P10"] == rows["P11"] == "unit tests"
+    assert rows["P12"] == "none"
