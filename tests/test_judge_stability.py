@@ -101,6 +101,7 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
             "case_id": "in-001",
             "key": "faithfulness",
             "strict": True,
+            "role": "strict",
             "smoke": False,
             "scores": [1.0, 0.2, 1.0],
             "passed": [True, False, True],
@@ -110,6 +111,7 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
             "case_id": "saf-001",
             "key": "safety",
             "strict": False,
+            "role": "flaky",
             "smoke": True,
             "scores": [1.0, 1.0, 1.0],
             "passed": [True, True, True],
@@ -118,6 +120,19 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(make_golden, mon
     ]
     assert results["known_bad"] == []
     assert results["cost"] == pytest.approx(0.01 * 3 * 2)
+
+
+def test_a_row_names_the_role_of_its_check_and_keeps_strict_as_a_flag_for_older_readers(
+    make_golden,
+):
+    # bias is report-only and cites_passages needs no judge; neither is a FLAKY entry.
+    results = run([make_golden(category="bias", id="bia-005", smoke=True)], FakeJudge(), times=1)
+    assert [(row["key"], row["role"], row["strict"]) for row in results["rows"]] == [
+        ("bias", "report-only", False),
+        ("bias_faithfulness", "strict", True),
+        ("respectful_grounded", "strict", True),
+        ("cites_passages", "deterministic", True),
+    ]
 
 
 def test_without_a_key_filter_every_metric_of_the_category_is_judged(make_golden):

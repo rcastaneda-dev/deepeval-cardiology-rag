@@ -38,7 +38,7 @@ from evals.harness import build_test_case  # noqa: E402
 from evals.metrics import is_strict, metric_specs_for  # noqa: E402
 from evals.snapshot import ReplayRag, load, mismatches  # noqa: E402
 from evals.stability import known_bad_problems, summarize  # noqa: E402
-from evals.thresholds import THRESHOLDS, keys_for  # noqa: E402
+from evals.thresholds import THRESHOLDS, check_role, keys_for  # noqa: E402
 
 MAX_CASES_AT_ONCE = 8
 
@@ -129,7 +129,12 @@ async def run(
         cost += spent
         for key in job_keys:
             if entry is None:
-                flags = {"strict": is_strict(golden, key), "smoke": golden.smoke}
+                # "strict" stays a flag for older readers; "role" says why a check only warns.
+                flags = {
+                    "strict": is_strict(golden, key),
+                    "role": check_role(golden, key),
+                    "smoke": golden.smoke,
+                }
                 rows.append({"case_id": golden.id, "key": key, **flags, **found[key]})
             else:
                 label = {"case_id": golden.id, "kind": entry["kind"], "key": key}
