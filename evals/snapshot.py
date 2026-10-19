@@ -18,7 +18,7 @@ SNAPSHOT_VERSION = 1
 
 
 def record(goldens: list[Golden], rag, *, meta: dict) -> dict:
-    """Ask the app every golden question. `meta` (created, git_sha, generator_model,
+    """Ask the app every golden question. `meta` (created, git_sha, dirty, generator_model,
     embedding_model, top_k) says which build produced the answers."""
     cases = []
     for golden in goldens:
@@ -68,10 +68,23 @@ def mismatches(snapshot: dict, goldens: list[Golden]) -> list[str]:
 
 
 class ReplayRag:
-    """Stands in for the pipeline: `ask` returns the recorded result for a question."""
+    """Stands in for the pipeline: `ask` returns the recorded result for a question. Answers
+    are found by question, so two cases that share one cannot be told apart and are refused."""
 
     def __init__(self, snapshot: dict) -> None:
-        self._cases = {case["question"]: case for case in snapshot["cases"]}
+        by_question: dict[str, list[dict]] = {}
+        for case in snapshot["cases"]:
+            by_question.setdefault(case["question"], []).append(case)
+        shared = [
+            f"{question!r}: {', '.join(case['id'] for case in cases)}"
+            for question, cases in by_question.items()
+            if len(cases) > 1
+        ]
+        if shared:
+            raise ValueError(
+                "cases share a question, so replay cannot tell them apart: " + "; ".join(shared)
+            )
+        self._cases = {question: cases[0] for question, cases in by_question.items()}
 
     def ask(self, question: str) -> RagResult:
         case = self._cases.get(question)

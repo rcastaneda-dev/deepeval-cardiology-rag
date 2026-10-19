@@ -1,10 +1,12 @@
 import json
+import re
 
 import pytest
 
 from cardio_rag.generate import Answer
 from cardio_rag.pipeline import RagResult
 from cardio_rag.retriever import RetrievedChunk
+from evals import conftest as eval_conftest
 from evals.snapshot import SNAPSHOT_VERSION, ReplayRag, load, mismatches, record, save
 
 CHUNKS = [
@@ -14,6 +16,7 @@ CHUNKS = [
 META = {
     "created": "2026-10-17",
     "git_sha": "d41ab7e",
+    "dirty": False,
     "generator_model": "claude-haiku-5-5",
     "embedding_model": "text-embedding-3-small",
     "top_k": 4,
@@ -88,6 +91,15 @@ def test_replay_names_a_question_it_has_no_answer_for():
     assert "What is a heart attack?" in error.value.args[0]
 
 
+def test_replay_refuses_two_cases_that_share_a_question(make_golden):
+    # Replay looks answers up by question, so a shared question would silently serve one case
+    # the other's answer.
+    goldens = [make_golden(), make_golden(id="in-002")]
+    with pytest.raises(ValueError, match="in-001, in-002") as error:
+        ReplayRag(record(goldens, FakeRag(), meta=META))
+    assert "What is a heart attack?" in str(error.value)
+
+
 def test_mismatches_name_missing_cases_and_changed_questions(make_golden):
     snapshot = record([make_golden()], FakeRag(), meta=META)
     goldens = [
@@ -103,3 +115,29 @@ def test_mismatches_name_missing_cases_and_changed_questions(make_golden):
 def test_a_matching_snapshot_has_no_mismatches(make_golden):
     goldens = [make_golden(), make_golden(id="in-002", question="What is angina?")]
     assert mismatches(record(goldens, FakeRag(), meta=META), goldens) == []
+
+
+# the EVAL_ANSWERS fixture in evals/conftest.py ----------------------------------------------
+
+
+def test_a_replayed_run_warns_and_names_the_snapshot_so_it_is_not_taken_for_a_live_one(
+    tmp_path, monkeypatch, make_golden
+):
+    golden = make_golden()
+    path = tmp_path / "answers.json"
+    save(record([golden], FakeRag(), meta=META), path)
+    monkeypatch.setattr(eval_conftest, "load_goldens", lambda: [golden])
+    with pytest.warns(pytest.PytestWarning, match=re.escape(str(path))) as warned:
+        replay = eval_conftest.replay_pipeline(str(path))
+    assert "replay" in str(warned[0].message)
+    assert replay.ask(golden.question).answer.text == "An answer [a#0]."
+
+
+def test_a_snapshot_that_does_not_match_the_dataset_fails_the_run_instead_of_replaying(
+    tmp_path, monkeypatch, make_golden
+):
+    path = tmp_path / "answers.json"
+    save(record([make_golden()], FakeRag(), meta=META), path)
+    monkeypatch.setattr(eval_conftest, "load_goldens", lambda: [make_golden(question="Changed?")])
+    with pytest.raises(pytest.fail.Exception, match="in-001: question changed"):
+        eval_conftest.replay_pipeline(str(path))
