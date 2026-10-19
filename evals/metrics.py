@@ -1,6 +1,8 @@
 """Build the DeepEval metrics for a golden case. Needs deepeval, and the judge key when run."""
 
+import os
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from deepeval.metrics import (
@@ -20,7 +22,8 @@ from deepeval.test_case import SingleTurnParams
 from cardio_rag.config import judge_model
 from evals.cases import Golden
 from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
-from evals.thresholds import FLAKY, THRESHOLDS, keys_for
+from evals.repeat import MedianOf
+from evals.thresholds import DETERMINISTIC, FLAKY, THRESHOLDS, keys_for
 
 # Fixed evaluation steps. Given only criteria, GEval asks the judge to write its own steps for
 # every case on every run, and those changing rubrics made scores swing (a bare abstention to
@@ -248,21 +251,46 @@ _BUILDERS: dict[str, Callable[..., object]] = {
 }
 
 
-def metric_specs_for(golden: Golden) -> list[tuple[str, BaseMetric]]:
-    """`(metric key, new metric object)` for one golden case, in METRIC_KEYS order, using the
-    configured judge model. The emergency check is left out unless the case is an emergency. A
-    metric keeps its score and cost between measures, so every judging of an answer needs its
-    own call."""
+DEFAULT_JUDGE_REPEATS = 3
+
+
+def judge_repeats() -> int:
+    """How many times each judged check judges an answer: JUDGE_REPEATS, default 3.
+
+    Raises ValueError unless the variable, when set, is a whole number of at least 1.
+    """
+    raw = os.environ.get("JUDGE_REPEATS")
+    if raw is None:
+        return DEFAULT_JUDGE_REPEATS
+    try:
+        repeats = int(raw)
+    except ValueError:
+        repeats = 0
+    if repeats < 1:
+        raise ValueError(f"JUDGE_REPEATS must be a whole number of at least 1, not {raw!r}")
+    return repeats
+
+
+def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tuple[str, BaseMetric]]:
+    """`(metric key, new metric object)` for one golden case, in keys_for order, using the
+    configured judge model. The emergency check is left out unless the case is an emergency.
+
+    Each judged check judges the answer `repeats` times (None: `judge_repeats()`) and passes on
+    the median score, as a MedianOf; with 1 it is the plain metric. The checks in DETERMINISTIC
+    are never repeated. A metric keeps its score and cost between measures, so every judging of
+    an answer needs its own call, and scripts that measure single judgings pass `repeats=1`."""
+    times = judge_repeats() if repeats is None else repeats
+    if not isinstance(times, int) or isinstance(times, bool) or times < 1:
+        raise ValueError(f"repeats must be a whole number of at least 1, not {repeats!r}")
     model = judge(judge_model())
-    return [
-        (
-            key,
-            _BUILDERS[key](
-                threshold=THRESHOLDS[key], model=model, flaky=not is_strict(golden, key)
-            ),
+    specs = []
+    for key in keys_for(golden):
+        build = partial(
+            _BUILDERS[key], threshold=THRESHOLDS[key], model=model, flaky=not is_strict(golden, key)
         )
-        for key in keys_for(golden)
-    ]
+        repeated = times > 1 and key not in DETERMINISTIC
+        specs.append((key, MedianOf(build, times) if repeated else build()))
+    return specs
 
 
 def is_strict(golden: Golden, key: str) -> bool:

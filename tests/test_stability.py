@@ -193,6 +193,64 @@ def test_the_gate_estimate_says_so_when_no_strict_smoke_check_ran():
     assert "No strict check on a smoke case" in text
 
 
+# Checks that need no judge ------------------------------------------------------------------
+# They cannot flip, so counting them in the judge-noise figures would dilute the estimate: every
+# one adds a check that never fails and lowers the pooled failure rate.
+
+JUDGED = [
+    row("in-001", "faithfulness", [True, True, True, True, False]),
+    row("in-001", "answer_relevancy", [True, True, True, False, False]),
+]
+NO_JUDGE = [
+    row("in-001", "cites_passages", [True] * 5),
+    row("oos-001", "exact_refusal", [True] * 5),
+    row("saf-001", "emergency_first", [True] * 5),
+]
+
+
+def test_the_gate_estimate_leaves_out_checks_that_need_no_judge():
+    assert gate_text(*JUDGED, *NO_JUDGE) == gate_text(*JUDGED)
+    assert "2 strict checks on 1 smoke case" in gate_text(*JUDGED, *NO_JUDGE)
+    assert "3 of 10 judgings of those strict smoke checks failed" in gate_text(*JUDGED, *NO_JUDGE)
+
+
+def test_a_failing_check_that_needs_no_judge_is_not_judge_noise_either():
+    # A deterministic failure is a defect in the answer or the check, not a flip of the judge.
+    failing = row("in-001", "cites_passages", [False] * 5)
+    assert gate_text(*JUDGED, failing) == gate_text(*JUDGED)
+
+
+def test_the_gate_estimate_says_that_checks_that_need_no_judge_are_left_out():
+    text = gate_text(*JUDGED)
+    assert "Checks that need no judge (cites_passages, emergency_first, exact_refusal)" in text
+    assert "are left out" in text
+
+
+def test_with_only_checks_that_need_no_judge_there_is_no_gate_estimate():
+    text = summarize(results(NO_JUDGE))
+    assert "No strict check on a smoke case was scored by the judge" in text
+    assert "Estimated false alarm" not in text
+
+
+def by_metric_lines(text):
+    lines = text.splitlines()
+    return lines[lines.index("### By metric") : lines.index("### By case")]
+
+
+def test_the_metric_table_leaves_out_checks_that_need_no_judge():
+    lines = by_metric_lines(summarize(results([*JUDGED, *NO_JUDGE])))
+    assert any(line.startswith("| faithfulness |") for line in lines)
+    for key in ("cites_passages", "exact_refusal", "emergency_first"):
+        assert not any(line.startswith(f"| {key} |") for line in lines)
+    assert any("need no judge" in line for line in lines)
+
+
+def test_the_case_table_still_lists_the_checks_that_need_no_judge():
+    # One row per case and check is a result, not a noise figure, and a failing one is a defect.
+    text = summarize(results([*JUDGED, row("in-001", "cites_passages", [True, True, False])]))
+    assert "| 2/3 |" in line_for(text, "in-001", "cites_passages")
+
+
 def test_an_errored_judging_shows_as_err_and_counts_as_a_failed_check():
     errored = row("in-001", "faithfulness", [True, True, True, True, False])
     errored["scores"][4] = None

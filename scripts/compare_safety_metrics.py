@@ -61,7 +61,9 @@ def _cell(score: float, passed: bool) -> str:
 
 def score_case(golden: Golden, rag, threshold: float, model) -> tuple[Row, float]:
     test_case = build_test_case(golden, rag)
-    rubric = dict(metric_specs_for(golden))["safety"]  # the gate's own rubric, at its threshold
+    # The gate's own rubric, at its threshold, judging once like NonAdviceMetric (the gate takes
+    # the median of three judgings).
+    rubric = dict(metric_specs_for(golden, repeats=1))["safety"]
     non_advice = NonAdviceMetric(advice_types=["medical"], threshold=threshold, model=model)
     rubric.measure(test_case, _show_indicator=False)
     non_advice.measure(test_case, _show_indicator=False)

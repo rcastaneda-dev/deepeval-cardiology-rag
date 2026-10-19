@@ -2,7 +2,8 @@ import pytest
 from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model
-from evals.metrics import is_strict, judge, metric_specs_for, metrics_for
+from evals.metrics import is_strict, judge, judge_repeats, metric_specs_for, metrics_for
+from evals.repeat import MedianOf
 from evals.thresholds import DETERMINISTIC, FLAKY, METRIC_KEYS, THRESHOLDS, keys_for
 
 EXPECTED_CLASSES = {
@@ -23,8 +24,10 @@ EXPECTED_CLASSES = {
 
 @pytest.fixture(autouse=True)
 def dummy_judge_key(monkeypatch):
-    # Building a metric must not call the API; a dummy key proves it.
+    # Building a metric must not call the API; a dummy key proves it. One judging per check keeps
+    # the metrics below the plain classes these tests name; the median-of-3 tests set their own.
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-never-used")
+    monkeypatch.setenv("JUDGE_REPEATS", "1")
 
 
 def test_every_category_is_covered_by_this_test():
@@ -238,3 +241,118 @@ def test_a_flaky_override_reaches_a_deterministic_check_like_any_other(make_gold
     monkeypatch.setitem(FLAKY, "saf-001", frozenset({"emergency_first"}))
     golden = make_golden(id="saf-001", category="safety", emergency=True)
     assert [metric.flaky for metric in metrics_for(golden)] == [False, True]
+
+
+# Median-of-3 judging ------------------------------------------------------------------------
+
+
+def test_judge_repeats_defaults_to_three(monkeypatch):
+    monkeypatch.delenv("JUDGE_REPEATS", raising=False)
+    assert judge_repeats() == 3
+
+
+def test_judge_repeats_reads_the_environment(monkeypatch):
+    monkeypatch.setenv("JUDGE_REPEATS", "5")
+    assert judge_repeats() == 5
+    monkeypatch.setenv("JUDGE_REPEATS", " 1 ")
+    assert judge_repeats() == 1
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "x", "2.5", "three", ""])
+def test_judge_repeats_rejects_nonsense(monkeypatch, value):
+    monkeypatch.setenv("JUDGE_REPEATS", value)
+    with pytest.raises(ValueError, match="JUDGE_REPEATS"):
+        judge_repeats()
+
+
+def test_every_judged_check_is_wrapped_in_a_median_of_three_by_default(make_golden, monkeypatch):
+    monkeypatch.delenv("JUDGE_REPEATS", raising=False)
+    specs = metric_specs_for(make_golden(category="bias"))
+    judged = [metric for key, metric in specs if key not in DETERMINISTIC]
+    assert [type(metric) for metric in judged] == [MedianOf] * 3
+    assert [metric.times for metric in judged] == [3, 3, 3]
+    assert [type(copy).__name__ for copy in judged[2].copies] == ["BoundedGEval"] * 3
+
+
+@pytest.mark.parametrize("category", sorted(EXPECTED_CLASSES))
+def test_the_copies_are_the_checks_the_category_runs(make_golden, monkeypatch, category):
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    golden = make_golden(category=category)
+    classes = []
+    for metric in metrics_for(golden):
+        if isinstance(metric, MedianOf):
+            assert {type(copy) for copy in metric.copies} == {type(metric.copies[0])}
+            classes.append(type(metric.copies[0]).__name__)
+        else:
+            classes.append(type(metric).__name__)
+    assert classes == EXPECTED_CLASSES[category]
+
+
+@pytest.mark.parametrize("category", sorted(EXPECTED_CLASSES))
+def test_a_median_reports_the_name_threshold_and_flaky_flag_of_the_plain_metric(
+    make_golden, monkeypatch, category
+):
+    # One judged key of each category is flaky, so the flag is checked where it is set.
+    flaky = frozenset({"contextual_recall", "abstention", "safety", "respectful_grounded"})
+    monkeypatch.setitem(FLAKY, "bia-001", flaky)
+    golden = make_golden(id="bia-001", category=category)
+    monkeypatch.setenv("JUDGE_REPEATS", "1")
+    plain = metrics_for(golden)
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    wrapped = metrics_for(golden)
+    assert [m.__name__ for m in wrapped] == [m.__name__ for m in plain]
+    assert [m.threshold for m in wrapped] == [m.threshold for m in plain]
+    assert [m.flaky for m in wrapped] == [m.flaky for m in plain]
+    assert [m.evaluation_model for m in wrapped] == [m.evaluation_model for m in plain]
+
+
+def test_the_copies_of_one_check_are_separate_objects(make_golden, monkeypatch):
+    # A metric keeps its score, verdicts and cost between measures, so each judging needs its own.
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    (median,) = metrics_for(make_golden(category="safety"))
+    assert len({id(copy) for copy in median.copies}) == 3
+
+
+def test_deterministic_checks_are_never_repeated(make_golden, monkeypatch):
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    goldens = [
+        make_golden(category="in_corpus"),
+        make_golden(id="oos-001", category="out_of_scope"),
+        make_golden(id="saf-001", category="safety", emergency=True),
+    ]
+    checks = [
+        (key, metric)
+        for golden in goldens
+        for key, metric in metric_specs_for(golden)
+        if key in DETERMINISTIC
+    ]
+    assert [key for key, _ in checks] == ["cites_passages", "exact_refusal", "emergency_first"]
+    assert [type(metric) is MedianOf for _, metric in checks] == [False] * 3
+    assert [type(metric).__name__ for _, metric in checks] == [
+        "CitesRetrievedPassages",
+        "ExactRefusal",
+        "EmergencyFirst",
+    ]
+
+
+def test_one_repeat_returns_the_plain_metric(make_golden, monkeypatch):
+    monkeypatch.setenv("JUDGE_REPEATS", "1")
+    golden = make_golden(category="bias")
+    assert not any(isinstance(metric, MedianOf) for metric in metrics_for(golden))
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    plain = metric_specs_for(golden, repeats=1)
+    assert [type(metric).__name__ for _, metric in plain] == EXPECTED_CLASSES["bias"]
+
+
+def test_repeats_given_to_metric_specs_for_beat_the_environment(make_golden, monkeypatch):
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    median = dict(metric_specs_for(make_golden(category="safety"), repeats=5))["safety"]
+    assert median.times == 5
+
+
+@pytest.mark.parametrize("repeats", [0, -1, 2.5, "3", True])
+def test_metric_specs_for_rejects_a_repeats_that_is_not_a_whole_number_of_at_least_one(
+    make_golden, repeats
+):
+    with pytest.raises(ValueError, match="repeats"):
+        metric_specs_for(make_golden(), repeats=repeats)

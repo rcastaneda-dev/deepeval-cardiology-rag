@@ -10,6 +10,9 @@ pull-request gate. Each check is measured K times on every case (a DeepEval metr
 several judge calls per measure), so a run is paid; at most 8 cases are judged at once. It is
 not part of the quality gate.
 
+Each of the K judgings is one plain metric, whatever JUDGE_REPEATS says: the gate takes the
+median of three judgings of a check, and this script measures how often a single judging flips.
+
 --known-bad names a JSON list of {"case_id", "kind", "answer", "must_fail": [metric keys]}.
 Each entry is judged like the recorded case, with its answer replaced (and its citations read
 from the new answer), on the keys in must_fail only. An empty must_fail is not judged: the
@@ -38,6 +41,13 @@ from evals.stability import known_bad_problems, summarize  # noqa: E402
 from evals.thresholds import THRESHOLDS, keys_for  # noqa: E402
 
 MAX_CASES_AT_ONCE = 8
+
+
+def single_judging_specs(golden: Golden) -> list:
+    """The checks of one case with each judged one a plain metric. The gate takes the median of
+    three judgings of each check; this script measures how often one judging flips, so it must
+    not repeat them."""
+    return metric_specs_for(golden, repeats=1)
 
 
 async def _judge(golden, test_case, keys, times, specs_for, gate) -> tuple[dict, float]:
@@ -179,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
             snapshot,
             selected,
             times=args.times,
-            specs_for=metric_specs_for,
+            specs_for=single_judging_specs,
             keys=args.keys,
             known_bad=[entry for entry in known_bad if entry["case_id"] in chosen],
         )

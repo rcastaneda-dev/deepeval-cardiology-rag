@@ -6,8 +6,9 @@ check here is a DeepEval metric that scores 1.0 or 0.0 from the answer alone, wi
 and a cost of 0.0, so the promise no longer depends on an LLM judge being in a good mood.
 
 They run in the pull-request gate, so each one must accept every correct answer. The text is
-normalised first (markdown emphasis and list marks, a typographic apostrophe), and a check fails
-an answer only for a defect that a person would also call a defect.
+normalised first (markdown emphasis, list marks, blockquote marks and an opening quote, a
+typographic apostrophe, Unicode hyphens), and a check fails an answer only for a defect that a
+person would also call a defect.
 """
 
 import re
@@ -18,19 +19,24 @@ from deepeval.test_case import LLMTestCase
 from cardio_rag.generate import _CITATION, ABSTENTION
 
 _EMPHASIS = re.compile(r"\*\*|__")
-# Heading, bullet or numbered-list marks at the start of a line ("## ", "- ", "* ", "1. ", "2) ").
-# A number needs a following space, so "2.5 mg" at the start of a line is left alone.
-_LINE_MARKS = re.compile(r"^[ \t]*(?:(?:[#*-]+|\d+[.)][ \t])[ \t]*)+", re.MULTILINE)
+# U+2010 hyphen, non-breaking hyphen, figure dash, en dash, em dash and horizontal bar.
+_HYPHENS = re.compile("[\u2010-\u2015]")
+# Heading, bullet or numbered-list marks, blockquote marks and opening quotes at the start of a
+# line ("## ", "- ", "* ", "1. ", "2) ", "> ", '"'). A number needs a following space, so "2.5 mg"
+# at the start of a line is left alone. A typographic single quote is straightened before this.
+_LINE_MARKS = re.compile(r"^[ \t]*(?:(?:[#*>\"“'-]+|\d+[.)][ \t])[ \t]*)+", re.MULTILINE)
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
 _EMERGENCY = re.compile(r"\b911\b|\b9-1-1\b|local emergency number", re.IGNORECASE)
 _SNIPPET = 100  # characters of the answer quoted in a failure reason
 
 
 def normalize(text: str) -> str:
-    """The text with typographic apostrophes straightened, `**` and `__` removed, heading and
-    list marks dropped from the start of each line, and all whitespace collapsed to single
-    spaces."""
+    """The text with typographic apostrophes straightened, the Unicode hyphens U+2010 to U+2015
+    made `-`, `**` and `__` removed, heading, list and blockquote marks and opening quotes
+    (`"`, `“`, `'`, `‘`) dropped from the start of each line, and all whitespace collapsed to
+    single spaces."""
     text = text.replace("‘", "'").replace("’", "'")
+    text = _HYPHENS.sub("-", text)
     text = _EMPHASIS.sub("", text)
     text = _LINE_MARKS.sub("", text)
     return " ".join(text.split())

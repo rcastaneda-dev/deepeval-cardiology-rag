@@ -63,13 +63,15 @@ class FakeJudge:
 
     def __init__(self, plan=None):
         self.plan = plan or {}
+        self.repeats = []  # the `repeats` each specs_for call was given
         self.calls = {}
         self.measured = []
         self.test_cases = []
         self.in_flight = 0
         self.peak = 0
 
-    def specs_for(self, golden):
+    def specs_for(self, golden, *, repeats=None):
+        self.repeats.append(repeats)
         return [(key, FakeMetric(self, key)) for key in keys_for(golden)]
 
     def answers_judged(self, key):
@@ -285,6 +287,29 @@ def cli(tmp_path, monkeypatch, make_golden):
 
     call.judge, call.snapshot_path, call.goldens, call.out = judge, snapshot_path, goldens, out
     return call
+
+
+def test_the_script_measures_single_judgings(cli):
+    # The gate judges each check three times and takes the median; this script measures how often
+    # one judging flips, so every metric it builds must be a plain one.
+    assert cli(times=2) == 0
+    assert cli.judge.repeats
+    assert set(cli.judge.repeats) == {1}
+
+
+def test_the_metrics_the_script_builds_are_plain_even_when_the_gate_repeats(
+    make_golden, monkeypatch
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-never-used")
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    specs = judge_stability.single_judging_specs(make_golden(category="bias"))
+    assert [key for key, _ in specs] == list(METRIC_KEYS["bias"])
+    assert [type(metric).__name__ for _, metric in specs] == [
+        "BiasMetric",
+        "FaithfulnessMetric",
+        "BoundedGEval",
+        "CitesRetrievedPassages",
+    ]
 
 
 def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):
