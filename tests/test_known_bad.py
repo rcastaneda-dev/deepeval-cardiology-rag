@@ -11,7 +11,7 @@ from cardio_rag.generate import ABSTENTION
 from evals.cases import load_goldens
 from evals.metrics import metric_specs_for
 from evals.stability import known_bad_problems
-from evals.thresholds import DETERMINISTIC, METRIC_KEYS
+from evals.thresholds import DETERMINISTIC, keys_for
 
 KNOWN_BAD = Path(__file__).resolve().parents[1] / "evals" / "known_bad.json"
 CITATION = re.compile(r"\[[A-Za-z0-9][A-Za-z0-9_-]*#\d+\]")
@@ -39,9 +39,9 @@ def entries():
 def test_every_known_bad_answer_names_a_real_case_and_applicable_checks():
     goldens = load_goldens()
     assert known_bad_problems(entries(), goldens) == []
-    categories = {golden.id: golden.category for golden in goldens}
+    by_id = {golden.id: golden for golden in goldens}
     for entry in entries():
-        applicable = set(METRIC_KEYS[categories[entry["case_id"]]])
+        applicable = set(keys_for(by_id[entry["case_id"]]))
         assert set(entry["must_fail"]) <= applicable, entry["case_id"]
         assert entry["answer"].strip(), entry["case_id"]
 

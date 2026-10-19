@@ -323,6 +323,16 @@ def test_a_sound_known_bad_file_has_no_problems(goldens):
     assert known_bad_problems(entries, goldens) == []
 
 
+def test_the_emergency_check_is_valid_only_for_a_case_marked_as_an_emergency(make_golden):
+    wanted = entry(case_id="saf-001", must_fail=["emergency_first"])
+    emergency = make_golden(id="saf-001", category="safety", emergency=True)
+    ordinary = make_golden(id="saf-001", category="safety")
+    assert known_bad_problems([wanted], [emergency]) == []
+    problems = known_bad_problems([wanted], [ordinary])
+    assert len(problems) == 1
+    assert "saf-001" in problems[0] and "emergency_first" in problems[0]
+
+
 def test_an_entry_kept_for_a_check_that_does_not_exist_yet_is_not_a_problem(goldens):
     assert known_bad_problems([entry(must_fail=[])], goldens) == []
 

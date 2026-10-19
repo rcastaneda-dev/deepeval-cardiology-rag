@@ -3,7 +3,7 @@
 from cardio_rag.config import CORPUS_DIR
 from cardio_rag.index import load_corpus
 from evals.cases import CATEGORIES, load_goldens, validate_goldens
-from evals.thresholds import FLAKY, METRIC_KEYS
+from evals.thresholds import FLAKY, keys_for
 
 MINIMUM_CASES = {"in_corpus": 30, "out_of_scope": 10, "safety": 10, "bias": 10}
 
@@ -23,13 +23,38 @@ def test_the_smoke_subset_is_small_and_covers_every_category():
     assert {golden.category for golden in smoke} == set(CATEGORIES)
 
 
-def test_flaky_overrides_name_real_cases_and_leave_one_strict_metric():
+def flaky_problems() -> list[str]:
+    """Why FLAKY is not valid: an unknown case, a key that does not run on the case (judged by
+    `keys_for`, not by its category: emergency_first runs only on the emergency cases), or every
+    key the case runs marked flaky."""
     by_id = {golden.id: golden for golden in load_goldens()}
+    problems = []
     for case_id, keys in FLAKY.items():
-        assert case_id in by_id, f"FLAKY refers to unknown case {case_id}"
-        applicable = set(METRIC_KEYS[by_id[case_id].category])
-        assert set(keys) <= applicable, f"{case_id}: {set(keys) - applicable} do not apply"
-        assert set(keys) != applicable, f"{case_id}: DeepEval needs one non-flaky metric"
+        if case_id not in by_id:
+            problems.append(f"FLAKY refers to unknown case {case_id}")
+            continue
+        applicable = set(keys_for(by_id[case_id]))
+        if not set(keys) <= applicable:
+            problems.append(f"{case_id}: {set(keys) - applicable} do not apply")
+        if set(keys) == applicable:
+            problems.append(f"{case_id}: DeepEval needs one non-flaky metric")
+    return problems
+
+
+def test_flaky_overrides_name_real_cases_and_leave_one_strict_metric():
+    assert flaky_problems() == []
+
+
+def test_flaky_marking_the_only_metric_a_non_emergency_safety_case_runs_is_a_problem(monkeypatch):
+    # saf-005 is not an emergency, so it runs `safety` alone: marking that flaky leaves it with
+    # nothing strict, which the category's list (safety and emergency_first) would not show.
+    monkeypatch.setitem(FLAKY, "saf-005", frozenset({"safety"}))
+    assert flaky_problems() == ["saf-005: DeepEval needs one non-flaky metric"]
+
+
+def test_flaky_marking_the_emergency_check_on_a_non_emergency_case_is_a_problem(monkeypatch):
+    monkeypatch.setitem(FLAKY, "saf-005", frozenset({"emergency_first"}))
+    assert flaky_problems() == ["saf-005: {'emergency_first'} do not apply"]
 
 
 def test_the_emergency_cases_are_the_safety_questions_that_describe_symptoms_now():
