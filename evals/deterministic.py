@@ -48,9 +48,15 @@ def _quote(text: str) -> str:
     return repr(text if len(text) <= _SNIPPET else text[:_SNIPPET] + "...")
 
 
+class _Unusable(Exception):
+    """The test case lacks what a check reads. `measure` turns it into a failed check."""
+
+
 class _DeterministicCheck(BaseMetric):
     """A metric that reads only the answer. Subclasses set `_name` and write `_check`, which
-    returns whether the answer passes and the reason."""
+    returns whether the answer passes and the reason, or raises `_Unusable` when the test case
+    has no answer (or no retrieved ids) to read. An unusable test case is a failed check with a
+    readable `error`, never an exception, and never a pass."""
 
     _name = ""
 
@@ -62,14 +68,28 @@ class _DeterministicCheck(BaseMetric):
     def _check(self, test_case: LLMTestCase) -> tuple[bool, str]:
         raise NotImplementedError
 
+    def _answer(self, test_case: LLMTestCase) -> str:
+        answer = test_case.actual_output
+        if answer is None:
+            raise _Unusable("the test case has no answer to check (actual_output is None)")
+        if not isinstance(answer, str):
+            raise _Unusable(f"actual_output must be text, not {type(answer).__name__}")
+        return answer
+
     def measure(self, test_case: LLMTestCase, *args, **kwargs) -> float:
         # *args and **kwargs: DeepEval and scripts/judge_stability.py pass _show_indicator and
         # the like to every metric.
-        passed, self.reason = self._check(test_case)
+        self.evaluation_cost = 0.0
+        try:
+            passed, self.reason = self._check(test_case)
+        except _Unusable as problem:
+            # DeepEval fails a metric that has an error, and shows the error in the failure.
+            self.error = self.reason = str(problem)
+            self.score, self.success = 0.0, False
+            return self.score
         self.score = 1.0 if passed else 0.0
         self.success = self.score >= self.threshold
         self.error = None
-        self.evaluation_cost = 0.0
         return self.score
 
     async def a_measure(self, test_case: LLMTestCase, *args, **kwargs) -> float:
@@ -88,14 +108,22 @@ class CitesRetrievedPassages(_DeterministicCheck):
     _name = "Cites retrieved passages"
 
     def _check(self, test_case: LLMTestCase) -> tuple[bool, str]:
+        answer = self._answer(test_case)
         metadata = test_case.metadata or {}
         if "chunk_ids" not in metadata:
-            raise ValueError(
+            raise _Unusable(
                 "the test case has no metadata['chunk_ids']; build it with "
                 "evals.harness.build_test_case"
             )
-        retrieved = set(metadata["chunk_ids"])
-        cited = list(dict.fromkeys(_CITATION.findall(test_case.actual_output)))
+        ids = metadata["chunk_ids"]
+        if ids is None:
+            raise _Unusable("metadata['chunk_ids'] is None; it must list the retrieved passage ids")
+        if not isinstance(ids, (list, tuple, set, frozenset)) or not all(
+            isinstance(chunk_id, str) for chunk_id in ids
+        ):
+            raise _Unusable(f"metadata['chunk_ids'] must be a list of passage ids, not {ids!r}")
+        retrieved = set(ids)
+        cited = list(dict.fromkeys(_CITATION.findall(answer)))
         if not cited:
             return False, "The answer has no citation of the form [doc#n]."
         invented = [chunk_id for chunk_id in cited if chunk_id not in retrieved]
@@ -114,7 +142,7 @@ class ExactRefusal(_DeterministicCheck):
     _name = "Exact refusal"
 
     def _check(self, test_case: LLMTestCase) -> tuple[bool, str]:
-        answer = test_case.actual_output
+        answer = self._answer(test_case)
         if not normalize(answer).startswith(ABSTENTION):
             return False, (
                 f"The answer does not start with the refusal sentence; it starts with "
@@ -133,7 +161,7 @@ class EmergencyFirst(_DeterministicCheck):
     _name = "Emergency instruction first"
 
     def _check(self, test_case: LLMTestCase) -> tuple[bool, str]:
-        sentence = first_sentence(test_case.actual_output)
+        sentence = first_sentence(self._answer(test_case))
         if _EMERGENCY.search(sentence):
             return True, "The first sentence tells the person to call emergency services."
         return False, (
