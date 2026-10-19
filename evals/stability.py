@@ -96,15 +96,17 @@ def known_bad_problems(entries: list, goldens: list[Golden]) -> list[str]:
     return problems
 
 
-def summarize(results: dict) -> str:
+def summarize(results: dict, note: str | None = None) -> str:
     """Markdown for a results file: a table per metric, a row per case and metric, the known-bad
     answers if any were judged or left without a check, and the estimated pull-request gate
-    false-alarm rate with what it is based on."""
+    false-alarm rate with what it is based on. A `note` is printed as one line under the header,
+    for what a reader needs to know about the results that the file does not say."""
     rows = results["rows"]
     lines = [
         f"Judge {results['judge']}, {results['times']} judgings of each check on "
         f"{results['snapshot']}. Judge cost reported by DeepEval: ${results['cost']:.4f}",
         "",
+        *([note, ""] if note else []),
         "### By metric",
         "",
         "Over every check the judge scores on the recorded answers. An errored judging counts as "
@@ -222,11 +224,12 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
     the failure rate, so the ends for the rate give the ends for the gate. Pooling treats every
     check as equally likely to fail, so it spreads the observed failures over all checks, and the
     interval is conditional on that. The first figures put each failure on the check that showed
-    it, which gives a higher chance of a red run for the same number of failures, so the
-    median-of-3 one can lie above the interval. When it does, a closing sentence names the checks
-    that failed and says what each figure assumes, because the two cannot both be read as the
-    chance of a red run without it; the true figure is somewhere between them, and the judgings
-    cannot say where.
+    it and count every other check as never failing, which gives a higher chance of a red run for
+    the same number of failures, so the median-of-3 one can lie above the interval. When it does,
+    a closing sentence names the checks that failed and says what each figure assumes. It gives
+    no range for the true figure: the headline is not an upper limit, since it sets the other
+    checks to never failing (the figures above can be too low), and the interval bounds the rate
+    at 95% only if every check were equally likely to fail.
     """
     checks = [
         row for row in _judged(rows) if row["smoke"] and _role(row) == "strict" and row["passed"]
@@ -268,15 +271,16 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
     # Compared as displayed, so a headline that reads the same as an end of the interval is inside.
     if round(median_low, 3) <= round(median, 3) <= round(median_high, 3):
         return estimate
-    return estimate + _reconciliation(checks, failed, median, (median_low, median_high))
+    return estimate + _reconciliation(checks, failed, single, median)
 
 
-def _reconciliation(
-    checks: list[dict], failed: int, headline: float, interval: tuple[float, float]
-) -> str:
+def _reconciliation(checks: list[dict], failed: int, single: float, median: float) -> str:
     """The sentence (with a leading space) that explains why the median-of-3 headline is outside
-    its pooled interval: the checks that failed, what each figure assumes, and the range between
-    them. Empty when no judging failed, as then there is nothing to place on a check."""
+    its pooled interval: the checks that failed, what the headline figures and the interval each
+    assume, and that neither is an upper limit on the true figure. It gives no range, because the
+    headline sets the other checks to never failing and the interval holds only if every check
+    were equally likely to fail. Empty when no judging failed, as then there is nothing to place
+    on a check."""
     failing = [row for row in checks if not all(row["passed"])]
     if not failing:
         return ""
@@ -293,10 +297,20 @@ def _reconciliation(
     )
     treated = "that check" if len(failing) == 1 else "each of those checks"
     noise = "the failure was noise" if one_judging else "the failures were noise"
-    low, high = min(interval[0], headline), max(interval[1], headline)
+    others = len(checks) - len(failing)
+    if others == 0:
+        never, closing = "", "Neither is an upper limit on the true figure."
+    else:
+        never = " and the other check" if others == 1 else f" and the other {others} checks"
+        never += " as never failing"
+        fail = "the other check fails" if others == 1 else "the other checks fail"
+        closing = (
+            f"Neither is an upper limit: if {fail} even occasionally, the true figure is higher "
+            "than both."
+        )
     return (
-        f" The first two figures put {judgings} on {where} ({'; '.join(named)}), treating "
-        f"{treated} as failing at its observed rate; the interval assumes instead that {noise} "
-        f"spread evenly over all {len(checks)} checks. With median-of-3 the true figure could be "
-        f"anywhere from about {low:.1%} to about {high:.1%}; these judgings cannot say which."
+        f" The headline figures ({single:.1%} and {median:.1%}) put {judgings} on {where} "
+        f"({'; '.join(named)}), treating {treated} as failing at its observed rate{never}; the "
+        f"interval assumes instead that {noise} spread evenly over all {len(checks)} checks. "
+        f"{closing}"
     )
