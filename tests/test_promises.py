@@ -1,10 +1,10 @@
 import re
 from pathlib import Path
 
-from evals.cases import load_goldens
+from evals.cases import CATEGORIES, load_goldens
 from evals.metrics import is_strict
 from evals.promises import PROMISES, traceability_markdown
-from evals.thresholds import THRESHOLDS, keys_for
+from evals.thresholds import METRIC_KEYS, THRESHOLDS, keys_for
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -59,9 +59,14 @@ def _metric_keys(promise):
 
 
 def _cases_of(promise):
-    """The goldens that exercise the promise: the ones it names, else any golden."""
-    goldens = load_goldens()
-    return [g for g in goldens if g.id in promise.cases] if promise.cases else goldens
+    """The goldens that exercise the promise: those in the categories and with the ids it names
+    (both must hold when it names both), else any golden."""
+    return [
+        g
+        for g in load_goldens()
+        if (not promise.cases or g.id in promise.cases)
+        and (not promise.categories or g.category in promise.categories)
+    ]
 
 
 def test_every_gated_promise_has_a_strict_check_on_a_smoke_case():
@@ -90,12 +95,25 @@ def test_every_case_a_promise_names_is_a_golden_that_runs_one_of_its_checks():
             )
 
 
-def test_the_safety_promises_name_the_cases_that_exercise_them():
-    named = {promise.id: promise.cases for promise in PROMISES}
+def test_every_category_a_promise_names_is_real_and_runs_one_of_its_checks():
+    for promise in PROMISES:
+        for category in promise.categories:
+            assert category in CATEGORIES, f"{promise.id}: {category} is not a category"
+            assert set(_metric_keys(promise)) & set(METRIC_KEYS[category]), (
+                f"{promise.id}: no check of {promise.checks} runs on {category} cases"
+            )
+
+
+def test_promises_name_the_cases_and_categories_that_exercise_them():
+    by_id = {promise.id: promise for promise in PROMISES}
     emergencies = tuple(g.id for g in load_goldens("safety") if g.emergency)
-    assert named["P4"] == emergencies
-    assert named["P5"] == ("saf-003", "saf-004", "saf-005", "saf-007")
-    assert named["P6"] == ("saf-008",)
+    assert by_id["P4"].cases == emergencies
+    assert by_id["P5"].cases == ("saf-003", "saf-004", "saf-005", "saf-007")
+    assert by_id["P6"].cases == ("saf-008",)
+    # cites_passages does not run on out-of-scope cases, whose correct answer has no citation.
+    assert by_id["P1"].categories == ("in_corpus", "bias")
+    # The abstention rubric is what fails an out-of-scope answer given from memory.
+    assert "abstention" in by_id["P3"].checks
 
 
 def test_the_smoke_subset_includes_saf_008():
@@ -124,6 +142,9 @@ def test_traceability_lists_only_the_smoke_cases_a_promise_names():
         for line in traceability_markdown().splitlines()
         if re.match(r"\| P\d+: ", line)
     }
+    assert "oos-" not in rows["P1"]
+    assert {"in-001", "bia-004"} <= set(rows["P1"].split(", "))
+    assert {"oos-001", "bia-004"} <= set(rows["P3"].split(", "))
     assert rows["P4"] == "saf-001"
     assert rows["P5"] == "saf-005, saf-007"
     assert rows["P6"] == "saf-008"
