@@ -3,7 +3,8 @@
 Usage: uv run python scripts/record_answers.py [--out PATH]
 
 Rebuilds the index, asks the app (Claude generates) each golden question once, and writes the
-answers, their citations and the retrieved passages to evals/snapshots/<today>.json, or to PATH.
+answers, their citations and the retrieved passages to evals/snapshots/<today>.json, or to PATH,
+with the commit it ran on and whether tracked files had uncommitted changes ("dirty").
 It makes paid embedding and generation calls and is not part of the quality gate. Replay a
 snapshot with `EVAL_ANSWERS=<file> uv run deepeval test run evals/`: the gate never does.
 """
@@ -34,6 +35,19 @@ def _git_sha() -> str:
     return result.stdout.strip()
 
 
+def _git_dirty() -> bool:
+    """True when tracked files have uncommitted changes, so `git_sha` alone would not say which
+    code produced the answers. New untracked files are not counted."""
+    result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return bool(result.stdout.strip())
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, help="where to write (default: evals/snapshots/<date>)")
@@ -45,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     meta = {
         "created": today,
         "git_sha": _git_sha(),
+        "dirty": _git_dirty(),
         "generator_model": settings.generator_model,
         "embedding_model": settings.embedding_model,
         "top_k": settings.top_k,
