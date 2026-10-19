@@ -92,13 +92,17 @@ def summarize(results: dict) -> str:
             "",
             "### Known-bad answers",
             "",
-            "A miss is a known-bad answer that passes most of its judgings.",
+            "A miss is a known-bad answer that passes most of its judgings. Unjudged means a "
+            "judging errored, so the result says nothing about the metric.",
             "",
             "| Case | Kind | Metric | Scores | Passed | Verdict |",
             "|---|---|---|---|---:|:---:|",
         ]
         for entry in results["known_bad"]:
-            verdict = "MISS" if passes_majority(entry["passed"]) else "caught"
+            if any(entry["errors"]):
+                verdict = "unjudged"  # an error is not a fail here: the judge never read it
+            else:
+                verdict = "MISS" if passes_majority(entry["passed"]) else "caught"
             lines.append(
                 f"| {entry['case_id']} | {entry['kind']} | {entry['key']} "
                 f"| {_scores(entry['scores'])} "

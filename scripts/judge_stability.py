@@ -12,8 +12,9 @@ not part of the quality gate.
 
 --known-bad names a JSON list of {"case_id", "kind", "answer", "must_fail": [metric keys]}.
 Each entry is judged like the recorded case, with its answer replaced, on the keys in
-must_fail only; an answer the judge passes in most judgings is a miss. --cases and --keys
-narrow the known-bad entries as well as the recorded answers.
+must_fail only; an answer the judge passes in most judgings is a miss, and one with any
+errored judging is unjudged. --cases and --keys narrow the known-bad entries as well as the
+recorded answers.
 """
 
 import argparse
