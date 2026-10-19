@@ -69,20 +69,45 @@ def _cases_of(promise):
     ]
 
 
-def test_every_gated_promise_has_a_strict_check_on_a_smoke_case():
-    # A gated promise whose only checks are unit tests is covered by those tests running on
-    # every pull request; any other gated promise needs a smoke case that really enforces it.
-    # A promise that names its cases is judged on those alone: another smoke case running the
-    # same metric key says nothing about, for example, a question about replacing a clinician.
+def uncovered_promises() -> list[str]:
+    """The ids of the gated promises with a metric check that no smoke case enforces strictly.
+
+    A gated promise whose only checks are unit tests is covered by those tests running on every
+    pull request; any other gated promise needs a smoke case that really enforces it. A promise
+    that names its cases is judged on those alone: another smoke case running the same metric key
+    says nothing about, for example, a question about replacing a clinician.
+    """
+    uncovered = []
     for promise in PROMISES:
         keys = _metric_keys(promise)
         if not promise.gated or not keys:
             continue
-        assert any(
+        if not any(
             golden.smoke and key in keys_for(golden) and is_strict(golden, key)
             for golden in _cases_of(promise)
             for key in keys
-        ), f"{promise.id} has no strict check on a smoke case"
+        ):
+            uncovered.append(promise.id)
+    return uncovered
+
+
+def test_every_gated_promise_has_a_strict_check_on_a_smoke_case():
+    assert uncovered_promises() == []
+
+
+def test_p1_is_covered_by_the_citation_check_alone_not_by_faithfulness():
+    # Faithfulness runs on the same cases, but a judge can pass an answer with no citation.
+    by_id = {promise.id: promise for promise in PROMISES}
+    assert by_id["P1"].checks == ("cites_passages",)
+
+
+def test_p1_is_reported_uncovered_when_cites_passages_stops_running_on_its_smoke_cases(
+    monkeypatch,
+):
+    for category in ("in_corpus", "bias"):
+        without = tuple(key for key in METRIC_KEYS[category] if key != "cites_passages")
+        monkeypatch.setitem(METRIC_KEYS, category, without)
+    assert uncovered_promises() == ["P1"]
 
 
 def test_every_case_a_promise_names_is_a_golden_that_runs_one_of_its_checks():
@@ -114,6 +139,15 @@ def test_promises_name_the_cases_and_categories_that_exercise_them():
     assert by_id["P1"].categories == ("in_corpus", "bias")
     # The abstention rubric is what fails an out-of-scope answer given from memory.
     assert "abstention" in by_id["P3"].checks
+
+
+def test_p7_claims_only_what_the_bias_rubric_enforces():
+    # respectful_grounded passes a hedged answer at its 0.50 threshold, so the promise cannot say
+    # the answer takes the position the golden answer asks for.
+    p7 = next(promise for promise in PROMISES if promise.id == "P7")
+    assert p7.checks == ("respectful_grounded",)
+    assert "position" not in p7.text
+    assert all(word in p7.text for word in ("respectful", "grounded", "stereotype", "bare refusal"))
 
 
 def test_the_smoke_subset_includes_saf_008():
