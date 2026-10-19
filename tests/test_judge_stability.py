@@ -1,8 +1,10 @@
 import asyncio
 import json
+from dataclasses import replace
 
 import pytest
 
+from evals.snapshot import ReplayRag
 from evals.thresholds import FLAKY, METRIC_KEYS
 from scripts import judge_stability
 
@@ -188,11 +190,52 @@ def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_repla
     assert [row["scores"] for row in results["rows"]][0] == [1.0, 1.0, 1.0]
 
 
+def test_a_known_bad_answer_cites_what_it_says_not_what_the_recorded_answer_cited(
+    make_golden, monkeypatch
+):
+    replayed = []
+
+    class SpyReplay(ReplayRag):
+        def __init__(self, snapshot):
+            replayed.append(snapshot)
+            super().__init__(snapshot)
+
+    monkeypatch.setattr(judge_stability, "ReplayRag", SpyReplay)
+    golden = make_golden()
+    snapshot = snapshot_for([golden])
+    other = {"id": "b#1", "doc_id": "b", "text": "Other passage.", "score": 0.8}
+    snapshot["cases"][0]["chunks"].append(other)  # the recorded answer cited only a#0
+    answer = "Take 500 mg [b#1], as the notes [zzz#9] say."
+    entry = known_bad_entry(answer=answer)
+    asyncio.run(
+        judge_stability.run(
+            snapshot, [golden], times=1, specs_for=FakeJudge().specs_for, known_bad=[entry]
+        )
+    )
+    recorded_replay, bad_replay = replayed
+    assert recorded_replay["cases"][0]["cited_ids"] == ["a#0"]
+    (bad_case,) = bad_replay["cases"]
+    assert bad_case["answer"] == answer
+    assert bad_case["cited_ids"] == ["b#1"]  # zzz#9 was never supplied, so it is dropped
+    assert bad_case["chunks"] == snapshot["cases"][0]["chunks"]
+
+
 def test_a_known_bad_entry_with_no_check_yet_is_not_judged(make_golden):
     judge = FakeJudge()
     results = run([make_golden()], judge, known_bad=[known_bad_entry(must_fail=[])])
     assert results["known_bad"] == []
+    # It is listed, so the summary can say what was left unjudged.
+    assert results["unchecked"] == [{"case_id": "in-001", "kind": "invented dose"}]
     assert "Take 500 mg daily." not in {tc.actual_output for _, tc in judge.test_cases}
+
+
+def test_an_entry_the_key_filter_leaves_out_is_not_one_with_no_check_yet(make_golden):
+    # unchecked means an empty must_fail, whatever --keys narrows.
+    results = run(
+        [make_golden()], FakeJudge(), keys=["hallucination"], known_bad=[known_bad_entry()]
+    )
+    assert results["known_bad"] == []
+    assert results["unchecked"] == []
 
 
 def test_the_key_filter_narrows_the_known_bad_keys_too(make_golden):
@@ -269,6 +312,22 @@ def test_known_bad_entries_for_unselected_cases_are_left_out(cli, tmp_path):
     assert [(r["case_id"], r["kind"]) for r in known_bad] == [("saf-001", "a")]
 
 
+def test_the_script_records_and_prints_the_known_bad_entries_with_no_check_yet(
+    cli, tmp_path, capsys
+):
+    entries = [
+        {"case_id": "saf-001", "kind": "a", "answer": "Stop.", "must_fail": ["safety"]},
+        {"case_id": "saf-001", "kind": "uncited", "answer": "Stop it.", "must_fail": []},
+        {"case_id": "in-001", "kind": "uncited", "answer": "Wrong.", "must_fail": []},
+    ]
+    path = tmp_path / "known_bad.json"
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    assert cli("--cases", "saf-001", "--known-bad", path) == 0
+    results = json.loads(cli.out.read_text(encoding="utf-8"))
+    assert results["unchecked"] == [{"case_id": "saf-001", "kind": "uncited"}]  # in-001 not chosen
+    assert "1 known-bad entry has no check yet" in capsys.readouterr().out
+
+
 def test_the_script_refuses_a_snapshot_that_does_not_match_the_dataset(cli, capsys):
     broken = snapshot_for(cli.goldens)
     broken["cases"][0]["question"] = "An older question?"
@@ -277,6 +336,17 @@ def test_the_script_refuses_a_snapshot_that_does_not_match_the_dataset(cli, caps
     assert not cli.out.exists()
     assert not cli.judge.test_cases
     assert "in-001: question changed since the snapshot" in capsys.readouterr().err
+
+
+def test_the_script_refuses_goldens_that_share_a_question_before_judging(cli, capsys, monkeypatch):
+    # Replay finds an answer by its question, so it could not tell these two cases apart.
+    twins = [cli.goldens[0], replace(cli.goldens[0], id="in-002")]
+    monkeypatch.setattr(judge_stability, "load_goldens", lambda: twins)
+    cli.snapshot_path.write_text(json.dumps(snapshot_for(twins)), encoding="utf-8")
+    assert cli() != 0
+    assert not cli.out.exists()
+    assert not cli.judge.test_cases
+    assert "in-001, in-002" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
