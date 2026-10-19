@@ -23,7 +23,8 @@ the known-bad entries as well as the recorded answers.
 
 A metric may use another judge model than the rest (JUDGE_MODEL_<KEY>, such as
 JUDGE_MODEL_FAITHFULNESS, or cardio_rag.config.DEFAULT_JUDGE_MODELS). Every row and known-bad
-entry records the "judge" its check used; the top-level "judge" is the default, JUDGE_MODEL.
+entry records the "judge" its check used (None for a check that needs no judge); the top-level
+"judge" is the default, JUDGE_MODEL.
 """
 
 import argparse
@@ -44,9 +45,14 @@ from evals.harness import build_test_case  # noqa: E402
 from evals.metrics import is_strict, metric_specs_for  # noqa: E402
 from evals.snapshot import ReplayRag, load, mismatches  # noqa: E402
 from evals.stability import known_bad_problems, summarize  # noqa: E402
-from evals.thresholds import THRESHOLDS, check_role, keys_for  # noqa: E402
+from evals.thresholds import DETERMINISTIC, THRESHOLDS, check_role, keys_for  # noqa: E402
 
 MAX_CASES_AT_ONCE = 8
+
+
+def judge_of(key: str) -> str | None:
+    """The judge model a check uses, or None for a check that needs no judge."""
+    return None if key in DETERMINISTIC else judge_model_for(key)
 
 
 def single_judging_specs(golden: Golden) -> list:
@@ -149,14 +155,14 @@ async def run(
                     "role": check_role(golden, key),
                     "smoke": golden.smoke,
                 }
-                label = {"case_id": golden.id, "key": key, "judge": judge_model_for(key)}
+                label = {"case_id": golden.id, "key": key, "judge": judge_of(key)}
                 rows.append({**label, **flags, **found[key]})
             else:
                 label = {
                     "case_id": golden.id,
                     "kind": entry["kind"],
                     "key": key,
-                    "judge": judge_model_for(key),
+                    "judge": judge_of(key),
                 }
                 bad.append({**label, **found[key]})
     return {"rows": rows, "known_bad": bad, "unchecked": unchecked, "cost": cost}

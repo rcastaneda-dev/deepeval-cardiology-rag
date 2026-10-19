@@ -177,6 +177,14 @@ def test_a_row_records_the_judge_model_of_its_own_metric(
     }
 
 
+def test_a_check_that_needs_no_judge_records_none(make_golden, plain_judge_settings):
+    results = run([make_golden()], FakeJudge(), times=1, keys=["cites_passages", "faithfulness"])
+    assert {row["key"]: row["judge"] for row in results["rows"]} == {
+        "faithfulness": "gpt-4o-mini",
+        "cites_passages": None,
+    }
+
+
 def test_a_row_names_the_role_of_its_check_and_keeps_strict_as_a_flag_for_older_readers(
     make_golden,
 ):
