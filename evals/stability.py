@@ -11,6 +11,7 @@ from evals.cases import Golden
 from evals.thresholds import DETERMINISTIC, METRIC_KEYS, keys_for
 
 _KNOWN_BAD_FIELDS = ("case_id", "kind", "answer", "must_fail")
+_NAMED_CHECKS = 5  # failed checks the gate estimate names before it counts the rest
 _NO_JUDGE_NOTE = (
     "Checks that need no judge (" + ", ".join(sorted(DETERMINISTIC)) + ") are left out: "
     "they cannot flip."
@@ -115,14 +116,14 @@ def summarize(results: dict) -> str:
         "",
         "### By case",
         "",
-        "| Case | Metric | Scores | Passed | Flip rate | Strict |",
+        "| Case | Metric | Scores | Passed | Flip rate | Role |",
         "|---|---|---|---:|---:|:---:|",
     ]
     for row in rows:
         lines.append(
             f"| {row['case_id']} | {row['key']} | {_scores(row['scores'])} "
             f"| {sum(row['passed'])}/{len(row['passed'])} | {flip_rate(row['passed']):.0%} "
-            f"| {'yes' if row['strict'] else 'no'} |"
+            f"| {_role(row)} |"
         )
     unchecked = results.get("unchecked", [])
     if results["known_bad"] or unchecked:
@@ -180,6 +181,18 @@ def _judged(rows: list[dict]) -> list[dict]:
     return [row for row in rows if row["key"] not in DETERMINISTIC]
 
 
+def _role(row: dict) -> str:
+    """What a failing check does: "strict", "flaky", "report-only" or "deterministic". Results
+    from before the role field have only the `strict` flag, which says strict or flaky (the
+    only ways a check could warn then) and, for a check that needs no judge, deterministic."""
+    role = row.get("role")
+    if role:
+        return role
+    if not row["strict"]:
+        return "flaky"
+    return "deterministic" if row["key"] in DETERMINISTIC else "strict"
+
+
 def _judgings(count: int) -> str:
     return f"{count} judging" + ("" if count == 1 else "s")
 
@@ -207,11 +220,17 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
     rate itself through the gate arithmetic, where every one of the m strict checks must pass
     with that pass rate (a single judging, or the median of three). The arithmetic rises with
     the failure rate, so the ends for the rate give the ends for the gate. Pooling treats every
-    check as equally likely to fail, so it spreads the observed failures over all checks. The
-    first figures put each failure on the check that showed it, which gives a higher chance of
-    a red run for the same number of failures, so they can lie above the interval.
+    check as equally likely to fail, so it spreads the observed failures over all checks, and the
+    interval is conditional on that. The first figures put each failure on the check that showed
+    it, which gives a higher chance of a red run for the same number of failures, so the
+    median-of-3 one can lie above the interval. When it does, a closing sentence names the checks
+    that failed and says what each figure assumes, because the two cannot both be read as the
+    chance of a red run without it; the true figure is somewhere between them, and the judgings
+    cannot say where.
     """
-    checks = [row for row in _judged(rows) if row["smoke"] and row["strict"] and row["passed"]]
+    checks = [
+        row for row in _judged(rows) if row["smoke"] and _role(row) == "strict" and row["passed"]
+    ]
     if not checks:
         return (
             "No strict check on a smoke case was scored by the judge, so there is no gate estimate."
@@ -231,7 +250,7 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
 
     (single_low, median_low), (single_high, median_high) = red_run(low), red_run(high)
     single_pooled, median_pooled = red_run(failed / judgings)
-    return (
+    estimate = (
         f"Estimated false alarm of the pull-request gate ({len(checks)} strict "
         f"check{'' if len(checks) == 1 else 's'} on {cases} smoke case"
         f"{'' if cases == 1 else 's'}): single judging {single:.1%}, median of 3 {median:.1%}. "
@@ -240,9 +259,44 @@ def _gate_estimate(rows: list[dict], times: int) -> str:
         f"be acceptable, so this is judge noise only; variation in what the generator writes is "
         f"not included. {_NO_JUDGE_NOTE} "
         f"A check with no failure in {_judgings(times)} is counted as never failing, so these "
-        f"figures can be too low. Pooling all {_judgings(judgings)}, and taking every check as "
-        f"equally likely to fail, the 95% Wilson interval for the chance of a red run is "
+        f"figures can be too low. Pooling all {_judgings(judgings)} gives a 95% Wilson interval "
+        f"for the chance of a red run that holds if every check were equally likely to fail: "
         f"{single_low:.1%} to {single_high:.1%} for a single judging (estimate "
         f"{single_pooled:.1%}) and {median_low:.1%} to {median_high:.1%} for the median of 3 "
         f"(estimate {median_pooled:.1%})."
+    )
+    # Compared as displayed, so a headline that reads the same as an end of the interval is inside.
+    if round(median_low, 3) <= round(median, 3) <= round(median_high, 3):
+        return estimate
+    return estimate + _reconciliation(checks, failed, median, (median_low, median_high))
+
+
+def _reconciliation(
+    checks: list[dict], failed: int, headline: float, interval: tuple[float, float]
+) -> str:
+    """The sentence (with a leading space) that explains why the median-of-3 headline is outside
+    its pooled interval: the checks that failed, what each figure assumes, and the range between
+    them. Empty when no judging failed, as then there is nothing to place on a check."""
+    failing = [row for row in checks if not all(row["passed"])]
+    if not failing:
+        return ""
+    named = [
+        f"{row['case_id']} {row['key']} passed {sum(row['passed'])} of {len(row['passed'])}"
+        for row in failing[:_NAMED_CHECKS]
+    ]
+    if len(failing) > _NAMED_CHECKS:
+        named.append(f"and {len(failing) - _NAMED_CHECKS} more")
+    one_judging = failed == 1
+    judgings = "the failed judging" if one_judging else "the failed judgings"
+    where = ("the check that showed " if len(failing) == 1 else "the checks that showed ") + (
+        "it" if one_judging else "them"
+    )
+    treated = "that check" if len(failing) == 1 else "each of those checks"
+    noise = "the failure was noise" if one_judging else "the failures were noise"
+    low, high = min(interval[0], headline), max(interval[1], headline)
+    return (
+        f" The first two figures put {judgings} on {where} ({'; '.join(named)}), treating "
+        f"{treated} as failing at its observed rate; the interval assumes instead that {noise} "
+        f"spread evenly over all {len(checks)} checks. With median-of-3 the true figure could be "
+        f"anywhere from about {low:.1%} to about {high:.1%}; these judgings cannot say which."
     )

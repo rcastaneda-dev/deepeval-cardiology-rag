@@ -11,8 +11,10 @@ from evals.stability import (
 )
 
 
-def row(case_id, key, passed, *, strict=True, smoke=True, scores=None):
-    return {
+def row(case_id, key, passed, *, strict=True, smoke=True, scores=None, role=None):
+    """A results row. Without `role` it is an older row, as in the committed baseline, whose
+    summary derives the role from `strict`."""
+    found = {
         "case_id": case_id,
         "key": key,
         "strict": strict,
@@ -21,6 +23,7 @@ def row(case_id, key, passed, *, strict=True, smoke=True, scores=None):
         "passed": passed,
         "errors": [None] * len(passed),
     }
+    return {**found, "role": role} if role else found
 
 
 def results(rows, known_bad=()):
@@ -78,11 +81,11 @@ def test_summary_has_a_row_per_case_and_metric_and_the_gate_estimate():
     assert "1.00 1.00 0.90 1.00 1.00" in stable
     assert "| 5/5 |" in stable
     assert "| 0% |" in stable
-    assert "| yes |" in stable
+    assert "| strict |" in stable
     flaky = line_for(text, "in-001", "hallucination")
     assert "| 4/5 |" in flaky
     assert "| 20% |" in flaky
-    assert "| no |" in flaky
+    assert "| flaky |" in flaky
     split = line_for(text, "in-002", "faithfulness")
     assert "| 3/5 |" in split
     assert "| 40% |" in split
@@ -107,7 +110,7 @@ def test_a_table_per_metric_gives_checks_flip_rate_fail_rate_and_checks_that_alw
     assert "| faithfulness | 3 | 13.3% | 46.7% | 1 |" in lines
     assert "| hallucination | 1 | 20.0% | 20.0% | 0 |" in lines
     assert lines.index("| faithfulness | 3 | 13.3% | 46.7% | 1 |") < lines.index(
-        "| Case | Metric | Scores | Passed | Flip rate | Strict |"
+        "| Case | Metric | Scores | Passed | Flip rate | Role |"
     )
 
 
@@ -175,7 +178,7 @@ def test_the_gate_estimate_gives_a_pooled_interval_for_the_chance_of_a_red_run()
     assert "95% Wilson interval for the chance of a red run" in text
     assert "20.4% to 84.3% for a single judging (estimate 51.0%)" in text
     assert "6.4% to 87.9% for the median of 3 (estimate 38.5%)" in text
-    assert "every check as equally likely to fail" in text
+    assert "if every check were equally likely to fail" in text
 
 
 def test_a_spotless_run_still_leaves_a_range_for_the_chance_of_a_red_run():
@@ -186,6 +189,55 @@ def test_a_spotless_run_still_leaves_a_range_for_the_chance_of_a_red_run():
     assert "0 of 10 judgings of those strict smoke checks failed" in text
     assert "0.0% to 47.8% for a single judging (estimate 0.0%)" in text
     assert "0.0% to 34.1% for the median of 3 (estimate 0.0%)" in text
+
+
+def test_the_case_table_shows_the_role_of_each_check():
+    text = summarize(
+        results(
+            [
+                row("bia-005", "bias", [True] * 5, strict=False, role="report-only"),
+                row("bia-005", "bias_faithfulness", [True] * 5, role="strict"),
+                row("bia-005", "cites_passages", [True] * 5, role="deterministic"),
+                row("in-003", "faithfulness", [True] * 5, strict=False, role="flaky"),
+            ]
+        )
+    )
+    assert "| Case | Metric | Scores | Passed | Flip rate | Role |" in text
+    assert line_for(text, "bia-005", "bias").endswith("| 0% | report-only |")
+    assert line_for(text, "bia-005", "bias_faithfulness").endswith("| 0% | strict |")
+    assert line_for(text, "bia-005", "cites_passages").endswith("| 0% | deterministic |")
+    assert line_for(text, "in-003", "faithfulness").endswith("| 0% | flaky |")
+    assert "| yes |" not in text and "| no |" not in text
+
+
+def test_a_row_without_a_role_shows_the_role_its_strict_flag_implies():
+    # The committed baseline predates the role field: its strict flag is all there is to read.
+    text = summarize(
+        results(
+            [
+                row("in-001", "faithfulness", [True] * 5),
+                row("in-001", "hallucination", [True] * 5, strict=False),
+                row("in-001", "cites_passages", [True] * 5),
+            ]
+        )
+    )
+    assert line_for(text, "in-001", "faithfulness").endswith("| strict |")
+    assert line_for(text, "in-001", "hallucination").endswith("| flaky |")
+    assert line_for(text, "in-001", "cites_passages").endswith("| deterministic |")
+
+
+def test_the_gate_estimate_counts_only_checks_whose_role_is_strict():
+    # A report-only check, like a flaky one, only warns, and a deterministic one cannot flip.
+    # Even if a row's older strict flag disagrees, the role is what it says.
+    ignored = [
+        row("bia-005", "bias", [False] * 5, strict=False, role="report-only"),
+        row("bia-006", "bias", [False] * 5, strict=True, role="report-only"),
+        row("in-003", "faithfulness", [False] * 5, strict=False, role="flaky"),
+        row("saf-001", "emergency_first", [False] * 5, role="deterministic"),
+    ]
+    assert gate_text(*JUDGED, *ignored) == gate_text(*JUDGED)
+    strict = row("bia-005", "respectful_grounded", [True] * 5, role="strict")
+    assert "3 strict checks on 2 smoke cases" in gate_text(*JUDGED, *ignored, strict)
 
 
 def test_the_gate_estimate_says_so_when_no_strict_smoke_check_ran():
@@ -410,3 +462,98 @@ def test_an_entry_kept_for_a_check_that_does_not_exist_yet_is_not_a_problem(gold
 )
 def test_a_known_bad_entry_that_cannot_be_judged_is_named_before_any_judging(goldens, bad, message):
     assert message in known_bad_problems([bad], goldens)
+
+
+# Reconciling the headline with the interval ---------------------------------------------------
+# The headline puts each failed judging on the check that showed it. The interval spreads the
+# failures over every check. With many checks and few failures the two disagree, and the headline
+# can lie outside the interval: the paragraph then says why instead of leaving the reader to guess.
+
+
+def spotless(count):
+    return [row(f"in-{n:03d}", "contextual_precision", [True] * 5) for n in range(1, count + 1)]
+
+
+def misses(*passes, start=5):
+    """Strict smoke checks that each passed the given number of 5 judgings."""
+    return [
+        row(f"in-{start + n:03d}", "answer_relevancy", [True] * ok + [False] * (5 - ok))
+        for n, ok in enumerate(passes)
+    ]
+
+
+def test_a_headline_outside_the_interval_is_reconciled_with_it():
+    # One failed judging in 230 (the baseline's shape): putting it on in-005 answer_relevancy,
+    # which then passes 4 of 5, gives a median-of-3 red run of 1 - 0.896 = 10.4%. Spread over 46
+    # checks the same failure gives 0.3%, and the interval reaches only 7.7%.
+    text = gate_text(*spotless(45), *misses(4))
+    assert "single judging 20.0%, median of 3 10.4%" in text
+    assert "0.0% to 7.7% for the median of 3 (estimate 0.3%)" in text
+    assert (
+        "The first two figures put the failed judging on the check that showed it "
+        "(in-005 answer_relevancy passed 4 of 5), treating that check as failing at its "
+        "observed rate; the interval assumes instead that the failure was noise spread evenly "
+        "over all 46 checks. With median-of-3 the true figure could be anywhere from about 0.0% "
+        "to about 10.4%; these judgings cannot say which."
+    ) in text
+
+
+def test_the_interval_is_labelled_as_conditional_on_every_check_being_equally_likely_to_fail():
+    text = gate_text(*spotless(45), *misses(4))
+    assert "if every check were equally likely to fail" in text
+    assert text.index("if every check were equally likely to fail") < text.index(
+        "0.0% to 7.7% for the median of 3"
+    )
+
+
+def test_a_headline_inside_the_interval_needs_no_reconciling_sentence():
+    # 3 failed judgings in 10 on two checks: the headline 41.9% is inside 6.4% to 87.9%.
+    text = gate_text(*misses(4, 3))
+    assert "median of 3 41.9%" in text
+    assert "6.4% to 87.9% for the median of 3" in text
+    assert "The first two figures" not in text
+    assert "cannot say which" not in text
+
+
+def test_a_spotless_run_needs_no_reconciling_sentence():
+    text = gate_text(*spotless(20))
+    assert "single judging 0.0%, median of 3 0.0%" in text
+    assert "The first two figures" not in text
+
+
+def test_several_failed_checks_are_all_named_and_the_wording_is_plural():
+    text = gate_text(*spotless(44), *misses(4, 4))
+    assert "median of 3 19.7%" in text
+    assert (
+        "put the failed judgings on the checks that showed them "
+        "(in-005 answer_relevancy passed 4 of 5; in-006 answer_relevancy passed 4 of 5), "
+        "treating each of those checks as failing at its observed rate; the interval assumes "
+        "instead that the failures were noise spread evenly over all 46 checks."
+    ) in text
+    assert "could be anywhere from about 0.1% to about 19.7%" in text
+
+
+def test_one_check_that_failed_several_judgings_is_one_check_with_several_failures():
+    text = gate_text(*spotless(45), *misses(3))
+    assert (
+        "put the failed judgings on the check that showed them "
+        "(in-005 answer_relevancy passed 3 of 5), treating that check as failing at its "
+        "observed rate; the interval assumes instead that the failures were noise spread "
+        "evenly over all 46 checks."
+    ) in text
+
+
+def test_only_the_first_five_failed_checks_are_named_and_the_rest_are_counted():
+    # Eight checks that never passed: the median-of-3 headline is 100.0% and the interval, which
+    # spreads 40 failures in 230 judgings over all 46 checks, stops just short of it.
+    text = gate_text(*spotless(38), *misses(*[0] * 8))
+    assert "median of 3 100.0%" in text
+    assert "(in-005 answer_relevancy passed 0 of 5; " in text
+    assert "in-009 answer_relevancy passed 0 of 5; and 3 more)" in text
+    assert "in-010 answer_relevancy" not in text
+
+
+def test_the_reconciliation_ends_the_paragraph_after_the_interval():
+    text = gate_text(*spotless(45), *misses(4))
+    assert text.index("95% Wilson interval") < text.index("The first two figures")
+    assert text.endswith("these judgings cannot say which.")
