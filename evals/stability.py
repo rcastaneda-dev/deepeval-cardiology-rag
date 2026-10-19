@@ -8,7 +8,7 @@ steady enough to gate a pull request.
 import math
 
 from evals.cases import Golden
-from evals.thresholds import METRIC_KEYS
+from evals.thresholds import METRIC_KEYS, keys_for
 
 _KNOWN_BAD_FIELDS = ("case_id", "kind", "answer", "must_fail")
 
@@ -53,9 +53,11 @@ def known_bad_problems(entries: list, goldens: list[Golden]) -> list[str]:
     """Why known-bad entries cannot be judged, as readable strings (empty when they can).
 
     An entry is {"case_id", "kind", "answer", "must_fail": [metric keys]}. An empty must_fail
-    keeps an answer for a check that does not exist yet: it is valid and is not judged.
+    keeps an answer for a check that does not exist yet: it is valid and is not judged. A key must
+    be one the case really runs (`keys_for`), so emergency_first is valid only on a case marked
+    `emergency`.
     """
-    categories = {golden.id: golden.category for golden in goldens}
+    by_id = {golden.id: golden for golden in goldens}
     problems = []
     for number, entry in enumerate(entries, 1):
         if not isinstance(entry, dict):
@@ -72,15 +74,20 @@ def known_bad_problems(entries: list, goldens: list[Golden]) -> list[str]:
         keys = entry["must_fail"]
         if not isinstance(keys, list):
             problems.append(f"{label}: must_fail must be a list of metric keys")
-        if case_id not in categories:
+        if case_id not in by_id:
             problems.append(f"{case_id}: not a golden case")
         elif isinstance(keys, list):
-            category = categories[case_id]
-            problems.extend(
-                f"{case_id}: {key!r} is not a metric of {category} cases"
-                for key in keys
-                if key not in METRIC_KEYS[category]
-            )
+            category = by_id[case_id].category
+            runs = keys_for(by_id[case_id])
+            for key in keys:
+                if key in runs:
+                    continue
+                if key in METRIC_KEYS[category]:  # only emergency_first is dropped by keys_for
+                    problems.append(
+                        f"{case_id}: {key!r} does not run on this case (it is not marked emergency)"
+                    )
+                else:
+                    problems.append(f"{case_id}: {key!r} is not a metric of {category} cases")
     return problems
 
 

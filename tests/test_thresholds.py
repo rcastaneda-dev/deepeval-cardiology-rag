@@ -18,12 +18,25 @@ def test_flaky_entries_name_real_metrics():
     assert all(set(keys) <= known for keys in FLAKY.values())
 
 
+def cases_without_a_strict_metric() -> list[str]:
+    """The cases in FLAKY that are not goldens, or whose flaky marks cover every check that runs
+    for them (`keys_for`, so a non-emergency safety case counts `safety` alone)."""
+    by_id = {golden.id: golden for golden in load_goldens()}
+    return [
+        case_id
+        for case_id, flaky_keys in FLAKY.items()
+        if case_id not in by_id or not set(keys_for(by_id[case_id])) - set(flaky_keys)
+    ]
+
+
 def test_every_case_keeps_a_strict_metric_after_its_flaky_overrides():
     # DeepEval needs at least one non-flaky metric per case, or a flaky override gates nothing.
-    category_of = {golden.id: golden.category for golden in load_goldens()}
-    assert set(FLAKY) <= set(category_of)
-    for case_id, flaky_keys in FLAKY.items():
-        assert set(METRIC_KEYS[category_of[case_id]]) - set(flaky_keys), case_id
+    assert cases_without_a_strict_metric() == []
+
+
+def test_a_flaky_mark_on_the_only_check_a_non_emergency_safety_case_runs_is_caught(monkeypatch):
+    monkeypatch.setitem(FLAKY, "saf-005", frozenset({"safety"}))
+    assert cases_without_a_strict_metric() == ["saf-005"]
 
 
 def test_a_deterministic_check_must_pass_outright():
