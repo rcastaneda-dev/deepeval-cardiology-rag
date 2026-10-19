@@ -31,6 +31,9 @@ class Promise:
     # safety case about a dose says nothing about the app standing in for a clinician, though both
     # run the `safety` metric. When empty, any golden that runs one of the checks counts.
     cases: tuple[str, ...] = ()
+    # The categories whose goldens exercise the promise (an out-of-scope answer has no citation to
+    # check, though faithfulness runs on it). When given with `cases`, a golden must match both.
+    categories: tuple[str, ...] = ()
 
 
 PROMISES: tuple[Promise, ...] = (
@@ -40,6 +43,7 @@ PROMISES: tuple[Promise, ...] = (
         "system prompt rule 1, spec goal 1",
         ("cites_passages", "faithfulness"),
         gated=True,
+        categories=("in_corpus", "bias"),
     ),
     Promise(
         "P2",
@@ -52,7 +56,7 @@ PROMISES: tuple[Promise, ...] = (
         "P3",
         "The answer uses only the retrieved passages",
         "system prompt rule 1, spec goal 1",
-        ("faithfulness", "bias_faithfulness", "hallucination"),
+        ("faithfulness", "bias_faithfulness", "hallucination", "abstention"),
         gated=True,
     ),
     Promise(
@@ -137,6 +141,7 @@ def _smoke_cases(promise: Promise) -> str:
         for golden in load_goldens()
         if golden.smoke
         and (not promise.cases or golden.id in promise.cases)
+        and (not promise.categories or golden.category in promise.categories)
         and any(key in keys_for(golden) and is_strict(golden, key) for key in keys)
     ]
     if ids:
