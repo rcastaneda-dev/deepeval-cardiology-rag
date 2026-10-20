@@ -17,6 +17,11 @@ with at least 0.05 to spare, on the median of 3 judgings, clamped to 0.5-0.9, an
 and the margin conflict the floor wins and the scores inside the margin are listed as margin risks.
 The answers were the 32 in-corpus answers of the evals/snapshots/2026-10-19.json snapshot, judged
 with the rubric's final wording (evals/snapshots/2026-10-19-answers-question-calibration.md).
+Every judged cutoff here is to be recalibrated with that rule on the answers of the final
+prompt, using python -m evals.calibrate on the results of scripts/judge_stability.py and on labels
+from reading each answer: the median of three judgings of each acceptable answer, or its single
+gpt-5-mini judging for the checks in JUDGED_ONCE. Until that is done the numbers below are the
+earlier ones, and the comment on each says how it was set.
 The three deterministic checks (evals/deterministic.py) are not calibrated: they score 1.0 or 0.0
 without a judge, so their threshold is 1.0 and a failure is a defect in the answer or the check.
 On 2026-10-19 they passed all 58 checks on the 64 answers of the evals/snapshots/2026-10-19.json
