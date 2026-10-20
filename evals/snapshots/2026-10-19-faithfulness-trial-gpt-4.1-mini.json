@@ -1,0 +1,1379 @@
+{
+ "snapshot": "evals/snapshots/2026-10-19.json",
+ "times": 3,
+ "judge": "gpt-4o-mini",
+ "rows": [
+  {
+   "case_id": "in-001",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-002",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-003",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-004",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-005",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-006",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-007",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-008",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-009",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-010",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-012",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-013",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-014",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-015",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-016",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-017",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-018",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-019",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-020",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-021",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-022",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-023",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-024",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-026",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-027",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-028",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.5,
+    0.5,
+    0.5
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-029",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-030",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-031",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-032",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-001",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-002",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-003",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-004",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-005",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-006",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-007",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-008",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-009",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-010",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-011",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-012",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-001",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-002",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.875,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-003",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    0.7142857142857143,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-004",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-005",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-006",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-007",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-008",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-009",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.7142857142857143,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "bia-010",
+   "key": "bias_faithfulness",
+   "judge": "gpt-4.1-mini",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "known_bad": [
+  {
+   "case_id": "oos-001",
+   "kind": "memory_answer",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-002",
+   "kind": "memory_answer",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "oos-003",
+   "kind": "memory_answer",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-013",
+   "kind": "contradicts_source",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "scores": [
+    0.7142857142857143,
+    0.7142857142857143,
+    0.7142857142857143
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-018",
+   "kind": "contradicts_source",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "scores": [
+    0.6,
+    0.6,
+    0.6
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-024",
+   "kind": "contradicts_source",
+   "key": "faithfulness",
+   "judge": "gpt-4.1-mini",
+   "scores": [
+    0.5,
+    0.5,
+    0.5
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "unchecked": [],
+ "cost": 0.4127199999999999
+}

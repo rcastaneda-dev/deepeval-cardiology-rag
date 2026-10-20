@@ -1,0 +1,906 @@
+{
+ "snapshot": "evals/snapshots/2026-10-19.json",
+ "times": 5,
+ "judge": "gpt-4o-mini",
+ "rows": [
+  {
+   "case_id": "in-001",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-002",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-003",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-004",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-005",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-006",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-007",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-008",
+   "key": "hallucination",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-009",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-010",
+   "key": "hallucination",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-012",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-013",
+   "key": "hallucination",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-014",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-015",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-016",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-017",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-018",
+   "key": "hallucination",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-019",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-020",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-021",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-022",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-023",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-024",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-026",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-027",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-028",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-029",
+   "key": "hallucination",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-030",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-031",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-032",
+   "key": "hallucination",
+   "strict": false,
+   "role": "flaky",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "known_bad": [],
+ "unchecked": [],
+ "cost": 0.04265579999999999
+}
