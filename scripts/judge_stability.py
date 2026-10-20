@@ -13,7 +13,9 @@ is the whole section of the corpus document that holds the golden's excerpt.
 
 Each of the K judgings is one plain metric, whatever JUDGE_REPEATS says: the gate takes the
 median of three judgings of most judged checks (not those in JUDGED_ONCE or REPORT_ONLY), and
-this script measures how often a single judging flips.
+this script measures how often a single judging flips. Every row and known-bad entry records the
+"threshold" in force for its check (evals.thresholds.THRESHOLDS), because its "passed" verdicts
+depend on it and the thresholds change when they are recalibrated.
 
 --known-bad names a JSON list of {"case_id", "kind", "answer", "must_fail": [metric keys]}.
 Each entry is judged like the recorded case, with its answer replaced (and its citations read
@@ -157,6 +159,9 @@ async def run(
         for key in job_keys:
             measured = dict(found[key])
             judge = measured.pop("judge")  # the model the measured metric reported
+            # The threshold in force: the verdicts in "passed" depend on it, and it changes when
+            # the thresholds are recalibrated.
+            threshold = THRESHOLDS[key]
             if entry is None:
                 # "strict" stays a flag for older readers; "role" says why a check only warns.
                 flags = {
@@ -164,10 +169,16 @@ async def run(
                     "role": check_role(golden, key),
                     "smoke": golden.smoke,
                 }
-                label = {"case_id": golden.id, "key": key, "judge": judge}
+                label = {"case_id": golden.id, "key": key, "judge": judge, "threshold": threshold}
                 rows.append({**label, **flags, **measured})
             else:
-                label = {"case_id": golden.id, "kind": entry["kind"], "key": key, "judge": judge}
+                label = {
+                    "case_id": golden.id,
+                    "kind": entry["kind"],
+                    "key": key,
+                    "judge": judge,
+                    "threshold": threshold,
+                }
                 bad.append({**label, **measured})
     return {"rows": rows, "known_bad": bad, "unchecked": unchecked, "cost": cost}
 
