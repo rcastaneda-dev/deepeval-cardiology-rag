@@ -51,7 +51,8 @@ def judge_model() -> str:
 # ...-gpt-4.1-mini.md and ...-gpt-5-mini.md, with their .json files). "Listed" is the nine answers
 # that had a FLAKY faithfulness entry; "fell" is an answer that passed 3 of 3 under gpt-4o-mini and
 # did not; "caught" is the contradicts_source answers (in-013, in-018, in-024) that failed most
-# judgings.
+# judgings at the Faithfulness cutoff of that day, 0.75 (the cutoff is 0.70 now, at which in-013
+# passes 2 of its 3 judgings: see evals/thresholds.py).
 #   judge          listed passing 3 of 3   fell                 caught   cost
 #   gpt-4o-mini    6 of 9                  -                    2 of 3   $0.14
 #   gpt-4.1-mini   9 of 9                  in-028 (0 of 3)      3 of 3   $0.41
