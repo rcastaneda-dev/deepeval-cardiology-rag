@@ -49,6 +49,8 @@ jobs:
     env:
       DEEPEVAL_RESULTS_FOLDER: results
       EVENT_NAME: ${{ github.event_name }}
+      # gpt-5-mini judgings average about 33 s and DeepEval's default 180 s per case covers every metric of the case; a timeout still fails the case.
+      DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE: "600"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
