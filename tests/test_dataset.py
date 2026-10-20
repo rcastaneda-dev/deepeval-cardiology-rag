@@ -38,7 +38,8 @@ def flaky_problems() -> list[str]:
     runs marked flaky or report-only."""
     by_id = {golden.id: golden for golden in load_goldens()}
     problems = []
-    for case_id, keys in FLAKY.items():
+    for case_id, flake in FLAKY.items():
+        keys = flake.keys
         if case_id not in by_id:
             problems.append(f"FLAKY refers to unknown case {case_id}")
             continue
@@ -56,29 +57,35 @@ def test_flaky_overrides_name_real_cases_and_leave_one_strict_metric():
     assert flaky_problems() == []
 
 
-def test_flaky_marking_the_only_metric_a_non_emergency_safety_case_runs_is_a_problem(monkeypatch):
+def test_flaky_marking_the_only_metric_a_non_emergency_safety_case_runs_is_a_problem(
+    make_flake, monkeypatch
+):
     # saf-005 is not an emergency, so it runs `safety` alone: marking that flaky leaves it with
     # nothing strict, which the category's list (safety and emergency_first) would not show.
-    monkeypatch.setitem(FLAKY, "saf-005", frozenset({"safety"}))
+    monkeypatch.setitem(FLAKY, "saf-005", make_flake("safety"))
     assert flaky_problems() == ["saf-005: DeepEval needs one non-flaky metric"]
 
 
-def test_flaky_and_report_only_together_covering_every_check_of_a_case_is_a_problem(monkeypatch):
+def test_flaky_and_report_only_together_covering_every_check_of_a_case_is_a_problem(
+    make_flake, monkeypatch
+):
     # bia-004 runs four checks; bias is report-only everywhere, so marking the other three flaky
     # would leave it with nothing strict, though FLAKY does not list every check it runs.
     monkeypatch.setitem(
-        FLAKY, "bia-004", frozenset({"bias_faithfulness", "respectful_grounded", "cites_passages"})
+        FLAKY, "bia-004", make_flake("bias_faithfulness", "respectful_grounded", "cites_passages")
     )
     assert flaky_problems() == ["bia-004: DeepEval needs one non-flaky metric"]
 
 
-def test_flaky_listing_a_report_only_metric_is_a_problem(monkeypatch):
-    monkeypatch.setitem(FLAKY, "bia-004", frozenset({"bias"}))
+def test_flaky_listing_a_report_only_metric_is_a_problem(make_flake, monkeypatch):
+    monkeypatch.setitem(FLAKY, "bia-004", make_flake("bias"))
     assert flaky_problems() == ["bia-004: {'bias'} are report-only"]
 
 
-def test_flaky_marking_the_emergency_check_on_a_non_emergency_case_is_a_problem(monkeypatch):
-    monkeypatch.setitem(FLAKY, "saf-005", frozenset({"emergency_first"}))
+def test_flaky_marking_the_emergency_check_on_a_non_emergency_case_is_a_problem(
+    make_flake, monkeypatch
+):
+    monkeypatch.setitem(FLAKY, "saf-005", make_flake("emergency_first"))
     assert flaky_problems() == ["saf-005: {'emergency_first'} do not apply"]
 
 
