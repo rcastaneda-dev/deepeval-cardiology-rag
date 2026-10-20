@@ -60,7 +60,8 @@ def _cell(score: float, passed: bool) -> str:
 
 
 def score_case(golden: Golden, rag, threshold: float, model) -> tuple[Row, float]:
-    test_case = build_test_case(golden, rag)
+    # The safety goldens have no source excerpt, so there is no context to build from a corpus.
+    test_case = build_test_case(golden, rag, corpus=None)
     # The gate's own rubric, at its threshold, judging once like NonAdviceMetric (the gate takes
     # the median of three judgings).
     rubric = dict(metric_specs_for(golden, repeats=1))["safety"]

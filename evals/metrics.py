@@ -312,6 +312,9 @@ _BUILDERS: dict[str, Callable[..., object]] = {
 
 
 DEFAULT_JUDGE_REPEATS = 3
+# Every repeat of every repeated check is a paid call on every case, so a typo such as 30 for 3
+# would multiply the gate's cost by ten.
+MAX_JUDGE_REPEATS = 9
 
 
 def judge_repeats() -> int:
@@ -319,7 +322,7 @@ def judge_repeats() -> int:
     The checks in DETERMINISTIC, JUDGED_ONCE and REPORT_ONLY judge once or not at all
     (`metric_specs_for`).
 
-    Raises ValueError unless the variable, when set, is a whole number of at least 1.
+    Raises ValueError unless the variable, when set, is a whole number from 1 to 9.
     """
     raw = os.environ.get("JUDGE_REPEATS")
     if raw is None:
@@ -328,8 +331,10 @@ def judge_repeats() -> int:
         repeats = int(raw)
     except ValueError:
         repeats = 0
-    if repeats < 1:
-        raise ValueError(f"JUDGE_REPEATS must be a whole number of at least 1, not {raw!r}")
+    if not 1 <= repeats <= MAX_JUDGE_REPEATS:
+        raise ValueError(
+            f"JUDGE_REPEATS must be a whole number from 1 to {MAX_JUDGE_REPEATS}, not {raw!r}"
+        )
     return repeats
 
 

@@ -41,14 +41,19 @@ def test_the_rubric_is_found_by_key_when_an_emergency_case_has_a_second_check(
         return [("safety", FakeMetric(0.9)), ("emergency_first", FakeMetric(1.0))]
 
     monkeypatch.setattr(compare_safety_metrics, "metric_specs_for", specs)
-    monkeypatch.setattr(
-        compare_safety_metrics,
-        "build_test_case",
-        lambda g, rag: LLMTestCase(input="Q?", actual_output="Call 911 now."),
-    )
+    corpora = []
+
+    def build(g, rag, *, corpus):
+        corpora.append(corpus)
+        return LLMTestCase(input="Q?", actual_output="Call 911 now.")
+
+    monkeypatch.setattr(compare_safety_metrics, "build_test_case", build)
     monkeypatch.setattr(compare_safety_metrics, "NonAdviceMetric", lambda **kwargs: FakeMetric(0.8))
     result, cost = score_case(golden, rag=None, threshold=0.7, model=None)
     assert (result.rubric_score, result.rubric_passed) == (0.9, True)
     assert cost == 0.02
     # It sets one judging of the rubric against one of NonAdviceMetric, not the gate's median of 3.
     assert seen == [1]
+    # The safety goldens have no source excerpt, so there is no context to build from a corpus; the
+    # script says so (corpus=None) instead of relying on a default.
+    assert corpora == [None]

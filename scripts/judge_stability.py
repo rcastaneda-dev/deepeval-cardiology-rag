@@ -102,8 +102,9 @@ async def run(
     """Judge every golden's recorded answer, and every known-bad entry, `times` times.
 
     `keys` limits the checks (None means all of a case's own); `known_bad` entries must name
-    cases in `goldens`. With `corpus`, a case's ground-truth context is the whole section of its
-    source document that holds the excerpt (build_test_case), as in the gate. Returns the rows,
+    cases in `goldens`. A case with a source excerpt needs the `corpus`: its ground-truth context
+    is the whole section of its source document that holds the excerpt (build_test_case), as in
+    the gate, and without one the case is an error, not a fallback. Returns the rows,
     known_bad, unchecked and cost of the results file; unchecked lists the known-bad entries with
     an empty must_fail (no check for them yet), which are not judged.
     """
@@ -119,7 +120,7 @@ async def run(
     for golden in goldens:
         job_keys = wanted(keys_for(golden))
         if job_keys:
-            jobs.append((None, golden, job_keys, build_test_case(golden, rag, corpus)))
+            jobs.append((None, golden, job_keys, build_test_case(golden, rag, corpus=corpus)))
     unchecked = [
         {"case_id": entry["case_id"], "kind": entry["kind"]}
         for entry in known_bad
@@ -136,7 +137,7 @@ async def run(
             replaced = ReplayRag(
                 {"cases": [{**case, "answer": entry["answer"], "cited_ids": cited_ids}]}
             )
-            jobs.append((entry, golden, job_keys, build_test_case(golden, replaced, corpus)))
+            jobs.append((entry, golden, job_keys, build_test_case(golden, replaced, corpus=corpus)))
 
     outcomes = await asyncio.gather(
         *(

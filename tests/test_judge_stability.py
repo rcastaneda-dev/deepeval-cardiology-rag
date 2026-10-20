@@ -78,20 +78,22 @@ class FakeJudge:
         return [tc.actual_output for k, tc in self.test_cases if k == key]
 
 
-def run(goldens, judge, **kwargs):
-    kwargs.setdefault("times", 3)
-    snapshot = snapshot_for(goldens)
-    return asyncio.run(judge_stability.run(snapshot, goldens, specs_for=judge.specs_for, **kwargs))
-
-
 SOURCE = "# Heart attack\n\n## Symptoms\n\nBlood flow is blocked. Pain.\n\n## Treatment\n\nAspirin."
 SECTION = "## Symptoms\n\nBlood flow is blocked. Pain."
 
 
-def test_without_a_corpus_the_context_is_the_excerpt(make_golden):
-    judge = FakeJudge()
-    run([make_golden()], judge, times=1, keys=["hallucination"])
-    assert [tc.context for _, tc in judge.test_cases] == [["Blood flow is blocked."]]
+def run(goldens, judge, **kwargs):
+    kwargs.setdefault("times", 3)
+    kwargs.setdefault("corpus", {"heart-attack": SOURCE})
+    snapshot = snapshot_for(goldens)
+    return asyncio.run(judge_stability.run(snapshot, goldens, specs_for=judge.specs_for, **kwargs))
+
+
+def test_without_a_corpus_a_case_with_an_excerpt_cannot_be_judged(make_golden):
+    # Judging Hallucination against the one-sentence excerpt would score correct answers as
+    # contradictions, so a missing corpus is an error, not a fallback.
+    with pytest.raises(ValueError, match="in-001.*corpus"):
+        run([make_golden()], FakeJudge(), times=1, keys=["hallucination"], corpus=None)
 
 
 def test_with_a_corpus_the_recorded_and_known_bad_answers_get_the_whole_section(make_golden):
@@ -305,7 +307,12 @@ def test_a_known_bad_answer_cites_what_it_says_not_what_the_recorded_answer_cite
     entry = known_bad_entry(answer=answer)
     asyncio.run(
         judge_stability.run(
-            snapshot, [golden], times=1, specs_for=FakeJudge().specs_for, known_bad=[entry]
+            snapshot,
+            [golden],
+            times=1,
+            specs_for=FakeJudge().specs_for,
+            known_bad=[entry],
+            corpus={"heart-attack": SOURCE},
         )
     )
     recorded_replay, bad_replay = replayed
