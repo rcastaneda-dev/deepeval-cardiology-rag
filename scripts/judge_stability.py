@@ -14,8 +14,8 @@ is the whole section of the corpus document that holds the golden's excerpt.
 Each of the K judgings is one plain metric, whatever JUDGE_REPEATS says: the gate takes the
 median of three judgings of most judged checks (not those in JUDGED_ONCE or REPORT_ONLY), and
 this script measures how often a single judging flips. Every row and known-bad entry records the
-"threshold" in force for its check (evals.thresholds.THRESHOLDS), because its "passed" verdicts
-depend on it and the thresholds change when they are recalibrated.
+"threshold" of the metric that was measured, because its "passed" verdicts depend on it and the
+thresholds change when they are recalibrated.
 
 --known-bad names a JSON list of {"case_id", "kind", "answer", "must_fail": [metric keys]}.
 Each entry is judged like the recorded case, with its answer replaced (and its citations read
@@ -62,6 +62,14 @@ def judge_of(key: str, metric) -> str | None:
     return getattr(metric, "evaluation_model", None) or judge_model_for(key)
 
 
+def threshold_of(key: str, metric) -> float:
+    """The cutoff a check was judged against: the `threshold` of the metric that was measured,
+    which is what decided its verdicts. Only a metric that reports none falls back to
+    THRESHOLDS."""
+    threshold = getattr(metric, "threshold", None)
+    return THRESHOLDS[key] if threshold is None else threshold
+
+
 def single_judging_specs(golden: Golden) -> list:
     """The checks of one case with each judged one a plain metric. The gate takes the median of
     three judgings of most judged checks; this script measures how often one judging flips, so it
@@ -76,7 +84,10 @@ async def _judge(golden, test_case, keys, times, specs_for, gate) -> tuple[dict,
     that sets its own error: the gate fails both. Returns the judge model, scores, verdicts and
     errors per key, and the cost DeepEval reported.
     """
-    found = {key: {"judge": None, "scores": [], "passed": [], "errors": []} for key in keys}
+    found = {
+        key: {"judge": None, "threshold": None, "scores": [], "passed": [], "errors": []}
+        for key in keys
+    }
     cost = 0.0
     async with gate:
         for _ in range(times):
@@ -84,6 +95,7 @@ async def _judge(golden, test_case, keys, times, specs_for, gate) -> tuple[dict,
             for key in keys:
                 metric = metrics[key]
                 found[key]["judge"] = judge_of(key, metric)
+                found[key]["threshold"] = threshold_of(key, metric)
                 try:
                     await metric.a_measure(test_case, _show_indicator=False)
                     score, passed, error = metric.score, bool(metric.is_successful()), metric.error
@@ -159,9 +171,9 @@ async def run(
         for key in job_keys:
             measured = dict(found[key])
             judge = measured.pop("judge")  # the model the measured metric reported
-            # The threshold in force: the verdicts in "passed" depend on it, and it changes when
-            # the thresholds are recalibrated.
-            threshold = THRESHOLDS[key]
+            # The threshold the measured metric carried: the verdicts in "passed" depend on it,
+            # and it changes when the thresholds are recalibrated.
+            threshold = measured.pop("threshold")
             if entry is None:
                 # "strict" stays a flag for older readers; "role" says why a check only warns.
                 flags = {

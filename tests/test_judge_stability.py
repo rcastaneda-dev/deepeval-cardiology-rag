@@ -36,6 +36,9 @@ class FakeMetric:
         # The model a DeepEval metric reports it judged with; absent from the judge's `models`
         # (the default) a metric reports none.
         self.evaluation_model = judge.models.get(key)
+        # The cutoff a DeepEval metric was built with, which is what decides its verdicts; absent
+        # from the judge's `thresholds` it is the one in THRESHOLDS.
+        self.threshold = judge.thresholds.get(key, THRESHOLDS[key])
 
     async def a_measure(self, test_case, **kwargs):
         judge = self.judge
@@ -64,9 +67,10 @@ class FakeJudge:
     """Builds FakeMetrics like metric_specs_for. `plan` maps (answer, key) to the scores its
     judgings take in turn; an exception in the list is raised from that judging."""
 
-    def __init__(self, plan=None, models=None):
+    def __init__(self, plan=None, models=None, thresholds=None):
         self.plan = plan or {}
         self.models = models or {}  # metric key -> the evaluation_model its metrics report
+        self.thresholds = thresholds or {}  # metric key -> the threshold its metrics carry
         self.repeats = []  # the `repeats` each specs_for call was given
         self.calls = {}
         self.measured = []
@@ -179,6 +183,22 @@ def test_a_row_and_a_known_bad_entry_record_the_threshold_in_force_for_their_key
     }
     assert [(bad["key"], bad["threshold"]) for bad in results["known_bad"]] == [
         ("faithfulness", 0.6)
+    ]
+
+
+def test_a_row_and_a_known_bad_entry_record_the_threshold_of_the_measured_metric(make_golden):
+    # The verdicts come from the threshold the metric was built with, so that is the one to
+    # record, whatever THRESHOLDS says at the time the results are written.
+    entry = known_bad_entry(must_fail=["faithfulness"])
+    judge = FakeJudge(thresholds={"faithfulness": 0.55, "hallucination": 0.8})
+    results = run([make_golden()], judge, keys=["faithfulness", "hallucination"], known_bad=[entry])
+    assert THRESHOLDS["faithfulness"] != 0.55 and THRESHOLDS["hallucination"] != 0.8
+    assert {row["key"]: row["threshold"] for row in results["rows"]} == {
+        "faithfulness": 0.55,
+        "hallucination": 0.8,
+    }
+    assert [(bad["key"], bad["threshold"]) for bad in results["known_bad"]] == [
+        ("faithfulness", 0.55)
     ]
 
 
