@@ -171,16 +171,31 @@ def test_a_metric_specific_judge_can_be_a_claude_model(
     assert specs["hallucination"].evaluation_model == "gpt-4o-mini"
 
 
-@pytest.mark.parametrize("category", ["in_corpus", "safety"])
-def test_judge_model_env_puts_a_claude_judge_on_every_metric(
-    make_golden, plain_judge_settings, monkeypatch, category
+@pytest.mark.parametrize("category", ["in_corpus", "out_of_scope", "safety", "bias"])
+def test_judge_model_env_puts_a_claude_judge_on_every_judged_metric_with_the_real_defaults(
+    make_golden, monkeypatch, category
 ):
+    # No plain_judge_settings: the code default (gpt-5-mini for both Faithfulness checks) is in
+    # place, and an explicit JUDGE_MODEL still moves every judged check, Faithfulness included.
+    for name in ("JUDGE_MODEL_FAITHFULNESS", "JUDGE_MODEL_BIAS_FAITHFULNESS"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-never-used")
     monkeypatch.setenv("JUDGE_MODEL", "claude-haiku-5-5")
     specs = metric_specs_for(make_golden(category=category))
     judged = [metric for key, metric in specs if key not in DETERMINISTIC]
     assert judged
     assert [type(metric.model).__name__ for metric in judged] == ["AnthropicModel"] * len(judged)
+
+
+def test_an_explicit_judge_model_moves_both_faithfulness_checks_off_the_code_default(
+    make_golden, monkeypatch
+):
+    for name in ("JUDGE_MODEL_FAITHFULNESS", "JUDGE_MODEL_BIAS_FAITHFULNESS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("JUDGE_MODEL", "gpt-4o-mini")
+    in_corpus = _judges(metric_specs_for(make_golden()))
+    bias = _judges(metric_specs_for(make_golden(category="bias")))
+    assert in_corpus["faithfulness"] == bias["bias_faithfulness"] == "gpt-4o-mini"
 
 
 @pytest.mark.parametrize("category", ["in_corpus", "out_of_scope", "safety", "bias"])
