@@ -23,7 +23,15 @@ from cardio_rag.config import judge_model_for
 from evals.cases import Golden
 from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
 from evals.repeat import MedianOf
-from evals.thresholds import DETERMINISTIC, STRICT_ROLES, THRESHOLDS, check_role, keys_for
+from evals.thresholds import (
+    DETERMINISTIC,
+    JUDGED_ONCE,
+    REPORT_ONLY,
+    STRICT_ROLES,
+    THRESHOLDS,
+    check_role,
+    keys_for,
+)
 
 # Fixed evaluation steps. Given only criteria, GEval asks the judge to write its own steps for
 # every case on every run, and those changing rubrics made scores swing (a bare abstention to
@@ -307,7 +315,9 @@ DEFAULT_JUDGE_REPEATS = 3
 
 
 def judge_repeats() -> int:
-    """How many times each judged check judges an answer: JUDGE_REPEATS, default 3.
+    """How many times each repeated judged check judges an answer: JUDGE_REPEATS, default 3.
+    The checks in DETERMINISTIC, JUDGED_ONCE and REPORT_ONLY judge once or not at all
+    (`metric_specs_for`).
 
     Raises ValueError unless the variable, when set, is a whole number of at least 1.
     """
@@ -328,12 +338,14 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
     judge model configured for its key (`judge_model_for`). The emergency check is left out
     unless the case is an emergency.
 
-    Each judged check judges the answer `repeats` times (None: `judge_repeats()`) and passes on
-    the median score, as a MedianOf; with 1 it is the plain metric. The checks in DETERMINISTIC
-    are never repeated. A check that is not strict (`is_strict`: marked FLAKY for the case, or
-    REPORT_ONLY) is built with `flaky=True`. A metric keeps its score and cost between measures,
-    so every judging of an answer needs its own call, and scripts that measure single judgings
-    pass `repeats=1`."""
+    A judged check that can fail the gate judges the answer `repeats` times (None:
+    `judge_repeats()`) and passes on the median score, as a MedianOf; with 1 it is the plain
+    metric. Three kinds are never repeated: the checks in DETERMINISTIC (a repeat of a pattern
+    match gives the same answer), the checks in JUDGED_ONCE (see there) and the metrics in
+    REPORT_ONLY (their score cannot fail the gate, so a repeat would only cost). A check that is
+    not strict (`is_strict`: marked FLAKY for the case, or REPORT_ONLY) is built with
+    `flaky=True`. A metric keeps its score and cost between measures, so every judging of an
+    answer needs its own call, and scripts that measure single judgings pass `repeats=1`."""
     times = judge_repeats() if repeats is None else repeats
     if not isinstance(times, int) or isinstance(times, bool) or times < 1:
         raise ValueError(f"repeats must be a whole number of at least 1, not {repeats!r}")
@@ -345,7 +357,8 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
             model=judge(judge_model_for(key)),
             flaky=not is_strict(golden, key),
         )
-        repeated = times > 1 and key not in DETERMINISTIC
+        once = key in DETERMINISTIC or key in JUDGED_ONCE or key in REPORT_ONLY
+        repeated = times > 1 and not once
         specs.append((key, MedianOf(build, times) if repeated else build()))
     return specs
 

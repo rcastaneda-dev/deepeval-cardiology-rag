@@ -2,6 +2,7 @@ from evals.cases import CATEGORIES, load_goldens
 from evals.thresholds import (
     DETERMINISTIC,
     FLAKY,
+    JUDGED_ONCE,
     METRIC_KEYS,
     REPORT_ONLY,
     THRESHOLDS,
@@ -147,3 +148,17 @@ def test_a_report_only_metric_is_report_only_on_every_case_even_one_marked_flaky
     monkeypatch.setitem(FLAKY, "bia-001", frozenset({"bias"}))
     assert check_role(make_golden(id="bia-001", category="bias"), "bias") == "report-only"
     assert check_role(make_golden(id="bia-002", category="bias"), "bias") == "report-only"
+
+
+def test_the_checks_judged_once_are_the_two_faithfulness_checks():
+    # gpt-5-mini Faithfulness: 132 recorded judgings, none below the cutoff (the lowest, 0.75, is
+    # the cutoff). See the comment on JUDGED_ONCE.
+    assert JUDGED_ONCE == frozenset({"faithfulness", "bias_faithfulness"})
+
+
+def test_a_check_judged_once_is_a_judged_metric_that_gates():
+    # A check that needs no judge is never repeated anyway, and a report-only one is judged once
+    # for its own reason; listing either here would hide which rule applies.
+    assert JUDGED_ONCE <= set(THRESHOLDS)
+    assert not JUDGED_ONCE & DETERMINISTIC
+    assert not JUDGED_ONCE & set(REPORT_ONLY)

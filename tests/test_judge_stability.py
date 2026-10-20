@@ -372,7 +372,7 @@ def cli(tmp_path, monkeypatch, make_golden):
 
 
 def test_the_script_measures_single_judgings(cli):
-    # The gate judges each check three times and takes the median; this script measures how often
+    # The gate judges most checks three times and takes the median; this script measures how often
     # one judging flips, so every metric it builds must be a plain one.
     assert cli(times=2) == 0
     assert cli.judge.repeats
