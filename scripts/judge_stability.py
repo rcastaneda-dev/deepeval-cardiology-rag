@@ -24,8 +24,8 @@ the known-bad entries as well as the recorded answers.
 
 A metric may use another judge model than the rest (JUDGE_MODEL_<KEY>, such as
 JUDGE_MODEL_FAITHFULNESS, or cardio_rag.config.DEFAULT_JUDGE_MODELS). Every row and known-bad
-entry records the "judge" its check used (None for a check that needs no judge); the top-level
-"judge" is the default, JUDGE_MODEL.
+entry records the "judge" its check used, read from the measured metric's evaluation_model (None
+for a check that needs no judge); the top-level "judge" is the default, JUDGE_MODEL.
 """
 
 import argparse
@@ -51,9 +51,13 @@ from evals.thresholds import DETERMINISTIC, THRESHOLDS, check_role, keys_for  # 
 MAX_CASES_AT_ONCE = 8
 
 
-def judge_of(key: str) -> str | None:
-    """The judge model a check uses, or None for a check that needs no judge."""
-    return None if key in DETERMINISTIC else judge_model_for(key)
+def judge_of(key: str, metric) -> str | None:
+    """The judge model a check used: the `evaluation_model` of the metric that was measured, so
+    the record says what the call used. Only a metric that reports none falls back to
+    `judge_model_for(key)`. None for a check that needs no judge."""
+    if key in DETERMINISTIC:
+        return None
+    return getattr(metric, "evaluation_model", None) or judge_model_for(key)
 
 
 def single_judging_specs(golden: Golden) -> list:
@@ -67,16 +71,17 @@ async def _judge(golden, test_case, keys, times, specs_for, gate) -> tuple[dict,
     """`times` judgings of `keys` on one test case, each with new metric objects.
 
     A call that raises is a failed judging with its message as the error, and so is a metric
-    that sets its own error: the gate fails both. Returns the scores, verdicts and errors per
-    key, and the cost DeepEval reported.
+    that sets its own error: the gate fails both. Returns the judge model, scores, verdicts and
+    errors per key, and the cost DeepEval reported.
     """
-    found = {key: {"scores": [], "passed": [], "errors": []} for key in keys}
+    found = {key: {"judge": None, "scores": [], "passed": [], "errors": []} for key in keys}
     cost = 0.0
     async with gate:
         for _ in range(times):
             metrics = dict(specs_for(golden))
             for key in keys:
                 metric = metrics[key]
+                found[key]["judge"] = judge_of(key, metric)
                 try:
                     await metric.a_measure(test_case, _show_indicator=False)
                     score, passed, error = metric.score, bool(metric.is_successful()), metric.error
@@ -150,6 +155,8 @@ async def run(
     for (entry, golden, job_keys, _), (found, spent) in zip(jobs, outcomes, strict=True):
         cost += spent
         for key in job_keys:
+            measured = dict(found[key])
+            judge = measured.pop("judge")  # the model the measured metric reported
             if entry is None:
                 # "strict" stays a flag for older readers; "role" says why a check only warns.
                 flags = {
@@ -157,16 +164,11 @@ async def run(
                     "role": check_role(golden, key),
                     "smoke": golden.smoke,
                 }
-                label = {"case_id": golden.id, "key": key, "judge": judge_of(key)}
-                rows.append({**label, **flags, **found[key]})
+                label = {"case_id": golden.id, "key": key, "judge": judge}
+                rows.append({**label, **flags, **measured})
             else:
-                label = {
-                    "case_id": golden.id,
-                    "kind": entry["kind"],
-                    "key": key,
-                    "judge": judge_of(key),
-                }
-                bad.append({**label, **found[key]})
+                label = {"case_id": golden.id, "kind": entry["kind"], "key": key, "judge": judge}
+                bad.append({**label, **measured})
     return {"rows": rows, "known_bad": bad, "unchecked": unchecked, "cost": cost}
 
 
