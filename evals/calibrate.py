@@ -21,6 +21,16 @@ calibrated. A case's acceptable score is the score the gate could be made to see
 Only cases labelled acceptable set a threshold, and a case with a judged check that is not
 labelled at all stops the run, so no answer is left out by accident. A judging that errored (no
 score, or an error recorded with it) is left out and counted.
+
+The labels may also hold a list under "extra", for acceptable answers scored in another run, such
+as a live pull-request run that is not in the results file:
+  "extra": [{"key": "safety", "case_id": "saf-005", "score": 0.905, "source": "...", "note": "..."}]
+Each entry is one more acceptable score for its check, counted as it is (the score the gate
+reported: a median of 3, or the single judging of a check in JUDGED_ONCE), and named
+"<case id> [extra]" in the output. The source says which run and the note what was read in the
+answer. An entry for a check that is not calibrated is refused. One for a check that has no rows
+in these results is listed as not used, so one labels file can serve results files that each hold
+some of the checks.
 """
 
 import argparse
@@ -29,7 +39,7 @@ import json
 import math
 import statistics
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from evals.thresholds import DETERMINISTIC, JUDGED_ONCE, REPORT_ONLY, THRESHOLDS
@@ -94,6 +104,7 @@ class KeyCalibration:
     margin_risks: list[tuple[str, float]]
     failing: list[tuple[str, float]]
     errored: int
+    extras: list[tuple[str, float, str]] = field(default_factory=list)  # case, score, source
 
 
 @dataclass(frozen=True)
@@ -102,6 +113,11 @@ class Calibration:
     not_calibrated: list[str]  # checks in the results that need no judge or are only reported
     acceptable: int  # cases labelled acceptable, among those with a calibrated check
     not_acceptable: int
+    extra_scores: int = 0  # entries of the labels' "extra" list that were counted
+    extras_not_used: list[tuple[str, str, float]] = field(default_factory=list)  # key, case, score
+
+
+EXTRA = "extra"  # the key of the labels that holds the extra acceptable scores, not a case id
 
 
 def _label_problems(labels) -> list[str]:
@@ -109,6 +125,8 @@ def _label_problems(labels) -> list[str]:
         return ["labels must be an object of case id to {acceptable, note}"]
     problems = []
     for case_id, label in labels.items():
+        if case_id == EXTRA:
+            continue
         note = label.get("note") if isinstance(label, dict) else None
         if (
             not isinstance(label, dict)
@@ -118,6 +136,34 @@ def _label_problems(labels) -> list[str]:
         ):
             problems.append(
                 f"{case_id}: label needs acceptable (true or false) and a note saying what was read"
+            )
+    return problems
+
+
+def _text(value) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _extra_problems(extras) -> list[str]:
+    """Why entries of the labels' "extra" list cannot be counted, one message per entry."""
+    if not isinstance(extras, list):
+        return ["extra must be a list of {key, case_id, score, source, note}"]
+    problems = []
+    for number, entry in enumerate(extras, start=1):
+        where = f"extra {number}"
+        if not isinstance(entry, dict) or not all(
+            _text(entry.get(field_name)) for field_name in ("key", "case_id", "source", "note")
+        ):
+            problems.append(f"{where}: needs key, case_id, score, source and note")
+            continue
+        score, key = entry.get("score"), entry["key"]
+        if isinstance(score, bool) or not isinstance(score, int | float) or not 0 <= score <= 1:
+            problems.append(f"{where}: score must be a number from 0 to 1")
+        elif key not in THRESHOLDS:
+            problems.append(f"{where}: not a metric key: {key}")
+        elif key in DETERMINISTIC or key in REPORT_ONLY:
+            problems.append(
+                f"{where}: {key} is not calibrated (it needs no judge or is only reported)"
             )
     return problems
 
@@ -157,8 +203,15 @@ def calibrate(results: dict, labels: dict) -> Calibration:
             f"{', '.join(unlabelled)}"
         )
 
+    judged_keys = list(dict.fromkeys(row["key"] for row in judged))
+    extras = labels.get(EXTRA, [])
+    problems = _extra_problems(extras)
+    if problems:
+        raise CalibrationError("; ".join(problems))
+    not_used = [entry for entry in extras if entry["key"] not in judged_keys]
+
     keys = []
-    for key in dict.fromkeys(row["key"] for row in judged):
+    for key in judged_keys:
         once = key in JUDGED_ONCE
         pairs, errored = [], 0
         for row in judged:
@@ -173,6 +226,8 @@ def calibrate(results: dict, labels: dict) -> Calibration:
                     f"{row['case_id']} {key}: {len(scores)} usable judgings of "
                     f"{len(row['scores'])}; {error}"
                 ) from error
+        counted = [entry for entry in extras if entry["key"] == key]
+        pairs += [(f"{entry['case_id']} [{EXTRA}]", float(entry["score"])) for entry in counted]
         if not pairs:
             keys.append(KeyCalibration(key, once, THRESHOLDS[key], None, None, [], [], errored))
             continue
@@ -187,10 +242,18 @@ def calibrate(results: dict, labels: dict) -> Calibration:
                 margin_risks=[pair for pair in pairs if pair[1] in margin_risks],
                 failing=[pair for pair in pairs if pair[1] in failing],
                 errored=errored,
+                extras=[(e["case_id"], float(e["score"]), e["source"]) for e in counted],
             )
         )
     verdicts = [labels[case_id]["acceptable"] for case_id in cases]
-    return Calibration(keys, not_calibrated, verdicts.count(True), verdicts.count(False))
+    return Calibration(
+        keys,
+        not_calibrated,
+        verdicts.count(True),
+        verdicts.count(False),
+        len(extras) - len(not_used),
+        [(entry["key"], entry["case_id"], float(entry["score"])) for entry in not_used],
+    )
 
 
 def _pairs(pairs: list[tuple[str, float]]) -> str:
@@ -199,11 +262,16 @@ def _pairs(pairs: list[tuple[str, float]]) -> str:
 
 def render(results: dict, calibration: Calibration) -> str:
     """The calibration as Markdown: a header, then a section per judged check."""
-    acceptable = calibration.acceptable
+    acceptable, extra = calibration.acceptable, calibration.extra_scores
+    more = (
+        f", plus {extra} extra acceptable {'score' if extra == 1 else 'scores'} from other runs"
+        if extra
+        else ""
+    )
     lines = [
         f"Thresholds proposed from {results.get('times', '?')} judgings of each check on "
         f"{results.get('snapshot', '?')}: {acceptable} {'case' if acceptable == 1 else 'cases'} "
-        f"labelled acceptable, {calibration.not_acceptable} labelled not acceptable. "
+        f"labelled acceptable, {calibration.not_acceptable} labelled not acceptable{more}. "
         "Margin 0.05, clamped to 0.50-0.90.",
     ]
     for found in calibration.keys:
@@ -225,8 +293,21 @@ def render(results: dict, calibration: Calibration) -> str:
             lines.append(f"- lowest acceptable score: {score:.2f} ({case_id})")
         lines.append(f"- margin risks: {_pairs(found.margin_risks)}")
         lines.append(f"- acceptable scores that would fail: {_pairs(found.failing)}")
+        if found.extras:
+            counted = ", ".join(
+                f"{case_id} {score:.2f} ({source})" for case_id, score, source in found.extras
+            )
+            lines.append(f"- extra acceptable scores counted: {counted}")
         if found.errored:
             lines.append(f"- errored judgings left out: {found.errored}")
+    if calibration.extras_not_used:
+        unused = ", ".join(
+            f"{key} {case_id} {score:.2f}" for key, case_id, score in calibration.extras_not_used
+        )
+        lines += [
+            "",
+            f"Extra scores not used (no rows for their check in these results): {unused}.",
+        ]
     if calibration.not_calibrated:
         lines += [
             "",
