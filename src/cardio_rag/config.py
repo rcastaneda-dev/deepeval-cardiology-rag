@@ -32,16 +32,26 @@ def require_env(name: str) -> str:
     return value
 
 
+def _set_judge_model(name: str) -> str | None:
+    """The environment variable `name` stripped, or None when it is unset, empty or only spaces."""
+    return os.environ.get(name, "").strip() or None
+
+
 def judge_model() -> str:
-    return os.environ.get("JUDGE_MODEL", "gpt-4o-mini")
+    """The judge for every metric that has no judge of its own: JUDGE_MODEL, else gpt-4o-mini.
+    A variable that is empty or only spaces counts as not set."""
+    return _set_judge_model("JUDGE_MODEL") or "gpt-4o-mini"
 
 
-# Metric key -> the judge model that metric uses when JUDGE_MODEL_<KEY> is not set; a metric with
-# no entry uses judge_model(). Both Faithfulness checks use gpt-5-mini, chosen by the trial of
-# 2026-10-19 on the 54 faithfulness and bias_faithfulness answers of evals/snapshots/2026-10-19.json
-# (3 judgings of each, the same answers for every judge). "Listed" is the nine answers that had a
-# FLAKY faithfulness entry; "fell" is an answer that passed 3 of 3 under gpt-4o-mini and did not;
-# "caught" is the contradicts_source answers (in-013, in-018, in-024) that failed most judgings.
+# Metric key -> the judge model that metric uses when neither JUDGE_MODEL_<KEY> nor JUDGE_MODEL is
+# set (see judge_model_for); a metric with no entry uses judge_model(). Both Faithfulness checks
+# use gpt-5-mini, chosen by the trial of 2026-10-19 on the 54 faithfulness and bias_faithfulness
+# answers of evals/snapshots/2026-10-19.json (3 judgings of each, the same answers for every
+# judge; the results are in evals/snapshots/2026-10-19-faithfulness-trial-gpt-4o-mini.md,
+# ...-gpt-4.1-mini.md and ...-gpt-5-mini.md, with their .json files). "Listed" is the nine answers
+# that had a FLAKY faithfulness entry; "fell" is an answer that passed 3 of 3 under gpt-4o-mini and
+# did not; "caught" is the contradicts_source answers (in-013, in-018, in-024) that failed most
+# judgings.
 #   judge          listed passing 3 of 3   fell                 caught   cost
 #   gpt-4o-mini    6 of 9                  -                    2 of 3   $0.14
 #   gpt-4.1-mini   9 of 9                  in-028 (0 of 3)      3 of 3   $0.41
@@ -61,11 +71,17 @@ DEFAULT_JUDGE_MODELS: dict[str, str] = {
 
 
 def judge_model_for(metric_key: str) -> str:
-    """The judge model for one metric key: the environment variable JUDGE_MODEL_<KEY> in capitals
-    (JUDGE_MODEL_FAITHFULNESS), else its entry in DEFAULT_JUDGE_MODELS, else judge_model().
-    A variable that is empty or only spaces counts as not set."""
-    chosen = os.environ.get(f"JUDGE_MODEL_{metric_key.upper()}", "").strip()
-    return chosen or DEFAULT_JUDGE_MODELS.get(metric_key) or judge_model()
+    """The judge model for one metric key. In this order: the environment variable
+    JUDGE_MODEL_<KEY> in capitals (JUDGE_MODEL_FAITHFULNESS); JUDGE_MODEL, when it is set, because
+    a maintainer who sets it expects every metric to move, the Faithfulness checks included; the
+    key's entry in DEFAULT_JUDGE_MODELS; gpt-4o-mini. A variable that is empty or only spaces
+    counts as not set."""
+    return (
+        _set_judge_model(f"JUDGE_MODEL_{metric_key.upper()}")
+        or _set_judge_model("JUDGE_MODEL")
+        or DEFAULT_JUDGE_MODELS.get(metric_key)
+        or judge_model()
+    )
 
 
 @dataclass(frozen=True)
