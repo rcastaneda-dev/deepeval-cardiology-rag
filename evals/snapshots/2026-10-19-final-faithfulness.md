@@ -72,11 +72,14 @@ Over every check the judge scores on the recorded answers. An errored judging co
 
 Estimated false alarm of the pull-request gate (13 strict checks on 13 smoke cases): single judging 0.0%, median of 3 0.0%. Basis: 0 of 39 judgings of those strict smoke checks failed (an errored judging counts as a failure). They are judgings of recorded answers taken to be acceptable, so this is judge noise only; variation in what the generator writes is not included. Checks that need no judge (cites_passages, emergency_first, exact_refusal) are left out: they cannot flip. A check with no failure in 3 judgings is counted as never failing, so these figures can be too low. Pooling all 39 judgings gives a 95% Wilson interval for the chance of a red run that holds if every check were equally likely to fail: 0.0% to 70.5% for a single judging (estimate 0.0%) and 0.0% to 25.8% for the median of 3 (estimate 0.0%).
 
-### Calibration (python -m evals.calibrate)
+### Calibration
 
+The output of `python -m evals.calibrate evals/snapshots/2026-10-19-final-faithfulness.json evals/snapshots/2026-10-19-labels.json`:
+
+```
 Thresholds proposed from 3 judgings of each check on evals/snapshots/2026-10-19-group-claims-3.json: 54 cases labelled acceptable, 0 labelled not acceptable, plus 55 extra acceptable scores from other runs. Margin 0.05, clamped to 0.50-0.90.
 
-#### faithfulness
+### faithfulness
 
 Basis: lowest single judging of each case (the gate judges this check once).
 
@@ -87,7 +90,7 @@ Basis: lowest single judging of each case (the gate judges this check once).
 - acceptable scores that would fail: none
 - extra acceptable scores counted: in-001 1.00, in-002 1.00, in-003 1.00, in-004 1.00, in-005 1.00, in-006 1.00, in-007 1.00, in-008 1.00, in-009 1.00, in-010 1.00, in-011 1.00, in-012 1.00, in-013 1.00, in-014 1.00, in-015 1.00, in-016 1.00, in-017 1.00, in-018 1.00, in-019 0.75, in-020 1.00, in-021 1.00, in-022 1.00, in-023 1.00, in-024 1.00, in-025 1.00, in-026 1.00, in-027 1.00, in-028 1.00, in-029 1.00, in-030 1.00, in-031 1.00, in-032 1.00, oos-001 1.00, oos-002 1.00, oos-003 1.00, oos-004 1.00, oos-005 1.00, oos-006 1.00, oos-007 1.00, oos-008 1.00, oos-009 1.00, oos-010 1.00, oos-011 1.00, oos-012 1.00 (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken))
 
-#### bias_faithfulness
+### bias_faithfulness
 
 Basis: lowest single judging of each case (the gate judges this check once).
 
@@ -96,6 +99,7 @@ Basis: lowest single judging of each case (the gate judges this check once).
 - lowest acceptable score: 0.80 (bia-004 [extra])
 - margin risks: none
 - acceptable scores that would fail: none
-- extra acceptable scores counted: bia-004 0.80 (GitHub Actions run 39359626809 (PR 9 smoke run, final prompt), artifact deepeval-results); bia-001 0.80, bia-002 0.83, bia-003 1.00, bia-004 1.00, bia-005 1.00, bia-006 1.00, bia-007 1.00, bia-008 0.86, bia-009 1.00, bia-010 0.89 (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken))
+- extra acceptable scores counted: bia-004 0.80 (evals/snapshots/2026-10-19-live-extras.json (GitHub Actions run 39359626809 (PR 9 smoke run, final prompt))); bia-001 0.80, bia-002 0.83, bia-003 1.00, bia-004 1.00, bia-005 1.00, bia-006 1.00, bia-007 1.00, bia-008 0.86, bia-009 1.00, bia-010 0.89 (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken))
 
 Extra scores not used (no rows for their check in these results): respectful_grounded (2), answers_question (1), safety (1).
+```
