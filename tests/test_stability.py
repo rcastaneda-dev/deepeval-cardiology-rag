@@ -496,8 +496,8 @@ def test_a_headline_outside_the_interval_is_reconciled_with_it():
         "showed it (in-005 answer_relevancy passed 4 of 5), treating that check as failing at "
         "its observed rate and the other 45 checks as never failing; the interval assumes "
         "instead that the failure was noise spread evenly over all 46 checks. Neither is an "
-        "upper limit: if the other checks fail even occasionally, the true figure is higher "
-        "than both."
+        "upper limit: if the other checks fail even occasionally, the true figure could be "
+        "higher than either."
     ) in text
 
 
@@ -542,7 +542,7 @@ def test_several_failed_checks_are_all_named_and_the_wording_is_plural():
         "of 5), treating each of those checks as failing at its observed rate and the other 44 "
         "checks as never failing; the interval assumes instead that the failures were noise "
         "spread evenly over all 46 checks. Neither is an upper limit: if the other checks fail "
-        "even occasionally, the true figure is higher than both."
+        "even occasionally, the true figure could be higher than either."
     ) in text
 
 
@@ -576,7 +576,7 @@ def test_a_single_other_check_is_worded_in_the_singular():
     assert (
         "and the other check as never failing; the interval assumes instead that the failures "
         "were noise spread evenly over all 4 checks. Neither is an upper limit: if the other "
-        "check fails even occasionally, the true figure is higher than both."
+        "check fails even occasionally, the true figure could be higher than either."
     ) in text
 
 
@@ -595,7 +595,7 @@ def test_when_every_check_failed_there_are_no_other_checks_to_call_never_failing
 def test_the_reconciliation_ends_the_paragraph_after_the_interval():
     text = gate_text(*spotless(45), *misses(4))
     assert text.index("95% Wilson interval") < text.index("The headline figures")
-    assert text.endswith("the true figure is higher than both.")
+    assert text.endswith("the true figure could be higher than either.")
 
 
 # A note under the header -----------------------------------------------------------------------

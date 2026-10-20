@@ -317,8 +317,8 @@ def _reconciliation(checks: list[dict], failed: int, single: float, median: floa
         never += " as never failing"
         fail = "the other check fails" if others == 1 else "the other checks fail"
         closing = (
-            f"Neither is an upper limit: if {fail} even occasionally, the true figure is higher "
-            "than both."
+            f"Neither is an upper limit: if {fail} even occasionally, the true figure could be "
+            "higher than either."
         )
     return (
         f" The headline figures ({single:.1%} and {median:.1%}) put {judgings} on {where} "
