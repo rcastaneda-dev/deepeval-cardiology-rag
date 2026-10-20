@@ -11,10 +11,12 @@ Usage: python -m evals.calibrate <stability.json> <labels.json>
 
 The first file is a results file of scripts/judge_stability.py, the second says which answers a
 person read and found acceptable: {"<case id>": {"acceptable": true, "note": "..."}}. For each
-judged check the command prints the threshold in force, the one the rule proposes, the lowest
-acceptable score, the margin risks and the acceptable scores that would still fail. It makes no
-API call. A check that needs no judge (DETERMINISTIC) or is only reported (REPORT_ONLY) is not
-calibrated. A case's acceptable score is the score the gate could be made to see at worst:
+judged check the command prints the old threshold (the one the results were judged against, which
+every row records as "threshold"; the one in force only for a file that does not), the one the
+rule proposes, the lowest acceptable score, the margin risks and the acceptable scores that would
+still fail. It makes no API call. A check that needs no judge (DETERMINISTIC) or is only reported
+(REPORT_ONLY) is not calibrated. A case's acceptable score is the score the gate could be made to
+see at worst:
   - a check judged once by the gate (JUDGED_ONCE): the lowest of the case's single judgings;
   - any other judged check: the lowest median over every 3 of the case's judgings (the gate
     passes on the median of 3), which needs at least 3 judgings.
@@ -43,6 +45,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from evals.cases import load_goldens
 from evals.thresholds import DETERMINISTIC, JUDGED_ONCE, REPORT_ONLY, THRESHOLDS
 
 MEDIAN_OF = 3  # the number of judgings the gate takes the median of
@@ -92,10 +95,11 @@ def acceptable_score(scores: list[float], *, once: bool) -> float:
 
 @dataclass(frozen=True)
 class KeyCalibration:
-    """What the rule says about one judged check: `old` is the threshold in force, `proposed`
-    the one the rule gives (None when no case is labelled acceptable), `lowest` the case with the
-    lowest acceptable score, `margin_risks` and `failing` the acceptable (case, score) pairs that
-    pass by less than the margin or fail, in the order of the results."""
+    """What the rule says about one judged check: `old` is the threshold the results were judged
+    against, `proposed` the one the rule gives (None when no case is labelled acceptable),
+    `lowest` the case with the lowest acceptable score, `margin_risks` and `failing` the
+    acceptable (case, score) pairs that pass by less than the margin or fail, in the order of the
+    results."""
 
     key: str
     once: bool
@@ -149,6 +153,7 @@ def _extra_problems(extras) -> list[str]:
     """Why entries of the labels' "extra" list cannot be counted, one message per entry."""
     if not isinstance(extras, list):
         return ["extra must be a list of {key, case_id, score, source, note}"]
+    case_ids = {golden.id for golden in load_goldens()}
     problems = []
     for number, entry in enumerate(extras, start=1):
         where = f"extra {number}"
@@ -162,6 +167,8 @@ def _extra_problems(extras) -> list[str]:
             problems.append(f"{where}: score must be a number from 0 to 1")
         elif key not in THRESHOLDS:
             problems.append(f"{where}: not a metric key: {key}")
+        elif entry["case_id"] not in case_ids:
+            problems.append(f"{where}: not a case id: {entry['case_id']}")
         elif key in DETERMINISTIC or key in REPORT_ONLY:
             problems.append(
                 f"{where}: {key} is not calibrated (it needs no judge or is only reported)"
@@ -229,15 +236,20 @@ def calibrate(results: dict, labels: dict) -> Calibration:
                 ) from error
         counted = [entry for entry in extras if entry["key"] == key]
         pairs += [(f"{entry['case_id']} [{EXTRA}]", float(entry["score"])) for entry in counted]
+        # What the answers were judged against: the rows say, the code only when they do not.
+        recorded = next(
+            (row["threshold"] for row in judged if row["key"] == key and "threshold" in row), None
+        )
+        old = THRESHOLDS[key] if recorded is None else float(recorded)
         if not pairs:
-            keys.append(KeyCalibration(key, once, THRESHOLDS[key], None, None, [], [], errored))
+            keys.append(KeyCalibration(key, once, old, None, None, [], [], errored))
             continue
         proposed, margin_risks, failing = propose_threshold([score for _, score in pairs])
         keys.append(
             KeyCalibration(
                 key=key,
                 once=once,
-                old=THRESHOLDS[key],
+                old=old,
                 proposed=proposed,
                 lowest=min(pairs, key=lambda pair: pair[1]),
                 margin_risks=[pair for pair in pairs if pair[1] in margin_risks],
