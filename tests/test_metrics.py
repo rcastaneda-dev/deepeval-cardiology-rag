@@ -483,6 +483,17 @@ def test_judge_repeats_reads_the_environment(monkeypatch):
     assert judge_repeats() == 5
     monkeypatch.setenv("JUDGE_REPEATS", " 1 ")
     assert judge_repeats() == 1
+    monkeypatch.setenv("JUDGE_REPEATS", "9")
+    assert judge_repeats() == 9
+
+
+@pytest.mark.parametrize("value", ["10", "99", "1000"])
+def test_judge_repeats_rejects_a_value_above_nine(monkeypatch, value):
+    # Every repeat of every repeated check is a paid call on every case: a typo such as 30 for 3
+    # would multiply the gate's cost by ten.
+    monkeypatch.setenv("JUDGE_REPEATS", value)
+    with pytest.raises(ValueError, match="JUDGE_REPEATS.*9"):
+        judge_repeats()
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "x", "2.5", "three", ""])
