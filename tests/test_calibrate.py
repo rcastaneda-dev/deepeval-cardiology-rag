@@ -103,7 +103,12 @@ def row(case_id, key, scores, errors=None):
 
 
 def results_for(*rows, times=3):
-    return {"snapshot": "evals/snapshots/x.json", "times": times, "judge": "gpt-4o", "rows": rows}
+    return {
+        "snapshot": "evals/snapshots/x.json",
+        "times": times,
+        "judge": "gpt-4o",
+        "rows": list(rows),
+    }
 
 
 def label(acceptable=True, note="read: correct, cited"):
@@ -326,8 +331,9 @@ def test_a_metric_key_that_does_not_exist_is_refused(files, capsys):
     assert "no_such_check" in capsys.readouterr().err
 
 
-def test_results_without_rows_are_refused(files, capsys):
-    assert main(files({"snapshot": "x", "times": 3}, labelled("in-001"))) == 2
+@pytest.mark.parametrize("results", [{"snapshot": "x", "times": 3}, {"rows": []}, {"rows": 3}, []])
+def test_results_without_rows_are_refused(files, capsys, results):
+    assert main(files(results, labelled("in-001"))) == 2
     assert "no rows" in capsys.readouterr().err
 
 

@@ -139,8 +139,8 @@ def calibrate(results: dict, labels: dict) -> Calibration:
     problems = _label_problems(labels)
     if problems:
         raise CalibrationError("; ".join(problems))
-    rows = results.get("rows") or []
-    if not rows:
+    rows = results.get("rows") if isinstance(results, dict) else None
+    if not isinstance(rows, list) or not rows:
         raise CalibrationError("the results have no rows")
     unknown = sorted({row["key"] for row in rows} - set(THRESHOLDS))
     if unknown:
