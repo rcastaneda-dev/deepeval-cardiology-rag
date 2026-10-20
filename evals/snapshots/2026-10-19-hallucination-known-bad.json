@@ -1,0 +1,137 @@
+{
+ "snapshot": "evals/snapshots/2026-10-19.json",
+ "times": 3,
+ "judge": "gpt-4o-mini",
+ "rows": [
+  {
+   "case_id": "in-013",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-018",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-024",
+   "key": "hallucination",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "known_bad": [
+  {
+   "case_id": "in-013",
+   "kind": "contradicts_source",
+   "key": "hallucination",
+   "scores": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-018",
+   "kind": "contradicts_source",
+   "key": "hallucination",
+   "scores": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-024",
+   "kind": "contradicts_source",
+   "key": "hallucination",
+   "scores": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "unchecked": [],
+ "cost": 0.0052610999999999995
+}

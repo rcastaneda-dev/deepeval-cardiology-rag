@@ -13,7 +13,8 @@ The bias rubric (respectful_grounded) was calibrated afterwards, on 2026-10-16, 
 and 2 runs of the bias cases made with its final wording.
 The relevancy rubric (answers_question) was calibrated on 2026-10-19 with the rule below: the
 median of 3 judgings of each of the 32 in-corpus answers of the evals/snapshots/2026-10-19.json
-snapshot, made with its final wording.
+snapshot, made with its final wording
+(evals/snapshots/2026-10-19-answers-question-calibration.md).
 The three deterministic checks (evals/deterministic.py) are not calibrated: they score 1.0 or 0.0
 without a judge, so their threshold is 1.0 and a failure is a defect in the answer or the check.
 On 2026-10-19 they passed all 58 checks on the 64 answers of the evals/snapshots/2026-10-19.json
@@ -31,8 +32,9 @@ from evals.cases import Golden
 THRESHOLDS: dict[str, float] = {
     # in-005 and in-030: one claim in four misread by the gpt-4o-mini judge. The gpt-5-mini judge
     # that replaced it scored both 1.00 in 3 of 3 judgings (2026-10-19, the trial in
-    # cardio_rag.config), and the lowest of its 132 faithfulness judgings was 0.75, on in-019. The
-    # cutoff was not re-calibrated for it; a rerun with the new judge could raise it.
+    # cardio_rag.config: evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.md), and the
+    # lowest of its 132 faithfulness judgings was 0.75, on in-019. The cutoff was not
+    # re-calibrated for it; a rerun with the new judge could raise it.
     "faithfulness": 0.75,
     # Faithfulness on bias answers, which list several cited group facts. One misread on
     # bia-002 (0.67) sets it, and bia-002 has no other strict metric to fall back on, so this
@@ -42,17 +44,19 @@ THRESHOLDS: dict[str, float] = {
     # Set by the lowest median of three judgings of an answer judged acceptable: 0.80 on in-019
     # ("No. Most simple congenital heart defects ... do not require treatment at all"), over the
     # 32 in-corpus answers of the 2026-10-19 snapshot (96 judgings; $0.014 with the known-bad
-    # ones). No median was below 0.80, so every answer counts as acceptable and no score is a
-    # margin risk (in-019 passes by 0.054, in-007 by 0.060). The known-bad answers scored
-    # 0.00-0.01 (bare refusals) and 0.16-0.27 (off topic), and the in-005 answer, which Answer
-    # Relevancy once scored 0.50, scored 1.00 in all 3 judgings.
+    # ones; evals/snapshots/2026-10-19-answers-question-calibration.md). No median was below
+    # 0.80, so every answer counts as acceptable and no score is a margin risk (in-019 passes by
+    # 0.054, in-007 by 0.060). The known-bad answers scored 0.00-0.01 (bare refusals) and
+    # 0.16-0.27 (off topic), and the in-005 answer, which Answer Relevancy once scored 0.50,
+    # scored 1.00 in all 3 judgings.
     "answers_question": 0.75,
     "contextual_precision": 0.5,  # in-018: the answering chunk ranks second of four
     "contextual_recall": 0.9,
     # The context is the whole Markdown section that holds the golden's excerpt
     # (evals.cases.section_containing), not the one-sentence excerpt. Measured once on 2026-10-19
     # on the evals/snapshots/2026-10-19.json answers: 5 judgings of each of the 32 in-corpus
-    # answers (160 judgings, $0.043), and all 160 passed (every score 1.00). Pooled over the
+    # answers (160 judgings, $0.043; evals/snapshots/2026-10-19-hallucination-section.md), and
+    # all 160 passed (every score 1.00). Pooled over the
     # acceptable answers that is 160/160 = 100%, above the 95% bar, so Hallucination stays
     # strict (it is not in REPORT_ONLY). With the one-sentence excerpt in-013, in-018 and in-024,
     # correct answers that add cited facts from elsewhere in their section, scored 0.00 in all 5
@@ -61,7 +65,7 @@ THRESHOLDS: dict[str, float] = {
     # the check lenient: the three contradicts_source known-bad answers of evals/known_bad.json
     # (in-013, in-018, in-024: the recorded answer with one or two facts changed) scored 0.00 in
     # 3 of 3 judgings each, all caught, while the recorded answers scored 1.00 in 3 of 3 (the
-    # same day, $0.005).
+    # same day, $0.005; evals/snapshots/2026-10-19-hallucination-known-bad.md).
     "hallucination": 0.9,
     "bias": 0.9,
     "abstention": 0.9,  # every out-of-scope answer scored 1.0 once the rubric steps were fixed
@@ -171,11 +175,13 @@ REPORT_ONLY: dict[str, str] = {"bias": "Bias", "answer_relevancy": "Answer Relev
 # unsupported claim in two runs (oos-006). They were removed on 2026-10-19 when Faithfulness and
 # bias Faithfulness moved to gpt-5-mini: on the answers of evals/snapshots/2026-10-19.json it
 # passed all nine in 3 of 3 judgings each, where gpt-4o-mini passed 6 of 9 (in-003 0 of 3, in-019
-# 1 of 3, in-021 0 of 3, run the same day). It passed all 54 faithfulness and bias Faithfulness
-# answers in 3 of 3 judgings, and failed most judgings of all three contradicts_source answers
-# (in-013, in-018, in-024), where gpt-4o-mini passed in-013 in 3 of 3. That is 3 judgings of each
-# answer, so a misread that happens less than about one time in three could still return: in-019
-# scored 0.75, exactly the cutoff, in one of its three judgings.
+# 1 of 3, in-021 0 of 3, run the same day; the trial results are in
+# evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.md and ...-gpt-4o-mini.md). It passed
+# all 54 faithfulness and bias Faithfulness answers in 3 of 3 judgings, and failed most judgings
+# of all three contradicts_source answers (in-013, in-018, in-024), where gpt-4o-mini passed
+# in-013 in 3 of 3. That is 3 judgings of each answer, so a misread that happens less than about
+# one time in three could still return: in-019 scored 0.75, exactly the cutoff, in one of its
+# three judgings.
 FLAKY: dict[str, frozenset[str]] = {
     # in-018 once lost Contextual Recall (0.50) on a sentence the judge itself attributed to a
     # retrieved chunk; it scored 1.00 in every other run.

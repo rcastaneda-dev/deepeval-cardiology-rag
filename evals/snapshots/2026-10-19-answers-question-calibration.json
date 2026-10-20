@@ -1,0 +1,795 @@
+{
+ "snapshot": "evals/snapshots/2026-10-19.json",
+ "times": 3,
+ "judge": "gpt-4o-mini",
+ "rows": [
+  {
+   "case_id": "in-001",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.9999999999999998,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-002",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-003",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9924141819978756,
+    0.9924141819978758,
+    0.9904650535100892
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-004",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9952574126822432,
+    0.9924141819978756,
+    0.9939913349825993
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-005",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-006",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.8967742142919886,
+    0.9000000000000001,
+    0.9025539827990979
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-007",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.8102021686543601,
+    0.810079388448421,
+    0.810079388448421
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-008",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9946596670200174,
+    0.9952574126822433,
+    0.9946596670200177
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-009",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.991490095499298,
+    0.991490095499298,
+    0.9904650535100888
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-010",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9939913349825993,
+    0.9939913349825993,
+    0.9952574126822433
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.9,
+    0.9154697897884416,
+    0.9
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-012",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.8958019893208264,
+    0.9239391196252326,
+    0.9323703622885248
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-013",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9904650535100892,
+    0.9851952801968311,
+    0.9851952801968311
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-014",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9851952801968311,
+    0.9817574476193643,
+    0.9817574476193643
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-015",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9924141819978756,
+    0.9924141819978758,
+    0.9904650535100892
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-016",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9946596670200177,
+    0.9957912272084382,
+    0.9962673112655869
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-017",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9924141819978756,
+    0.9924141819978756,
+    0.9924141819978756
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-018",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.8685698058210649,
+    0.8742497077066227,
+    0.8705267181102039
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-019",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.8067871928105154,
+    0.8029312230751356,
+    0.803732688734413
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-020",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9924141819978756,
+    0.990465053510089,
+    0.9880797077977881
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-021",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9977022630089973,
+    0.9984093608288186,
+    0.9982013790037907
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-022",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9962673112655871,
+    0.9939913349825993,
+    0.9939913349825993
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-023",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9893309406054349,
+    0.9893309406054348,
+    0.9867035759802171
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-024",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9312046230613455,
+    0.9209547308114363,
+    0.922713173389452
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.9679178699175394,
+    0.9679178699175394,
+    0.9437823499114202
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-026",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-027",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.9939913349825991,
+    0.9962673112655871,
+    0.9962673112655871
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-028",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9987568349146814,
+    0.9987568349146814,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-029",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9662491601672242,
+    0.9761726337239681,
+    0.9785131416969847
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-030",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    0.9985936372956756
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-031",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.9987568349146816,
+    0.9985936372956756,
+    0.9985936372956752
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-032",
+   "key": "answers_question",
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    0.8439631617863744,
+    0.8432583254653219,
+    0.8439631617863744
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "known_bad": [
+  {
+   "case_id": "in-001",
+   "kind": "bare_refusal",
+   "key": "answers_question",
+   "scores": [
+    0.003732688734412946,
+    0.003732688734412946,
+    0.009277044917538089
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-005",
+   "kind": "bare_refusal",
+   "key": "answers_question",
+   "scores": [
+    0.01350273937484155,
+    0.010788459435075913,
+    0.009534946489910951
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-005",
+   "kind": "off_topic",
+   "key": "answers_question",
+   "scores": [
+    0.2679178699175393,
+    0.27310585786300046,
+    0.27310585786300046
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "kind": "off_topic",
+   "key": "answers_question",
+   "scores": [
+    0.17613844009898877,
+    0.15618849952002473,
+    0.16198458207008334
+   ],
+   "passed": [
+    false,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "unchecked": [],
+ "cost": 0.0142845
+}
