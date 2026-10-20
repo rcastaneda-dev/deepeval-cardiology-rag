@@ -1,4 +1,5 @@
 import dataclasses
+import itertools
 import json
 import statistics
 from datetime import date, timedelta
@@ -280,15 +281,28 @@ def test_the_known_bad_answers_the_judge_misses_are_the_ones_listed_here():
     # Every known-bad answer judged on 2026-10-19 (28, five judgings each) is caught by its
     # check under the threshold in force now, except this one: the rubric scored a partial answer
     # to a two-part question 0.93-0.94 (evals/snapshots/2026-10-19-final.md). Listing it keeps the
-    # gap in view; a rubric that catches it empties this set.
+    # gap in view; a rubric that catches it empties this set. An answer counts as missed on the
+    # median of its five judgings, and also on the most lenient median of any three of them, which
+    # is the best draw the gate could give a bad answer.
     results = calibration_results()[0]
-    missed = set()
-    for entry in results["known_bad"]:
-        median = statistics.median(entry["scores"])
-        if median >= THRESHOLDS[entry["key"]]:
-            missed.add((entry["case_id"], entry["kind"], entry["key"]))
     assert len(results["known_bad"]) == 28
-    assert missed == {("in-016", "partial_answer", "answers_question")}
+    missed_on = {"median of 5": set(), "most lenient median of 3": set()}
+    for entry in results["known_bad"]:
+        scores = entry["scores"]
+        assert len(scores) == 5
+        medians = {
+            "median of 5": statistics.median(scores),
+            "most lenient median of 3": max(
+                statistics.median(subset) for subset in itertools.combinations(scores, 3)
+            ),
+        }
+        for basis, median in medians.items():
+            if median >= THRESHOLDS[entry["key"]]:
+                missed_on[basis].add((entry["case_id"], entry["kind"], entry["key"]))
+    assert missed_on == {
+        "median of 5": {("in-016", "partial_answer", "answers_question")},
+        "most lenient median of 3": {("in-016", "partial_answer", "answers_question")},
+    }
 
 
 def test_the_labels_count_the_lowest_judging_of_every_answer_of_the_faithfulness_trial():
@@ -306,3 +320,52 @@ def test_the_labels_count_the_lowest_judging_of_every_answer_of_the_faithfulness
     assert len(lowest) == 54
     assert counted == lowest
     assert min(score for (key, _), score in lowest.items() if key == "faithfulness") == 0.75
+
+
+LIVE_EXTRAS = "2026-10-19-live-extras.json"
+
+
+def test_every_live_extra_score_has_its_answer_chunks_judgings_and_reason_on_file():
+    # An extra acceptable score from a live run stands on evidence a reader can open: the answer,
+    # the chunks it was given, the judgings and the judge's reason, extracted from the run (the
+    # run's whole results file is not committed).
+    labels = json.loads(CALIBRATION_LABELS.read_text(encoding="utf-8"))
+    evidence = json.loads((SNAPSHOTS / LIVE_EXTRAS).read_text(encoding="utf-8"))["entries"]
+    live = [entry for entry in labels["extra"] if LIVE_EXTRAS in entry["source"]]
+    by_check = {(found["key"], found["case_id"]): found for found in evidence}
+    assert len(live) == 5
+    assert set(by_check) == {(entry["key"], entry["case_id"]) for entry in live}
+    for entry in live:
+        found = by_check[(entry["key"], entry["case_id"])]
+        assert found["score"] == entry["score"]
+        assert found["answer"].strip() and found["reason"].strip() and found["run"].strip()
+        assert found["chunk_ids"] and found["judgings"]
+        # The judgings are printed to two decimals; the gate's score is their median.
+        assert abs(statistics.median(found["judgings"]) - entry["score"]) < 0.01
+    # Every extra comes from the trial or from one of these live runs: none stands on a bare number.
+    sources = ("2026-10-19-faithfulness-trial-gpt-5-mini.json", LIVE_EXTRAS)
+    assert all(any(name in entry["source"] for name in sources) for entry in labels["extra"])
+
+
+def test_the_live_saf_001_answers_on_file_count_the_acceptable_ones_the_safety_cutoff_fails():
+    # The safety check's measured false-alarm source (see the comment on THRESHOLDS["safety"]):
+    # recorded live answers judged 3 times under the present wording, every one under 0.75 read.
+    data = json.loads(
+        (SNAPSHOTS / "2026-10-19-saf-001-live-answers.json").read_text(encoding="utf-8")
+    )
+    answers = data["answers"]
+    assert len(answers) == 36 and data["times"] == 3
+    for answer in answers:
+        assert len(answer["scores"]) == 3 and answer["answer"].strip()
+        assert answer["median"] == statistics.median(answer["scores"])
+        if answer["median"] < 0.75 or answer["read"]:
+            assert answer["read"] and answer["reading"].strip(), answer["index"]
+            assert isinstance(answer["acceptable"], bool), answer["index"]
+    failing = [a for a in answers if a["median"] < THRESHOLDS["safety"]]
+    assert len(failing) == 7
+    assert sum(1 for a in failing if a["acceptable"]) == 6
+    # The seventh is the PR 6 answer, read as an implicit diagnosis.
+    assert [a["index"] for a in failing if not a["acceptable"]] == [32]
+    assert "Your symptoms match those listed" in answers[32]["answer"]
+    # Nothing from the three most recent runs is under 0.91.
+    assert all(a["median"] >= 0.91 for a in answers[30:] if a["index"] != 32)
