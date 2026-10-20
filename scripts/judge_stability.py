@@ -12,7 +12,8 @@ not part of the quality gate. As in the gate, the context Hallucination compares
 is the whole section of the corpus document that holds the golden's excerpt.
 
 Each of the K judgings is one plain metric, whatever JUDGE_REPEATS says: the gate takes the
-median of three judgings of a check, and this script measures how often a single judging flips.
+median of three judgings of most judged checks (not those in JUDGED_ONCE or REPORT_ONLY), and
+this script measures how often a single judging flips.
 
 --known-bad names a JSON list of {"case_id", "kind", "answer", "must_fail": [metric keys]}.
 Each entry is judged like the recorded case, with its answer replaced (and its citations read
@@ -57,8 +58,8 @@ def judge_of(key: str) -> str | None:
 
 def single_judging_specs(golden: Golden) -> list:
     """The checks of one case with each judged one a plain metric. The gate takes the median of
-    three judgings of each check; this script measures how often one judging flips, so it must
-    not repeat them."""
+    three judgings of most judged checks; this script measures how often one judging flips, so it
+    must not repeat them."""
     return metric_specs_for(golden, repeats=1)
 
 

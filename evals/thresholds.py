@@ -78,6 +78,21 @@ THRESHOLDS: dict[str, float] = {
 # The checks that need no judge: no API call, no cost, and no judge noise to allow for.
 DETERMINISTIC = frozenset({"cites_passages", "exact_refusal", "emergency_first"})
 
+# The judged gate checks that are judged once per run instead of as the median of JUDGE_REPEATS
+# judgings (evals.metrics.metric_specs_for): both Faithfulness checks, which gpt-5-mini judges
+# (cardio_rag.config.DEFAULT_JUDGE_MODELS). In the trial of 2026-10-19 (3 judgings of each recorded
+# answer: evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.md) it scored all 132 judgings
+# of the 44 faithfulness answers at 0.75 or higher, the lowest being in-019 at 0.75, which is the
+# cutoff and passes, and all 30 judgings of the 10 bias answers at 0.80 or higher against a cutoff
+# of 0.65. A median of three would have changed no verdict there. It costs about 10 times as much
+# per judging as gpt-4o-mini ($0.0076 against $0.0008), and one judging keeps a third of that cost
+# and of the time. The risk is that one misread of a correct answer fails its case, which none of
+# the 162 judgings showed, and that one judging catches a wrong answer less often than the median
+# of three would: the in-013 contradicts_source answer passed 1 of its 3 judgings (Hallucination,
+# a median of three, caught it). Metrics in REPORT_ONLY are judged once for another reason: their
+# score cannot fail the gate.
+JUDGED_ONCE = frozenset({"faithfulness", "bias_faithfulness"})
+
 # Which metric keys run for each category of golden case.
 METRIC_KEYS: dict[str, tuple[str, ...]] = {
     "in_corpus": (

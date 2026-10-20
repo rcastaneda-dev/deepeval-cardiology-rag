@@ -15,6 +15,7 @@ from evals.repeat import MedianOf
 from evals.thresholds import (
     DETERMINISTIC,
     FLAKY,
+    JUDGED_ONCE,
     METRIC_KEYS,
     REPORT_ONLY,
     THRESHOLDS,
@@ -150,12 +151,14 @@ def test_both_faithfulness_checks_use_the_adopted_judge_and_the_rest_the_default
 def test_a_repeated_check_judges_with_its_own_model_in_every_copy(
     make_golden, plain_judge_settings, monkeypatch
 ):
-    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    monkeypatch.setenv("JUDGE_MODEL_HALLUCINATION", "gpt-4.1-mini")
     specs = dict(metric_specs_for(make_golden(), repeats=3))
-    faithfulness = specs["faithfulness"]
-    assert isinstance(faithfulness, MedianOf)
-    assert [copy.evaluation_model for copy in faithfulness.copies] == ["gpt-4.1-mini"] * 3
-    assert [copy.evaluation_model for copy in specs["hallucination"].copies] == ["gpt-4o-mini"] * 3
+    hallucination = specs["hallucination"]
+    assert isinstance(hallucination, MedianOf)
+    assert [copy.evaluation_model for copy in hallucination.copies] == ["gpt-4.1-mini"] * 3
+    assert [copy.evaluation_model for copy in specs["contextual_recall"].copies] == [
+        "gpt-4o-mini"
+    ] * 3
 
 
 def test_a_metric_specific_judge_can_be_a_claude_model(
@@ -402,7 +405,9 @@ def test_a_report_only_metric_keeps_its_threshold_so_the_report_can_still_show_a
     assert bias.flaky
 
 
-def test_a_median_of_three_of_a_report_only_metric_is_flaky_too(make_golden, monkeypatch):
+def test_a_report_only_metric_stays_flaky_when_the_gate_repeats_its_checks(
+    make_golden, monkeypatch
+):
     monkeypatch.setenv("JUDGE_REPEATS", "3")
     golden = make_golden(id="bia-005", category="bias")
     flags = {key: metric.flaky for key, metric in metric_specs_for(golden)}
@@ -472,13 +477,64 @@ def test_judge_repeats_rejects_nonsense(monkeypatch, value):
         judge_repeats()
 
 
-def test_every_judged_check_is_wrapped_in_a_median_of_three_by_default(make_golden, monkeypatch):
+def test_a_repeated_check_is_wrapped_in_a_median_of_three_by_default(make_golden, monkeypatch):
     monkeypatch.delenv("JUDGE_REPEATS", raising=False)
     specs = metric_specs_for(make_golden(category="bias"))
-    judged = [metric for key, metric in specs if key not in DETERMINISTIC]
-    assert [type(metric) for metric in judged] == [MedianOf] * 3
-    assert [metric.times for metric in judged] == [3, 3, 3]
-    assert [type(copy).__name__ for copy in judged[2].copies] == ["BoundedGEval"] * 3
+    (repeated,) = [metric for _, metric in specs if isinstance(metric, MedianOf)]
+    assert repeated.times == 3
+    assert [type(copy).__name__ for copy in repeated.copies] == ["BoundedGEval"] * 3
+
+
+# Which checks are judged more than once: every judged check except those in JUDGED_ONCE and
+# REPORT_ONLY (a check in DETERMINISTIC needs no judge, so a repeat would only repeat the answer).
+# Spelled out per category, so a change to the sets shows up here.
+REPEATED = {
+    "in_corpus": {"answers_question", "contextual_precision", "contextual_recall", "hallucination"},
+    "out_of_scope": {"abstention"},
+    "safety": {"safety"},
+    "bias": {"respectful_grounded"},
+}
+JUDGED_ONCE_KEYS = {
+    "in_corpus": {"faithfulness", "answer_relevancy"},
+    "out_of_scope": {"faithfulness"},
+    "safety": set(),
+    "bias": {"bias", "bias_faithfulness"},
+}
+
+
+@pytest.mark.parametrize("category", sorted(REPEATED))
+def test_each_kind_of_check_is_or_is_not_a_median_of_three(make_golden, monkeypatch, category):
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    specs = metric_specs_for(make_golden(category=category))
+    wrapped = {key for key, metric in specs if isinstance(metric, MedianOf)}
+    assert wrapped == REPEATED[category]
+    plain = {key for key, metric in specs if not isinstance(metric, MedianOf)}
+    judged_once = {key for key in plain if key in JUDGED_ONCE or key in REPORT_ONLY}
+    assert judged_once == JUDGED_ONCE_KEYS[category]
+    assert plain - judged_once <= DETERMINISTIC
+
+
+def test_the_faithfulness_checks_are_judged_once_whatever_the_repeats(make_golden):
+    # gpt-5-mini never scored an answer below the cutoff in 132 judgings, so the gate pays for one.
+    for repeats in (3, 5):
+        for category, key in (("in_corpus", "faithfulness"), ("bias", "bias_faithfulness")):
+            specs = dict(metric_specs_for(make_golden(category=category), repeats=repeats))
+            assert not isinstance(specs[key], MedianOf), (repeats, key)
+
+
+def test_report_only_metrics_are_judged_once_whatever_the_repeats(make_golden):
+    # A report-only score cannot fail the gate, so repeating it would only cost.
+    in_corpus = dict(metric_specs_for(make_golden(), repeats=3))
+    bias = dict(metric_specs_for(make_golden(category="bias"), repeats=3))
+    assert not isinstance(in_corpus["answer_relevancy"], MedianOf)
+    assert not isinstance(bias["bias"], MedianOf)
+
+
+def test_a_check_added_to_judged_once_is_no_longer_repeated(make_golden, monkeypatch):
+    monkeypatch.setattr("evals.metrics.JUDGED_ONCE", JUDGED_ONCE | {"hallucination"})
+    specs = dict(metric_specs_for(make_golden(), repeats=3))
+    assert not isinstance(specs["hallucination"], MedianOf)
+    assert isinstance(specs["contextual_recall"], MedianOf)
 
 
 @pytest.mark.parametrize("category", sorted(EXPECTED_CLASSES))
