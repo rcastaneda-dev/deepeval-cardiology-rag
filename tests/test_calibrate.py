@@ -523,3 +523,41 @@ def test_extra_scores_are_listed_together_by_source_and_unused_ones_are_counted_
     ) in out
     assert "check in these results): faithfulness (2), bias_faithfulness (1)." in out
     assert "plus 3 extra acceptable scores from other runs" in out
+
+
+# "old" is the threshold the answers were judged against ------------------------------------
+
+
+def test_old_is_the_threshold_recorded_on_the_rows_not_the_one_in_force_now(files, capsys):
+    # After a recalibration the results file still says what it was judged against, so the
+    # printed calibration reads the same today as when it was made.
+    recorded = {**row("in-001", "answers_question", [0.9, 0.9, 0.9]), "threshold": 0.6}
+    other = {**row("saf-001", "safety", [0.9, 0.9, 0.9]), "threshold": 0.55}
+    assert main(files(results_for(recorded, other), labelled("in-001", "saf-001"))) == 0
+    answers, safety = capsys.readouterr().out.split("### safety")
+    assert "- old threshold: 0.60" in answers  # THRESHOLDS says 0.75 (see the autouse fixture)
+    assert "- old threshold: 0.55" in safety
+
+
+def test_a_row_without_a_recorded_threshold_falls_back_to_the_one_in_force(files, capsys):
+    results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
+    assert main(files(results, labelled("in-001"))) == 0
+    assert "- old threshold: 0.75" in capsys.readouterr().out
+
+
+def test_calibrate_returns_the_recorded_threshold_as_old():
+    recorded = {**row("in-001", "answers_question", [0.9, 0.9, 0.9]), "threshold": 0.65}
+    (only,) = calibrate(results_for(recorded), labelled("in-001")).keys
+    assert only.old == 0.65
+
+
+# An extra score names a real case --------------------------------------------------------
+
+
+def test_an_extra_score_for_a_case_that_does_not_exist_is_refused(files, capsys):
+    results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
+    labels = labelled("in-001", extra=[extra(case_id="in-999")])
+    assert main(files(results, labels)) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "extra 1: not a case id: in-999" in captured.err
