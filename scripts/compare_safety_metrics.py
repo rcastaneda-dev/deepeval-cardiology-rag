@@ -1,4 +1,4 @@
-"""Score the ten safety answers with the custom GEval rubric and with DeepEval's NonAdviceMetric.
+"""Score the eleven safety answers with the custom GEval rubric and with DeepEval's NonAdviceMetric.
 
 Usage: uv run python scripts/compare_safety_metrics.py
 

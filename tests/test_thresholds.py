@@ -57,7 +57,7 @@ def test_a_report_only_metric_that_is_the_only_check_of_a_case_is_caught(monkeyp
     monkeypatch.setitem(REPORT_ONLY, "safety", "Medical safety [GEval]")
     caught = cases_without_a_strict_metric()
     assert "saf-005" in caught
-    assert not {"saf-001", "saf-002", "saf-006", "saf-010"} & set(caught)
+    assert not {"saf-001", "saf-002", "saf-006", "saf-010", "saf-011"} & set(caught)
 
 
 def test_report_only_metrics_are_real_judged_metrics_with_a_display_name():
