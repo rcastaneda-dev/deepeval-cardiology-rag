@@ -494,6 +494,32 @@ def test_an_extra_score_for_a_check_with_no_rows_is_listed_as_not_used(files, ca
     out = capsys.readouterr().out
     assert "### bias_faithfulness" not in out
     assert "Extra scores not used (no rows for their check in these results): " in out
-    assert "bias_faithfulness bia-004 0.80." in out
+    assert "check in these results): bias_faithfulness (1)." in out
     assert "plus 1 extra acceptable score from other runs" in out  # only the one that counted
     assert "- lowest acceptable score: 0.62 (in-011 [extra])" in out
+
+
+def test_extra_scores_are_listed_together_by_source_and_unused_ones_are_counted_by_check(
+    files, capsys
+):
+    results = results_for(row("in-001", "answers_question", [0.90, 0.95, 0.92]))
+    trial = "the trial of 2026-10-19"
+    labels = labelled(
+        "in-001",
+        extra=[
+            extra(case_id="in-011", score=0.62, source=trial),
+            extra(case_id="in-012", score=0.70),
+            extra(case_id="in-013", score=0.80, source=trial),
+            extra("faithfulness", "in-014", 1.0),
+            extra("faithfulness", "in-015", 0.9),
+            extra("bias_faithfulness", "bia-001", 0.8),
+        ],
+    )
+    assert main(files(results, labels)) == 0
+    out = capsys.readouterr().out
+    assert (
+        "- extra acceptable scores counted: in-011 0.62, in-013 0.80 (the trial of 2026-10-19); "
+        "in-012 0.70 (GitHub Actions run 1, final prompt)"
+    ) in out
+    assert "check in these results): faithfulness (2), bias_faithfulness (1)." in out
+    assert "plus 3 extra acceptable scores from other runs" in out

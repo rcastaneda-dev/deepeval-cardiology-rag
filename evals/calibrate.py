@@ -22,15 +22,16 @@ Only cases labelled acceptable set a threshold, and a case with a judged check t
 labelled at all stops the run, so no answer is left out by accident. A judging that errored (no
 score, or an error recorded with it) is left out and counted.
 
-The labels may also hold a list under "extra", for acceptable answers scored in another run, such
-as a live pull-request run that is not in the results file:
+The labels may also hold a list under "extra", for acceptable answers scored in another run or
+trial, such as a live pull-request run or an earlier judging of other answers to the same cases,
+that is not in the results file:
   "extra": [{"key": "safety", "case_id": "saf-005", "score": 0.905, "source": "...", "note": "..."}]
 Each entry is one more acceptable score for its check, counted as it is (the score the gate
-reported: a median of 3, or the single judging of a check in JUDGED_ONCE), and named
-"<case id> [extra]" in the output. The source says which run and the note what was read in the
-answer. An entry for a check that is not calibrated is refused. One for a check that has no rows
-in these results is listed as not used, so one labels file can serve results files that each hold
-some of the checks.
+reported: a median of 3, or the lowest single judging of a check in JUDGED_ONCE), and named
+"<case id> [extra]" in the output, listed by source. The source says which run and the note what
+was read in the answer. An entry for a check that is not calibrated is refused. One for a check
+that has no rows in these results is counted as not used, so one labels file can serve results
+files that each hold some of the checks.
 """
 
 import argparse
@@ -294,16 +295,20 @@ def render(results: dict, calibration: Calibration) -> str:
         lines.append(f"- margin risks: {_pairs(found.margin_risks)}")
         lines.append(f"- acceptable scores that would fail: {_pairs(found.failing)}")
         if found.extras:
-            counted = ", ".join(
-                f"{case_id} {score:.2f} ({source})" for case_id, score, source in found.extras
+            by_source: dict[str, list[str]] = {}
+            for case_id, score, source in found.extras:
+                by_source.setdefault(source, []).append(f"{case_id} {score:.2f}")
+            counted = "; ".join(
+                f"{', '.join(items)} ({source})" for source, items in by_source.items()
             )
             lines.append(f"- extra acceptable scores counted: {counted}")
         if found.errored:
             lines.append(f"- errored judgings left out: {found.errored}")
     if calibration.extras_not_used:
-        unused = ", ".join(
-            f"{key} {case_id} {score:.2f}" for key, case_id, score in calibration.extras_not_used
-        )
+        counts: dict[str, int] = {}
+        for key, _, _ in calibration.extras_not_used:
+            counts[key] = counts.get(key, 0) + 1
+        unused = ", ".join(f"{key} ({count})" for key, count in counts.items())
         lines += [
             "",
             f"Extra scores not used (no rows for their check in these results): {unused}.",
