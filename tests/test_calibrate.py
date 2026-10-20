@@ -364,3 +364,128 @@ def test_the_header_counts_one_case_in_the_singular(files, capsys):
     results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
     assert main(files(results, labelled("in-001"))) == 0
     assert "1 case labelled acceptable, 0 labelled not acceptable" in capsys.readouterr().out
+
+
+# Extra acceptable scores from runs that are not in the results file -------------------------
+
+
+def extra(key="answers_question", case_id="in-011", score=0.62, **fields):
+    return {
+        "key": key,
+        "case_id": case_id,
+        "score": score,
+        "source": "GitHub Actions run 1, final prompt",
+        "note": "read: correct, cited",
+        **fields,
+    }
+
+
+def test_an_extra_score_counts_as_an_acceptable_score_for_its_key(files, capsys):
+    results = results_for(row("in-001", "answers_question", [0.90, 0.95, 0.92]))
+    labels = labelled("in-001", extra=[extra(score=0.62)])
+    assert main(files(results, labels)) == 0
+    out = capsys.readouterr().out
+    assert "- proposed threshold: 0.55" in out  # 0.62 less the 0.05 margin is 0.57
+    assert "- lowest acceptable score: 0.62 (in-011 [extra])" in out
+    assert (
+        "- extra acceptable scores counted: in-011 0.62 (GitHub Actions run 1, final prompt)" in out
+    )
+    assert "1 case labelled acceptable, 0 labelled not acceptable" in out
+    assert "1 extra acceptable score" in out
+
+
+def test_an_extra_score_for_another_key_leaves_this_key_alone(files, capsys):
+    results = results_for(
+        row("in-001", "answers_question", [0.90, 0.95, 0.92]),
+        row("saf-001", "safety", [0.95, 0.97, 0.96]),
+    )
+    labels = labelled("in-001", "saf-001", extra=[extra("safety", "saf-005", 0.91)])
+    assert main(files(results, labels)) == 0
+    answers, safety = capsys.readouterr().out.split("### safety")
+    assert "- proposed threshold: 0.85" in answers
+    assert "extra" not in answers.split("###", 1)[1]
+    assert "- lowest acceptable score: 0.91 (saf-005 [extra])" in safety
+
+
+def test_an_extra_score_below_the_threshold_is_a_failing_score_or_a_margin_risk(files, capsys):
+    results = results_for(row("bia-001", "respectful_grounded", [0.9, 0.9, 0.9]))
+    labels = labelled(
+        "bia-001",
+        extra=[
+            extra("respectful_grounded", "bia-004", 0.54),
+            extra("respectful_grounded", "bia-003", 0.40),
+        ],
+    )
+    assert main(files(results, labels)) == 0
+    out = capsys.readouterr().out
+    assert "- proposed threshold: 0.50" in out
+    assert "- margin risks: bia-004 [extra] 0.54" in out
+    assert "- acceptable scores that would fail: bia-003 [extra] 0.40" in out
+
+
+def test_an_extra_score_for_a_check_judged_once_is_a_single_judging(files, capsys):
+    results = results_for(row("bia-004", "bias_faithfulness", [1.0, 1.0, 1.0]))
+    labels = labelled("bia-004", extra=[extra("bias_faithfulness", "bia-004", 0.80)])
+    assert main(files(results, labels)) == 0
+    out = capsys.readouterr().out
+    assert "- lowest acceptable score: 0.80 (bia-004 [extra])" in out
+    assert "- proposed threshold: 0.75" in out
+
+
+def test_extra_scores_need_no_label_for_their_case_but_the_cases_in_the_results_still_do(
+    files, capsys
+):
+    results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
+    assert main(files(results, {"extra": [extra()]})) == 2
+    assert "1 case not labelled: in-001" in capsys.readouterr().err
+
+
+def test_without_an_extra_list_nothing_changes(files, capsys):
+    results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
+    assert main(files(results, labelled("in-001", extra=[]))) == 0
+    out = capsys.readouterr().out
+    assert "extra" not in out
+
+
+@pytest.mark.parametrize(
+    ("entry", "message"),
+    [
+        ({"case_id": "in-011", "score": 0.6, "source": "s", "note": "n"}, "extra 1: needs key"),
+        (extra(case_id=""), "extra 1: needs"),
+        (extra(score="0.6"), "extra 1: score"),
+        (extra(score=True), "extra 1: score"),
+        (extra(score=1.2), "extra 1: score"),
+        (extra(score=-0.1), "extra 1: score"),
+        (extra(source=" "), "extra 1: needs"),
+        (extra(note=""), "extra 1: needs"),
+        (extra(key="no_such_check"), "extra 1: not a metric key"),
+        (extra(key="cites_passages", score=1.0), "extra 1: cites_passages is not calibrated"),
+        (extra(key="bias", score=1.0), "extra 1: bias is not calibrated"),
+        ("in-011 0.6", "extra 1: needs"),
+    ],
+)
+def test_an_extra_entry_that_cannot_be_counted_is_refused(files, capsys, entry, message):
+    results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
+    assert main(files(results, labelled("in-001", extra=[entry]))) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert message in captured.err
+
+
+def test_extra_must_be_a_list(files, capsys):
+    results = results_for(row("in-001", "answers_question", [0.9, 0.9, 0.9]))
+    assert main(files(results, labelled("in-001", extra={"key": "safety"}))) == 2
+    assert "extra must be a list" in capsys.readouterr().err
+
+
+def test_an_extra_score_for_a_check_with_no_rows_is_listed_as_not_used(files, capsys):
+    # One labels file serves several results files, each holding some of the checks.
+    results = results_for(row("in-001", "answers_question", [0.90, 0.95, 0.92]))
+    labels = labelled("in-001", extra=[extra("bias_faithfulness", "bia-004", 0.80), extra()])
+    assert main(files(results, labels)) == 0
+    out = capsys.readouterr().out
+    assert "### bias_faithfulness" not in out
+    assert "Extra scores not used (no rows for their check in these results): " in out
+    assert "bias_faithfulness bia-004 0.80." in out
+    assert "plus 1 extra acceptable score from other runs" in out  # only the one that counted
+    assert "- lowest acceptable score: 0.62 (in-011 [extra])" in out
