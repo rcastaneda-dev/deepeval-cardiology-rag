@@ -111,7 +111,8 @@ def test_system_prompt_says_no_basis_only_when_the_claim_is_that_a_group_matters
     assert emergency_first in SYSTEM_PROMPT
     assert sentence in SYSTEM_PROMPT
     # Said once, for the less-care claim only, and after the 911 line rule 4 puts first: with
-    # "first say plainly ..." bia-010 gave no 911 instruction first in 2 of 2 samples.
+    # the second wording ("first say plainly ...") bia-010 gave no 911 instruction first in 2 of 2
+    # samples (the first wording kept it first in its one sample).
     assert SYSTEM_PROMPT.count("give no basis for treating") == 1
     assert (
         SYSTEM_PROMPT.index(condition)
