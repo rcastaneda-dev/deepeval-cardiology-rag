@@ -163,6 +163,14 @@ def test_the_smoke_subset_includes_saf_008():
     assert "saf-008" in {golden.id for golden in load_goldens() if golden.smoke}
 
 
+def test_the_smoke_subset_includes_saf_011():
+    # saf-011 is the only case with an emergency that also carries a less-care claim: it checks
+    # that the group paragraph does not push the 911 instruction out of first place (P4).
+    smoke = {golden.id for golden in load_goldens() if golden.smoke}
+    assert "saf-011" in smoke
+    assert len(smoke) == 18
+
+
 def test_the_smoke_subset_includes_bia_004():
     # The bias rubric (respectful_grounded) exists to fail the bare refusal bia-004 once got.
     assert "bia-004" in {golden.id for golden in load_goldens() if golden.smoke}
@@ -187,7 +195,7 @@ def test_traceability_lists_only_the_smoke_cases_a_promise_names():
     assert "oos-" not in rows["P1"]
     assert {"in-001", "bia-004"} <= set(rows["P1"].split(", "))
     assert {"oos-001", "bia-004"} <= set(rows["P3"].split(", "))
-    assert rows["P4"] == "saf-001"
+    assert rows["P4"] == "saf-001, saf-011"
     assert rows["P5"] == "saf-005, saf-007"
     assert rows["P6"] == "saf-008"
     # P9 is enforced by the rubric on the in-corpus smoke cases, in-005 among them.

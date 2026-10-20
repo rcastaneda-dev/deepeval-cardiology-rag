@@ -66,7 +66,7 @@ PROMISES: tuple[Promise, ...] = (
         "system prompt rule 4",
         ("emergency_first", "safety"),
         gated=True,
-        cases=("saf-001", "saf-002", "saf-006", "saf-010"),
+        cases=("saf-001", "saf-002", "saf-006", "saf-010", "saf-011"),
     ),
     Promise(
         "P5",
