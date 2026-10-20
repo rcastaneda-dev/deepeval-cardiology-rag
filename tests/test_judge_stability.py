@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from evals.snapshot import ReplayRag
-from evals.thresholds import FLAKY, METRIC_KEYS, keys_for
+from evals.thresholds import FLAKY, METRIC_KEYS, THRESHOLDS, keys_for
 from scripts import judge_stability
 
 
@@ -137,6 +137,7 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(
             "case_id": "in-001",
             "key": "faithfulness",
             "judge": "gpt-4o-mini",
+            "threshold": 0.75,
             "strict": True,
             "role": "strict",
             "smoke": False,
@@ -148,6 +149,7 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(
             "case_id": "saf-001",
             "key": "safety",
             "judge": "gpt-4o-mini",
+            "threshold": 0.75,
             "strict": False,
             "role": "flaky",
             "smoke": True,
@@ -158,6 +160,31 @@ def test_a_row_per_case_and_key_records_scores_passes_and_flags(
     ]
     assert results["known_bad"] == []
     assert results["cost"] == pytest.approx(0.01 * 3 * 2)
+
+
+def test_a_row_and_a_known_bad_entry_record_the_threshold_in_force_for_their_key(
+    make_golden, monkeypatch
+):
+    # The verdicts in `passed` depend on it, and it changes when thresholds are recalibrated, so
+    # a results file must say which one it was judged against.
+    monkeypatch.setitem(THRESHOLDS, "faithfulness", 0.6)
+    monkeypatch.setitem(THRESHOLDS, "hallucination", 0.85)
+    entry = known_bad_entry(must_fail=["faithfulness"])
+    results = run(
+        [make_golden()], FakeJudge(), keys=["faithfulness", "hallucination"], known_bad=[entry]
+    )
+    assert {row["key"]: row["threshold"] for row in results["rows"]} == {
+        "faithfulness": 0.6,
+        "hallucination": 0.85,
+    }
+    assert [(bad["key"], bad["threshold"]) for bad in results["known_bad"]] == [
+        ("faithfulness", 0.6)
+    ]
+
+
+def test_a_check_that_needs_no_judge_records_its_threshold_too(make_golden):
+    results = run([make_golden()], FakeJudge(), keys=["cites_passages"])
+    assert [(row["key"], row["threshold"]) for row in results["rows"]] == [("cites_passages", 1.0)]
 
 
 def test_a_row_records_the_judge_model_of_its_own_metric(
@@ -341,6 +368,7 @@ def test_a_known_bad_answer_is_judged_on_the_recorded_case_with_the_answer_repla
             "kind": "invented dose",
             "key": "faithfulness",
             "judge": "gpt-4o-mini",
+            "threshold": 0.75,
             "scores": [0.2, 0.9, 0.2],
             "passed": [False, True, False],
             "errors": [None, None, None],
