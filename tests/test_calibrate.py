@@ -91,6 +91,14 @@ def test_a_check_with_no_judging_has_no_acceptable_score():
 # The command: evals.calibrate <stability.json> <labels.json> ---------------------------------
 
 
+@pytest.fixture(autouse=True)
+def example_thresholds(monkeypatch):
+    # The thresholds in force are what these tests print as "old"; pin the ones they use so the
+    # tests do not move when thresholds.py is recalibrated.
+    monkeypatch.setitem(THRESHOLDS, "answers_question", 0.75)
+    monkeypatch.setitem(THRESHOLDS, "safety", 0.75)
+
+
 def row(case_id, key, scores, errors=None):
     """One row of a judge_stability results file, with the fields the command reads."""
     return {

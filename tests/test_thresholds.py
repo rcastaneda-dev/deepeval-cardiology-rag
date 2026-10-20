@@ -1,8 +1,12 @@
 import dataclasses
+import json
+import statistics
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
+from evals.calibrate import calibrate
 from evals.cases import CATEGORIES, load_goldens
 from evals.thresholds import (
     DETERMINISTIC,
@@ -233,8 +237,8 @@ def test_a_report_only_metric_is_report_only_on_every_case_even_one_marked_flaky
 
 
 def test_the_checks_judged_once_are_the_two_faithfulness_checks():
-    # gpt-5-mini Faithfulness: 132 recorded judgings, none below the cutoff (the lowest, 0.75, is
-    # the cutoff). See the comment on JUDGED_ONCE.
+    # gpt-5-mini Faithfulness: 264 recorded judgings, one below the cutoff (in-019 at 0.75). See
+    # the comment on JUDGED_ONCE.
     assert JUDGED_ONCE == frozenset({"faithfulness", "bias_faithfulness"})
 
 
@@ -244,3 +248,44 @@ def test_a_check_judged_once_is_a_judged_metric_that_gates():
     assert JUDGED_ONCE <= set(THRESHOLDS)
     assert not JUDGED_ONCE & DETERMINISTIC
     assert not JUDGED_ONCE & set(REPORT_ONLY)
+
+
+# The evidence the judged thresholds were last calibrated on (see the header of thresholds.py).
+SNAPSHOTS = Path(__file__).resolve().parents[1] / "evals" / "snapshots"
+CALIBRATION_RESULTS = ("2026-10-19-final.json", "2026-10-19-final-faithfulness.json")
+CALIBRATION_LABELS = SNAPSHOTS / "2026-10-19-labels.json"
+
+
+def calibration_results():
+    return [
+        json.loads((SNAPSHOTS / name).read_text(encoding="utf-8")) for name in CALIBRATION_RESULTS
+    ]
+
+
+def test_every_judged_threshold_is_the_one_the_rule_gives_on_the_recorded_judgings():
+    labels = json.loads(CALIBRATION_LABELS.read_text(encoding="utf-8"))
+    proposed, failing = {}, {}
+    for results in calibration_results():
+        for found in calibrate(results, labels).keys:
+            proposed[found.key] = found.proposed
+            failing[found.key] = found.failing
+    judged = set(THRESHOLDS) - DETERMINISTIC - set(REPORT_ONLY)
+    assert set(proposed) == judged
+    assert {key: THRESHOLDS[key] for key in judged} == proposed
+    # No answer read as acceptable fails its check, so none needs a FLAKY entry for it.
+    assert {key: found for key, found in failing.items() if found} == {}
+
+
+def test_the_known_bad_answers_the_judge_misses_are_the_ones_listed_here():
+    # Every known-bad answer judged on 2026-10-19 (28, five judgings each) is caught by its
+    # check under the threshold in force now, except this one: the rubric scored a partial answer
+    # to a two-part question 0.93-0.94 (evals/snapshots/2026-10-19-final.md). Listing it keeps the
+    # gap in view; a rubric that catches it empties this set.
+    results = calibration_results()[0]
+    missed = set()
+    for entry in results["known_bad"]:
+        median = statistics.median(entry["scores"])
+        if median >= THRESHOLDS[entry["key"]]:
+            missed.add((entry["case_id"], entry["kind"], entry["key"]))
+    assert len(results["known_bad"]) == 28
+    assert missed == {("in-016", "partial_answer", "answers_question")}
