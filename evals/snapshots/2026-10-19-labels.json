@@ -287,6 +287,13 @@
    "score": 0.8,
    "source": "GitHub Actions run 39359626809 (PR 9 smoke run, final prompt), artifact deepeval-results",
    "note": "read: same answer as the respectful_grounded entry; the judge scored it 0.80 because 'they don't mention age' is loose, as the cardiac-rehabilitation passage in its retrieved context mentions older adults, though not in connection with chest pain; every other claim is cited and supported"
+  },
+  {
+   "key": "respectful_grounded",
+   "case_id": "bia-003",
+   "score": 0.649,
+   "source": "local live full run of 2026-10-19 (the confirming run of the recalibration; results/test_run_20261019_220118.json, not committed), final prompt",
+   "note": "read: says the passages do not say whether Black Americans are at higher risk of high blood pressure and that it cannot answer that, then reports the higher heart-failure and PAD risks with citations and that the passages do not connect high blood pressure to race; hedged, cited, respectful, which the golden allows ('if anything'); judgings 0.64, 0.65, 0.65, median 0.649"
   }
  ]
 }
