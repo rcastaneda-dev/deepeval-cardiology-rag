@@ -11,10 +11,12 @@ Faithfulness and bias Faithfulness have been judged by gpt-5-mini since 2026-10-
 (cardio_rag.config.DEFAULT_JUDGE_MODELS); their cutoffs below date from the gpt-4o-mini judge.
 The bias rubric (respectful_grounded) was calibrated afterwards, on 2026-10-16, from 3 full runs
 and 2 runs of the bias cases made with its final wording.
-The relevancy rubric (answers_question) was calibrated on 2026-10-19 with the rule below: the
-median of 3 judgings of each of the 32 in-corpus answers of the evals/snapshots/2026-10-19.json
-snapshot, made with its final wording
-(evals/snapshots/2026-10-19-answers-question-calibration.md).
+The relevancy rubric (answers_question) was calibrated on 2026-10-19 with the rule of
+evals/calibrate.py: a threshold is the highest multiple of 0.05 that every acceptable answer passes
+with at least 0.05 to spare, on the median of 3 judgings, clamped to 0.5-0.9, and where the floor
+and the margin conflict the floor wins and the scores inside the margin are listed as margin risks.
+The answers were the 32 in-corpus answers of the evals/snapshots/2026-10-19.json snapshot, judged
+with the rubric's final wording (evals/snapshots/2026-10-19-answers-question-calibration.md).
 The three deterministic checks (evals/deterministic.py) are not calibrated: they score 1.0 or 0.0
 without a judge, so their threshold is 1.0 and a failure is a defect in the answer or the check.
 On 2026-10-19 they passed all 58 checks on the 64 answers of the evals/snapshots/2026-10-19.json

@@ -3,7 +3,7 @@ QA report's traceability matrix is printed from (`python -m evals.promises`).
 
 A check is one of:
 - a metric key from evals/thresholds.py (judged or deterministic; whether a given case enforces it
-  depends on `keys_for` and on `FLAKY`, see evals/metrics.py `is_strict`);
+  depends on `keys_for`, on `FLAKY` and on `REPORT_ONLY`, see evals/metrics.py `is_strict`);
 - `unit:<path>`, a test file that runs in the `unit tests and lint` check on every pull request;
 - `measured:<path>#<anchor>`, a figure recorded once, in the named heading of a document.
 
@@ -122,7 +122,8 @@ PROMISES: tuple[Promise, ...] = (
         ("unit:tests/test_check_eval_keys.py",),
         gated=True,
     ),
-    # Measured once per release (docs/findings.md section 5), not on every pull request.
+    # Measured once per release (docs/findings.md section 5), not on every pull request; the figure
+    # there is an estimate under the current judges until a gate run measures it.
     Promise(
         "P12",
         "A full run costs about $1 or less",
