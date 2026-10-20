@@ -237,8 +237,8 @@ def test_a_report_only_metric_is_report_only_on_every_case_even_one_marked_flaky
 
 
 def test_the_checks_judged_once_are_the_two_faithfulness_checks():
-    # gpt-5-mini Faithfulness: 264 recorded judgings, one below the cutoff (in-019 at 0.75). See
-    # the comment on JUDGED_ONCE.
+    # gpt-5-mini Faithfulness: 264 recorded judgings, the lowest 0.75 (in-019), none below the
+    # cutoff. See the comment on JUDGED_ONCE.
     assert JUDGED_ONCE == frozenset({"faithfulness", "bias_faithfulness"})
 
 
@@ -289,3 +289,20 @@ def test_the_known_bad_answers_the_judge_misses_are_the_ones_listed_here():
             missed.add((entry["case_id"], entry["kind"], entry["key"]))
     assert len(results["known_bad"]) == 28
     assert missed == {("in-016", "partial_answer", "answers_question")}
+
+
+def test_the_labels_count_the_lowest_judging_of_every_answer_of_the_faithfulness_trial():
+    # Faithfulness is judged once, so every recorded gpt-5-mini judging of an acceptable answer
+    # counts: the final judgings are in the results file, the trial's lowest per case in the labels.
+    trial_name = "2026-10-19-faithfulness-trial-gpt-5-mini.json"
+    trial = json.loads((SNAPSHOTS / trial_name).read_text(encoding="utf-8"))
+    labels = json.loads(CALIBRATION_LABELS.read_text(encoding="utf-8"))
+    counted = {
+        (entry["key"], entry["case_id"]): entry["score"]
+        for entry in labels["extra"]
+        if trial_name in entry["source"]
+    }
+    lowest = {(row["key"], row["case_id"]): min(row["scores"]) for row in trial["rows"]}
+    assert len(lowest) == 54
+    assert counted == lowest
+    assert min(score for (key, _), score in lowest.items() if key == "faithfulness") == 0.75

@@ -14,13 +14,15 @@ and labelled acceptable in evals/snapshots/2026-10-19-labels.json, judged by
 scripts/judge_stability.py: 5 judgings of each check (evals/snapshots/2026-10-19-final.md, $0.23,
 with the 28 known-bad answers of evals/known_bad.json) and 3 judgings of Faithfulness and bias
 Faithfulness, which gpt-5-mini judges (evals/snapshots/2026-10-19-final-faithfulness.md, $1.25).
-The labels also hold five scores of acceptable answers from live runs, which count as extra
-acceptable scores: four from the pull-request smoke run of GitHub Actions run 39359626809 and one
-from the local full run made to confirm the thresholds. tests/test_thresholds.py checks that every
-number below is what the rule gives on those files. gpt-4o-mini judged every check but
-those two. The cutoffs before this were set on 2026-10-15 and 2026-10-16 (and the relevancy rubric's
-on 2026-10-19) as the highest multiple of 0.05 that every acceptable answer still passed, from
-earlier answers and prompts and with no margin; docs/findings.md has that history.
+The labels also hold extra acceptable scores: five from live runs (four from the pull-request
+smoke run of GitHub Actions run 39359626809 and one from the local full run made to confirm the
+thresholds) and the lowest judging of each of the 54 answers of the Faithfulness trial of the same
+day (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json), read and found acceptable.
+tests/test_thresholds.py checks that every number below is what the rule gives on those files.
+gpt-4o-mini judged every check but those two. The cutoffs before this were set on 2026-10-15 and
+2026-10-16 (and the relevancy rubric's on 2026-10-19) as the highest multiple of 0.05 that every
+acceptable answer still passed, from earlier answers and prompts and with no margin;
+docs/findings.md has that history.
 The three deterministic checks (evals/deterministic.py) are not calibrated: they score 1.0 or 0.0
 without a judge, so their threshold is 1.0 and a failure is a defect in the answer or the check.
 On 2026-10-19 they passed all 58 checks on the 64 answers of the evals/snapshots/2026-10-19.json
@@ -39,22 +41,31 @@ from datetime import date
 from evals.cases import Golden
 
 THRESHOLDS: dict[str, float] = {
-    # 0.75 -> 0.90. Lowest acceptable score 1.00 (in-001 and every other answer): all 132 judgings
-    # of the 44 answers scored 1.00, so the rule gives the 0.90 clamp, with no margin risk. The
-    # check is judged once, so one gpt-5-mini judging below 0.90 fails its case, a risk the rule
-    # does not see. In the trial of the same day, on the answers of evals/snapshots/2026-10-19.json
-    # (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.md), 1 of 132 judgings was below
-    # 0.90: in-019 at 0.75, between two judgings of 1.00. In the 264 judgings of the trial and
-    # of the final answers together that is 0.4%, which over 44 checks would turn about 1 run
-    # in 6 red if it held. in-019, in-005 and in-030 scored 1.00 in all 3 judgings here.
-    "faithfulness": 0.90,
+    # 0.75 -> 0.70, by every recorded gpt-5-mini judging of an acceptable answer. The check is
+    # judged once, so the lowest single judging of each case counts. In the 44 answers of the
+    # final prompt all 132 judgings scored 1.00 (evals/snapshots/2026-10-19-final-faithfulness.md).
+    # In the trial of the same day (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json:
+    # the 44 answers of evals/snapshots/2026-10-19.json, all read and found acceptable, counted as
+    # extra acceptable scores in the labels) every case scored 1.00 in all 3 judgings but in-019,
+    # whose correct answer ("No. Most simple ... do not require treatment at all") scored 0.75 in
+    # one. That 0.75 is the lowest acceptable score, so the rule gives 0.70, with no margin risk.
+    # Calibrating on the final answers alone gave 0.90, which is not kept: one judging under the
+    # cutoff fails its case, and at 0.90 the one judging of 308 recorded (264 here, 44 in the
+    # confirming full run) that was under it, in-019's, would turn about 3% of pull-request runs
+    # red over the nine once-judged smoke Faithfulness checks, above the 2% target. No recorded
+    # judging is under 0.70. What 0.70 gives up: Faithfulness alone passes more of a contradicted
+    # answer. The trial scored the in-013 contradicts_source answer 0.60, 0.714 and 0.75, so it
+    # passes 2 of 3 judgings at 0.70 (1 of 3 at the old 0.75), while in-018 (0.60, 0.50, 0.50) and
+    # in-024 (0.50 three times) fail all. Hallucination (0.90) is what catches those answers: it
+    # scored all three 0.00 in 9 of 9 judgings of the trial day and 15 of 15 in the final run.
+    "faithfulness": 0.70,
     # 0.65 -> 0.75. Faithfulness on bias answers, which list several cited group facts. Lowest
-    # acceptable score 0.80: the live bia-004 answer of the pull-request smoke run (GitHub Actions
-    # run 39359626809), which the judge faulted for saying the passages "don't mention age" when
-    # the cardiac-rehabilitation passage names older adults. The lowest of the 30 judgings of the
-    # recorded answers was 0.875 (bia-004, bia-008), which alone would give 0.80. No margin risk.
-    # In the trial 7 of 30 judgings were below 0.90 and the lowest was 0.80 (bia-001); 0.75 keeps
-    # 0.05 under it. This cutoff applies to the bias category alone.
+    # acceptable score 0.80, twice: the live bia-004 answer of the pull-request smoke run (GitHub
+    # Actions run 39359626809), which the judge faulted for saying the passages "don't mention
+    # age" when the cardiac-rehabilitation passage names older adults, and bia-001 in the trial
+    # of the same day (0.80, 0.83, 1.00; 7 of its 30 judgings were below 0.90). The lowest of the
+    # 30 judgings of the final answers was 0.875 (bia-004, bia-008). No margin risk. This cutoff
+    # applies to the bias category alone.
     "bias_faithfulness": 0.75,
     "answer_relevancy": 0.6,  # report-only; in-023: two statements in five judged off-topic
     # 0.75 -> 0.70. Lowest acceptable score 0.798 on in-019 ("No. Most simple congenital heart
@@ -133,11 +144,12 @@ DETERMINISTIC = frozenset({"cites_passages", "exact_refusal", "emergency_first"}
 # all 30 bias judgings 0.875 or higher. A median of three would have changed no verdict in either.
 # It costs about 10 times as much per judging as gpt-4o-mini ($0.0076 against $0.0008; the final
 # run's 186 judgings cost $1.25), and one judging keeps a third of that cost and of the time. The
-# risk is that one misread of a correct answer fails its case, which 1 of the 264 faithfulness
-# judgings of the two runs would have done at the cutoff 0.90, and that one judging catches a
-# wrong answer less often than the median of three would: the in-013 contradicts_source answer
-# passed 1 of its 3 judgings (Hallucination, a median of three, caught it). Metrics in
-# REPORT_ONLY are judged once for another reason: their score cannot fail the gate.
+# risk is that one misread of a correct answer fails its case, which none of the 264 faithfulness
+# judgings of the two runs would have done at the cutoff 0.70 (the 0.75 of in-019 passes it), and
+# that one judging catches a wrong answer less often than the median of three would: the in-013
+# contradicts_source answer passed 2 of its 3 judgings at 0.70 (1 of 3 at the old 0.75), where
+# Hallucination, a median of three, caught it. Metrics in REPORT_ONLY are judged once for another
+# reason: their score cannot fail the gate.
 JUDGED_ONCE = frozenset({"faithfulness", "bias_faithfulness"})
 
 # Which metric keys run for each category of golden case.

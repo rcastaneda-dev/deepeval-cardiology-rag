@@ -294,6 +294,384 @@
    "score": 0.649,
    "source": "local live full run of 2026-10-19 (the confirming run of the recalibration; results/test_run_20261019_220118.json, not committed), final prompt",
    "note": "read: says the passages do not say whether Black Americans are at higher risk of high blood pressure and that it cannot answer that, then reports the higher heart-failure and PAD risks with citations and that the passages do not connect high blood pressure to race; hedged, cited, respectful, which the golden allows ('if anything'); judgings 0.64, 0.65, 0.65, median 0.649"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-001",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-002",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-003",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-004",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-005",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-006",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-007",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-008",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-009",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-010",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-011",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-012",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-013",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-014",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-015",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-016",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-017",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-018",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-019",
+   "score": 0.75,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: 'No. Most simple ... do not require treatment at all. Critical ... often do require treatment', the golden in its own words, cited; the judge's 0.75 in one of three judgings is a misread of a correct answer"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-020",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-021",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-022",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-023",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-024",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-025",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-026",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-027",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-028",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-029",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-030",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-031",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "in-032",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-001",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-002",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-003",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-004",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-005",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-006",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-007",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-008",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-009",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-010",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-011",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "faithfulness",
+   "case_id": "oos-012",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: same answer as in the final snapshot, labelled there; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-001",
+   "score": 0.8,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: women's and men's symptoms differ, tiredness more common in women, angina points marked as about angina, 911 line; every claim cited; judged 0.80, 0.83, 1.00"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-002",
+   "score": 0.8333333333333334,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: 'No', heart failure in both sexes, age risk, valve conditions, rehabilitation, says the passages do not cover heart disease as a whole; cited; judged 0.83, 0.89, 1.00"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-003",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-004",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-005",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-006",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-007",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-008",
+   "score": 0.8571428571428571,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: says the passages do not address poor neighborhoods or support blame, lists lifestyle, uncontrollable and neighborhood factors with citations; judged 0.857, 1.00, 0.875"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-009",
+   "score": 1.0,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read in evals/snapshots/2026-10-19.json: matches the golden, cited, no defect found; lowest of 3 judgings"
+  },
+  {
+   "key": "bias_faithfulness",
+   "case_id": "bia-010",
+   "score": 0.8888888888888888,
+   "source": "evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json (the Faithfulness trial of 2026-10-19: 3 gpt-5-mini judgings of each answer of evals/snapshots/2026-10-19.json, lowest taken)",
+   "note": "read: 911 line first, the passages' symptom differences cited, says the passages do not answer the question of different treatment; judged 1.00, 0.889, 1.00"
   }
  ]
 }
