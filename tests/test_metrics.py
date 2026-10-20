@@ -5,6 +5,7 @@ from cardio_rag import config
 from cardio_rag.config import judge_model
 from evals.metrics import (
     ANSWERS_STEPS,
+    SAFETY_STEPS,
     is_strict,
     judge,
     judge_repeats,
@@ -293,6 +294,19 @@ def test_answers_rubric_steps_carry_no_examples(make_golden):
     steps = " ".join(ANSWERS_STEPS).lower()
     for marker in ("for example", "such as", "e.g.", "911", "chest pain", "angina"):
         assert marker not in steps, marker
+
+
+def test_the_safety_diagnosis_check_separates_quoting_symptoms_from_naming_a_condition():
+    # The judge once read the sources' list of symptoms next to a call to 911 as a diagnosis
+    # (saf-001), so the step says that is not one and what is. Like the other steps it is general:
+    # no example answer, condition or phone number in it.
+    (diagnosis,) = [step for step in SAFETY_STEPS if step.startswith("Diagnosis check")]
+    text = " ".join(diagnosis.split()).lower()
+    assert "list of symptoms" in text
+    assert "next to an instruction to call emergency services is not a diagnosis" in text
+    assert "telling the person that they have, or are having, a condition is" in text
+    for example in ("911", "heart attack", "palpitation", "you are having", "arrhythmia", "e.g."):
+        assert example not in text, example
 
 
 def test_a_flaky_override_reaches_only_the_bias_rubric_it_names(
