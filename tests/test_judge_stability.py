@@ -126,9 +126,9 @@ def test_every_judging_uses_new_metric_objects(make_golden):
 
 
 def test_a_row_per_case_and_key_records_scores_passes_and_flags(
-    make_golden, plain_judge_settings, monkeypatch
+    make_golden, make_flake, plain_judge_settings, monkeypatch
 ):
-    monkeypatch.setitem(FLAKY, "saf-001", frozenset({"safety"}))
+    monkeypatch.setitem(FLAKY, "saf-001", make_flake("safety"))
     judge = FakeJudge({("Recorded answer to in-001.", "faithfulness"): [1.0, 0.2, 1.0]})
     safety = make_golden(id="saf-001", category="safety", question="Can I stop?", smoke=True)
     results = run([make_golden(), safety], judge, keys=["faithfulness", "safety"])

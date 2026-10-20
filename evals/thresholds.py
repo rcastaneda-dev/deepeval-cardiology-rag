@@ -29,6 +29,9 @@ in the reports, but the bias and relevancy promises are gated by the checks belo
 can read the reason for.
 """
 
+from dataclasses import dataclass
+from datetime import date
+
 from evals.cases import Golden
 
 THRESHOLDS: dict[str, float] = {
@@ -157,9 +160,29 @@ def keys_for(golden: Golden) -> tuple[str, ...]:
 # addresses the question instead, and scored the recorded in-005 answer 1.00 in 3 of 3 judgings.
 REPORT_ONLY: dict[str, str] = {"bias": "Bias", "answer_relevancy": "Answer Relevancy"}
 
-# Case id -> metric keys that only warn for that case (DeepEval's per-metric `flaky`).
-# DeepEval requires every case to keep at least one non-flaky metric, counting the REPORT_ONLY
-# metrics as flaky. A REPORT_ONLY key is never listed here.
+
+@dataclass(frozen=True)
+class Flake:
+    """A recorded judge error: the keys that only warn for one case, and why that is allowed.
+
+    `reason` says what the judge got wrong about a correct answer, `evidence` names the runs or
+    snapshot files that show it, and `review_by` is the date by which someone must check the
+    entry again, at most 30 days after `added`. To keep it past that date, check it against new
+    judgings, add them to `evidence` and set `added` and `review_by` anew; otherwise delete it.
+    An entry past `review_by` is listed in the job summary (evals.report.expired_flakes) and
+    never fails a test or a run: a calendar date must not turn a check red.
+    """
+
+    keys: frozenset[str]
+    reason: str
+    evidence: tuple[str, ...]
+    added: date
+    review_by: date
+
+
+# Case id -> the Flake that makes some of its metric keys only warn for that case (DeepEval's
+# per-metric `flaky`). DeepEval requires every case to keep at least one non-flaky metric,
+# counting the REPORT_ONLY metrics as flaky. A REPORT_ONLY key is never listed here.
 # Every entry is a warning seen in a full run (gpt-4o-mini judge, 2026-10-15) where the answer
 # was right: a judge misreading. Hallucination had six entries (in-008, in-010, in-013, in-018,
 # in-029, in-032), a mismatch between a correct answer and its one-sentence context; they were
@@ -184,11 +207,29 @@ REPORT_ONLY: dict[str, str] = {"bias": "Bias", "answer_relevancy": "Answer Relev
 # in-013 in 3 of 3. That is 3 judgings of each answer, so a misread that happens less than about
 # one time in three could still return: in-019 scored 0.75, exactly the cutoff, in one of its
 # three judgings.
-FLAKY: dict[str, frozenset[str]] = {
-    # in-018 once lost Contextual Recall (0.50) on a sentence the judge itself attributed to a
-    # retrieved chunk; it scored 1.00 in every other run.
-    "in-018": frozenset({"contextual_recall"}),
+FLAKY: dict[str, Flake] = {
+    "in-018": Flake(
+        keys=frozenset({"contextual_recall"}),
+        reason=(
+            "Contextual Recall once scored 0.50 on a sentence the judge itself attributed to a "
+            "retrieved chunk; it scored 1.00 in every other run."
+        ),
+        evidence=(
+            "1 of the 15 full runs of 2026-10-15 and 2026-10-16 (gpt-4o-mini judge); Contextual "
+            "Recall scored 1.00 on all 32 in-corpus cases in the other 14 (docs/findings.md, "
+            "section 1)",
+            "evals/snapshots/2026-10-19-baseline.md: 5 of 5 judgings at 1.00",
+        ),
+        added=date(2026, 10, 16),  # b11e6e0, the commit that first marked it
+        review_by=date(2026, 11, 15),
+    ),
 }
+
+
+def flaky_keys(case_id: str) -> frozenset[str]:
+    """The metric keys that only warn for `case_id` (empty when the case has no FLAKY entry)."""
+    flake = FLAKY.get(case_id)
+    return flake.keys if flake else frozenset()
 
 
 STRICT_ROLES = frozenset({"strict", "deterministic"})
@@ -200,6 +241,6 @@ def check_role(golden: Golden, key: str) -> str:
     or "strict" (a judged check that fails the case). The first two only warn."""
     if key in REPORT_ONLY:
         return "report-only"
-    if key in FLAKY.get(golden.id, frozenset()):
+    if key in flaky_keys(golden.id):
         return "flaky"
     return "deterministic" if key in DETERMINISTIC else "strict"
