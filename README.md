@@ -10,7 +10,7 @@ A cardiology question-answering assistant built on US federal health documents, 
 
 - **Retrieval and generation are evaluated separately**, so a failing answer points at the right component.
 - **The judge is a different model family from the generator** (Claude answers, OpenAI judges), which avoids a model grading its own style.
-- **A quality gate with cost controls:** a 17-case smoke subset on every pull request, the full suite on demand and weekly, and a gate that fails closed: `main` only takes pull requests whose checks are green, and a run without API keys is a failure, not a skip.
+- **A quality gate with cost controls:** an 18-case smoke subset on every pull request, the full suite on demand and weekly, and a gate that fails closed: `main` only takes pull requests whose checks are green, and a run without API keys is a failure, not a skip.
 - **Honest limits:** where the metrics disagree with a human reader is written up in [docs/findings.md](docs/findings.md).
 
 ## How it works
@@ -27,7 +27,7 @@ question  ->  retrieve top-k chunks  ->  Claude answers from them only, citing c
 | Generator | Claude Haiku 5.5 |
 | Embeddings and judges | OpenAI `text-embedding-3-small`; judges `gpt-4o-mini`, and `gpt-5-mini` for the two Faithfulness checks |
 | Retrieval | Sentence-aligned chunks, cosine similarity over a NumPy index |
-| Evaluation | 64 golden cases: 32 in-corpus questions, 12 out-of-scope questions, 10 medical-safety probes, 10 bias probes |
+| Evaluation | 65 golden cases: 32 in-corpus questions, 12 out-of-scope questions, 11 medical-safety probes, 10 bias probes |
 
 ## Results
 
@@ -66,7 +66,7 @@ Pass rates describe agreement with the golden cases under the thresholds in [eva
 
 ## CI
 
-Pull requests are gated by the 17-case smoke subset: if any of those cases fails a non-flaky metric, the `DeepEval (smoke subset)` check fails and the pull request is red. The gate also runs three checks that need no judge: answers must cite passages that were retrieved, out-of-scope answers must start with the exact refusal sentence, and emergency answers must tell the person to call 911 first. The judged checks that gpt-4o-mini scores and that can fail the gate take the median of three judgings, so one misread judging cannot turn the check red; the two Faithfulness checks (gpt-5-mini) and the report-only metrics are judged once per run. `main` is protected: `unit tests and lint` and `DeepEval (smoke subset)` are required checks (pinned to GitHub Actions), the branch must be up to date with `main`, changes arrive only through pull requests, force pushes are refused, and the rule applies to admins too, so a red check blocks the merge for everyone. The full 64-case run, started by hand or by the weekly schedule, is a report-only trend signal. Its job stays green and the failing metrics show up in the job summary and the `deepeval-results` artifact, because when gpt-4o-mini judged every check (2026-10-15 and 2026-10-16) it misread a different case on most full runs (see [docs/findings.md](docs/findings.md), sections 3 and 6). Tests and lint run on every push and pull request and always block. The badge above shows the last run of this workflow, so it is green whenever the tests pass and the job completes; it does not report full-suite metrics. The report-only full run also stays green if the run itself crashes, so read its job summary rather than the badge. Every run fails if the API keys are missing, including a pull request from a fork (GitHub does not share secrets with forks), so a run that scored nothing can never pass; to gate a fork's change, re-open it from a branch in this repository.
+Pull requests are gated by the 18-case smoke subset: if any of those cases fails a non-flaky metric, the `DeepEval (smoke subset)` check fails and the pull request is red. The gate also runs three checks that need no judge: answers must cite passages that were retrieved, out-of-scope answers must start with the exact refusal sentence, and emergency answers must tell the person to call 911 first. The judged checks that gpt-4o-mini scores and that can fail the gate take the median of three judgings, so one misread judging cannot turn the check red; the two Faithfulness checks (gpt-5-mini) and the report-only metrics are judged once per run. `main` is protected: `unit tests and lint` and `DeepEval (smoke subset)` are required checks (pinned to GitHub Actions), the branch must be up to date with `main`, changes arrive only through pull requests, force pushes are refused, and the rule applies to admins too, so a red check blocks the merge for everyone. The full 64-case run, started by hand or by the weekly schedule, is a report-only trend signal. Its job stays green and the failing metrics show up in the job summary and the `deepeval-results` artifact, because when gpt-4o-mini judged every check (2026-10-15 and 2026-10-16) it misread a different case on most full runs (see [docs/findings.md](docs/findings.md), sections 3 and 6). Tests and lint run on every push and pull request and always block. The badge above shows the last run of this workflow, so it is green whenever the tests pass and the job completes; it does not report full-suite metrics. The report-only full run also stays green if the run itself crashes, so read its job summary rather than the badge. Every run fails if the API keys are missing, including a pull request from a fork (GitHub does not share secrets with forks), so a run that scored nothing can never pass; to gate a fork's change, re-open it from a branch in this repository.
 
 ## Quickstart
 
@@ -78,9 +78,12 @@ cp .env.example .env          # then add your ANTHROPIC_API_KEY and OPENAI_API_K
 uv run cardio ingest
 uv run cardio ask "What are the warning signs of a heart attack?"
 uv run deepeval test run evals/ -m smoke      # the pull-request subset
+DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE=600 uv run deepeval test run evals/   # a full run
 ```
 
 Offline unit tests need no keys: `uv run pytest`.
+
+A local full run should set `DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE=600`, as CI does: DeepEval's default is 180 s per case and a `gpt-5-mini` judging averages about 33 s, so one slow judge call can time out a correct case (in-017 did in a local full run on 2026-10-19).
 
 ## Cost
 
@@ -96,7 +99,7 @@ The two Faithfulness checks (on factual answers and on bias answers) are the exc
 
 - The corpus is small and the golden answers come only from it. A passing run means the app stays faithful to those documents, not that its content is clinically right.
 - LLM judges are noisy and can be wrong in both directions; see the findings for measured examples.
-- The bias rubric fails a bare refusal or a stereotype, not a cited answer that says the sources are silent and skips the golden's position (those score 0.54 to 0.68 and pass). bia-004 is in the pull-request smoke subset, so a bare refusal there fails the check.
+- The bias rubric fails a bare refusal or a stereotype, not a cited answer that says the sources are silent and skips the golden's position (those score 0.54 to 0.68 and pass). Since the prompt change of 2026-10-19 the recorded bia-004, bia-007 and bia-010 answers score 0.80 to 1.00, but the rubric would still pass a hedge, and its threshold stays 0.50 until it is recalibrated. bia-004 is in the pull-request smoke subset, so a bare refusal there fails the check.
 - The assistant is a demo and must not be used for medical decisions.
 
 ## License
