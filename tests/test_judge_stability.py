@@ -33,6 +33,9 @@ class FakeMetric:
         self.score = None
         self.error = None
         self.evaluation_cost = None
+        # The model a DeepEval metric reports it judged with; absent from the judge's `models`
+        # (the default) a metric reports none.
+        self.evaluation_model = judge.models.get(key)
 
     async def a_measure(self, test_case, **kwargs):
         judge = self.judge
@@ -61,8 +64,9 @@ class FakeJudge:
     """Builds FakeMetrics like metric_specs_for. `plan` maps (answer, key) to the scores its
     judgings take in turn; an exception in the list is raised from that judging."""
 
-    def __init__(self, plan=None):
+    def __init__(self, plan=None, models=None):
         self.plan = plan or {}
+        self.models = models or {}  # metric key -> the evaluation_model its metrics report
         self.repeats = []  # the `repeats` each specs_for call was given
         self.calls = {}
         self.measured = []
@@ -176,6 +180,63 @@ def test_a_row_records_the_judge_model_of_its_own_metric(
     assert {row["key"]: row["judge"] for row in results["known_bad"]} == {
         "faithfulness": "gpt-4.1-mini",
         "hallucination": "gpt-4o-mini",
+    }
+
+
+def test_a_row_records_the_model_its_metric_reports_not_the_one_the_environment_names(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    # The record must say what the call used. A variable can be set differently between the
+    # moment the metric is built and the moment the row is written, or name a model the metric
+    # replaced; the measured metric is the evidence.
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    judge = FakeJudge(models={"faithfulness": "gpt-5-mini", "hallucination": "gpt-4.1"})
+    entry = known_bad_entry(must_fail=["faithfulness", "hallucination"])
+    results = run(
+        [make_golden()],
+        judge,
+        times=2,
+        keys=["faithfulness", "hallucination"],
+        known_bad=[entry],
+    )
+    expected = {"faithfulness": "gpt-5-mini", "hallucination": "gpt-4.1"}
+    assert {row["key"]: row["judge"] for row in results["rows"]} == expected
+    assert {row["key"]: row["judge"] for row in results["known_bad"]} == expected
+
+
+def test_a_metric_that_reports_no_model_falls_back_to_the_configured_judge(
+    make_golden, plain_judge_settings, monkeypatch
+):
+    monkeypatch.setenv("JUDGE_MODEL_FAITHFULNESS", "gpt-4.1-mini")
+    judge = FakeJudge(models={"faithfulness": None, "hallucination": ""})
+    results = run([make_golden()], judge, times=1, keys=["faithfulness", "hallucination"])
+    assert {row["key"]: row["judge"] for row in results["rows"]} == {
+        "faithfulness": "gpt-4.1-mini",
+        "hallucination": "gpt-4o-mini",
+    }
+
+
+def test_a_check_that_needs_no_judge_records_none_whatever_its_metric_reports(make_golden):
+    judge = FakeJudge(models={"cites_passages": "gpt-4o-mini"})
+    results = run([make_golden()], judge, times=1, keys=["cites_passages"])
+    assert [row["judge"] for row in results["rows"]] == [None]
+
+
+def test_the_judge_recorded_for_the_real_checks_is_the_model_each_was_built_with(
+    make_golden, monkeypatch
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-never-used")
+    for name in ("JUDGE_MODEL", "JUDGE_MODEL_FAITHFULNESS", "JUDGE_MODEL_BIAS_FAITHFULNESS"):
+        monkeypatch.delenv(name, raising=False)
+    specs = judge_stability.single_judging_specs(make_golden())
+    assert {key: judge_stability.judge_of(key, metric) for key, metric in specs} == {
+        "faithfulness": "gpt-5-mini",
+        "answer_relevancy": "gpt-4o-mini",
+        "answers_question": "gpt-4o-mini",
+        "contextual_precision": "gpt-4o-mini",
+        "contextual_recall": "gpt-4o-mini",
+        "hallucination": "gpt-4o-mini",
+        "cites_passages": None,
     }
 
 
