@@ -1,16 +1,18 @@
 """Summarise a DeepEval test-run JSON file as Markdown.
 
 Usage: python -m evals.report <results-folder-or-file>
-Used for the CI job summary and for the README results table.
+Used for the CI job summary and for the README results table. The job summary also lists the
+FLAKY entries past their review date, as a warning: a calendar date never fails a run.
 """
 
 import argparse
 import json
 import sys
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
-from evals.thresholds import REPORT_ONLY
+from evals.thresholds import FLAKY, REPORT_ONLY
 
 
 def find_latest_run(folder: Path) -> Path:
@@ -25,7 +27,30 @@ def _is_report_only(metric_name: str) -> bool:
     return metric_name in REPORT_ONLY.values()
 
 
-def summarize(run: dict) -> str:
+def expired_flakes(today: date) -> list[str]:
+    """One line for each FLAKY entry whose review date is before `today`, the oldest review
+    first: the case, its keys, how long ago the review was due, when the entry was added and its
+    reason. The review date itself is not yet late. Never raises and never fails anything: the
+    entry keeps making its checks warn until a person renews or deletes it."""
+    late = sorted(
+        (flake.review_by, case_id) for case_id, flake in FLAKY.items() if flake.review_by < today
+    )
+    lines = []
+    for review_by, case_id in late:
+        flake = FLAKY[case_id]
+        days = (today - review_by).days
+        lines.append(
+            f"{case_id} {', '.join(sorted(flake.keys))}: review was due {review_by.isoformat()}, "
+            f"{days} day{'' if days == 1 else 's'} ago (added {flake.added.isoformat()}). "
+            f"{_shorten(flake.reason)}"
+        )
+    return lines
+
+
+def summarize(run: dict, today: date | None = None) -> str:
+    """The Markdown summary of one test run. With a `today`, it ends with the FLAKY entries past
+    their review date (expired_flakes) as a warning section; without one it does not look at the
+    calendar, so the same run always gives the same text."""
     stats: dict[str, dict[str, float]] = defaultdict(
         lambda: {"cases": 0, "passed": 0, "score_total": 0.0, "scored": 0, "cost": 0.0}
     )
@@ -69,6 +94,17 @@ def summarize(run: dict) -> str:
     lines += ["", f"Judge cost reported by DeepEval: ${total_cost:.2f}{qualifier}"]
     if failures:
         lines += ["", "### Failing metrics", *failures]
+    expired = expired_flakes(today) if today is not None else []
+    if expired:
+        lines += [
+            "",
+            "### Flaky entries past their review date",
+            "",
+            "Warning only: these entries still make their checks warn instead of fail. Check "
+            "each against new judgings, then renew or delete it (`FLAKY` in evals/thresholds.py).",
+            "",
+            *(f"- {line}" for line in expired),
+        ]
     return "\n".join(lines)
 
 
@@ -98,13 +134,14 @@ def _describe_failure(case_name: str, metric: dict) -> str:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, today: date | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=Path, help="a test_run_*.json file or a folder holding them")
     args = parser.parse_args(argv)
     try:
         path = find_latest_run(args.path) if args.path.is_dir() else args.path
-        print(summarize(json.loads(path.read_text(encoding="utf-8"))))
+        run = json.loads(path.read_text(encoding="utf-8"))
+        print(summarize(run, today=today or date.today()))
     except (FileNotFoundError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
