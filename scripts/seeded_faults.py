@@ -1,0 +1,181 @@
+"""Apply each seeded fault to the live app and see which checks of the pull-request gate catch it.
+
+Usage: DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE=600 \\
+           uv run python scripts/seeded_faults.py --out docs/evidence/seeded-faults-<date>.md
+           [--faults NAME,NAME] [--max-cost USD]
+       uv run python scripts/seeded_faults.py --from-json PATH --out PATH   (offline)
+
+For each fault of evals/faults.py it asks the app the smoke goldens once with the fault on, then
+judges the answers with the checks the gate builds (evals.metrics.metric_specs_for, with the
+gate's own repeats and judges), and writes the matrix of which checks failed which fault to --out
+and every case's answer, failing checks and scores to a JSON file beside it. The run is paid (the
+judges, and Claude for the answers), about $0.15 a fault, and it is not part of the quality gate.
+The JSON is rewritten after every fault, so a crash keeps the faults already paid for. Before
+each fault the script checks the cost DeepEval has reported so far (the generator's cost is not in
+it) and stops starting faults once it reaches --max-cost (default 2.00).
+
+--from-json renders the report again from a JSON file that run wrote, with no API call.
+"""
+
+import argparse
+import json
+import sys
+from datetime import date
+from pathlib import Path
+
+# Run as a file (`python scripts/seeded_faults.py`), so make the repo root importable.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from cardio_rag.config import CORPUS_DIR, Settings  # noqa: E402
+from cardio_rag.index import load_corpus  # noqa: E402
+from cardio_rag.wiring import build_pipeline  # noqa: E402
+from evals.cases import load_goldens  # noqa: E402
+from evals.faults import FAULTS, matrix_markdown, run_fault  # noqa: E402
+from scripts.record_answers import _git_dirty, _git_sha  # noqa: E402
+
+DEFAULT_MAX_COST = 2.00
+
+
+def run_all(names, goldens, *, rag, corpus, max_cost, run=run_fault, on_result=None) -> dict:
+    """Run the faults `names` in order. Before each one, stop if the cost reported so far has
+    reached `max_cost`: the faults left are None in the result. `on_result` gets the results so
+    far after every fault. An exception from `run` ends the run and is raised."""
+    results: dict = {name: None for name in names}
+    spent = 0.0
+    for name in names:
+        if spent >= max_cost:
+            print(f"spend guard: ${spent:.2f} reported, so {name} is not run", file=sys.stderr)
+            continue
+        result = run(name, goldens, rag=rag, corpus=corpus)
+        results[name] = result
+        spent += result["cost"]
+        print(
+            f"{name}: {_failed(result)} of {len(result['cases'])} cases failed, "
+            f"${result['cost']:.3f} ({result['seconds']:.0f} s), ${spent:.2f} so far",
+            file=sys.stderr,
+        )
+        if on_result:
+            on_result(results)
+    return results
+
+
+def _failed(result: dict) -> int:
+    return sum(1 for case in result["cases"] if case["failed"] or case["errors"])
+
+
+def render(data: dict) -> str:
+    """The Markdown report for the data main writes to the JSON file."""
+    faults = data["faults"]
+    skipped = [name for name, result in faults.items() if result is None]
+    minutes = data["seconds"] / 60
+    lines = [
+        "# Seeded faults: which checks of the pull-request gate catch each one",
+        "",
+        f"Run on {data['created']} at commit {data['git_sha']}"
+        f"{' (uncommitted changes)' if data['dirty'] else ''}, generator "
+        f"{data['generator_model']}, top_k {data['top_k']}. Each fault of `evals/faults.py` was "
+        f"applied in-process to the live app, the {len(data['smoke_cases'])} smoke cases were "
+        "asked once with it on (" + ", ".join(data["smoke_cases"]) + "), and the answers were "
+        "judged with the checks the gate builds (`metric_specs_for`, `JUDGE_REPEATS` unset). A "
+        "case fails a fault when a check that counts fails or errors, as `assert_test` would; "
+        "Bias and Answer Relevancy are report-only and only warn. An error (an app that raised, "
+        "a check that raised or set an error) counts as caught and is labelled `error`.",
+        "",
+        f"DeepEval reported ${data['spent']:.2f} for the judgings (the generator's cost is not in "
+        f"that number); the run took {minutes:.0f} minutes. The answer of every case is in the "
+        f"JSON file beside this report.",
+        "",
+        "## Matrix",
+        "",
+        matrix_markdown(faults),
+    ]
+    if skipped:
+        why = (
+            f"because the spend guard (${data['max_cost']:.2f}) was reached"
+            if data["spent"] >= data["max_cost"]
+            else "because the run stopped before them"
+        )
+        lines += ["", f"Not run, {why}: " + ", ".join(skipped) + "."]
+    return "\n".join(lines) + "\n"
+
+
+def _csv(text: str) -> list[str]:
+    return [item.strip() for item in text.split(",") if item.strip()]
+
+
+def _refuse(message: str) -> int:
+    print(f"error: {message}", file=sys.stderr)
+    return 2
+
+
+def _write(data: dict, out: Path) -> None:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(data, indent=1, ensure_ascii=False)
+    out.with_suffix(".json").write_text(text + "\n", encoding="utf-8")
+    out.write_text(render(data), encoding="utf-8")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--out", type=Path, required=True, help="the Markdown report to write")
+    parser.add_argument("--faults", type=_csv, help="only these faults (default: all nine)")
+    parser.add_argument("--max-cost", type=float, default=DEFAULT_MAX_COST, help="spend guard, USD")
+    parser.add_argument("--from-json", type=Path, help="render this results file, no API call")
+    args = parser.parse_args(argv)
+
+    if args.from_json:
+        data = json.loads(args.from_json.read_text(encoding="utf-8"))
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(render(data), encoding="utf-8")
+        print(f"Wrote {args.out}")
+        return 0
+
+    names = args.faults or list(FAULTS)
+    unknown = [name for name in names if name not in FAULTS]
+    if unknown:
+        return _refuse(f"unknown fault(s) {', '.join(unknown)}; the faults are {', '.join(FAULTS)}")
+    smoke = [golden for golden in load_goldens() if golden.smoke]
+    if not smoke:
+        return _refuse("the dataset has no smoke cases")
+
+    settings = Settings.from_env()
+    data = {
+        "created": date.today().isoformat(),
+        "git_sha": _git_sha(),
+        "dirty": _git_dirty(),
+        "generator_model": settings.generator_model,
+        "embedding_model": settings.embedding_model,
+        "top_k": settings.top_k,
+        "smoke_cases": [golden.id for golden in smoke],
+        "max_cost": args.max_cost,
+        "spent": 0.0,
+        "seconds": 0.0,
+        "faults": {name: None for name in names},
+    }
+
+    def save(results: dict) -> None:
+        data["faults"] = results
+        done = [result for result in results.values() if result]
+        data["spent"] = sum(result["cost"] for result in done)
+        data["seconds"] = sum(result["seconds"] for result in done)
+        _write(data, args.out)
+
+    print(f"{len(names)} faults x {len(smoke)} smoke cases, spend guard ${args.max_cost:.2f}")
+    rag = build_pipeline(settings, rebuild=True)
+    results = run_all(
+        names,
+        smoke,
+        rag=rag,
+        corpus=load_corpus(CORPUS_DIR),
+        max_cost=args.max_cost,
+        run=run_fault,
+        on_result=save,
+    )
+    save(results)
+    print(matrix_markdown(results))
+    print(f"\nWrote {args.out} and {args.out.with_suffix('.json')}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
