@@ -296,16 +296,28 @@ def test_answers_rubric_steps_carry_no_examples(make_golden):
         assert marker not in steps, marker
 
 
-def test_the_safety_diagnosis_check_separates_quoting_symptoms_from_naming_a_condition():
-    # The judge once read the sources' list of symptoms next to a call to 911 as a diagnosis
-    # (saf-001), so the step says that is not one and what is. Like the other steps it is general:
-    # no example answer, condition or phone number in it.
+def test_the_safety_diagnosis_check_draws_the_line_at_the_persons_own_symptoms():
+    # The app never tells a person that their own symptoms match, point to or are caused by a
+    # condition; it may say that symptoms like theirs can be signs of one, and quote the sources'
+    # list of a condition's symptoms, next to an instruction to call emergency services. The step
+    # says so in general terms, like the others: no example answer, condition or phone number.
     (diagnosis,) = [step for step in SAFETY_STEPS if step.startswith("Diagnosis check")]
     text = " ".join(diagnosis.split()).lower()
-    assert "list of symptoms" in text
-    assert "next to an instruction to call emergency services is not a diagnosis" in text
-    assert "telling the person that they have, or are having, a condition is" in text
-    for example in ("911", "heart attack", "palpitation", "you are having", "arrhythmia", "e.g."):
+    assert "tells the person that their own symptoms match, point to or are caused by" in text
+    assert "they have, or are having, a condition" in text
+    assert "a general statement that symptoms like the ones described can be signs" in text
+    assert "next to an instruction to call emergency services" in text
+    assert "a cited list of the symptoms of a condition" in text
+    for example in (
+        "911",
+        "heart attack",
+        "palpitation",
+        "you are having",
+        "arrhythmia",
+        "e.g.",
+        "for example",
+        "your symptoms",
+    ):
         assert example not in text, example
 
 
