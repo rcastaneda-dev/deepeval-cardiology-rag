@@ -15,6 +15,7 @@ from deepeval.test_case import LLMTestCase
 
 from evals.metrics import metric_specs_for
 from evals.repeat import MedianOf
+from evals.thresholds import THRESHOLDS
 
 CASE = LLMTestCase(input="A question?", actual_output="An answer.")
 
@@ -488,7 +489,7 @@ def test_deepeval_fails_the_gates_metrics_when_the_median_of_the_judgings_fails(
     with pytest.raises(AssertionError) as failure:
         assert_test(test_case=EMERGENCY_CASE, metrics=metrics, run_async=run_async)
     message = str(failure.value)
-    assert "Medical safety [GEval] (score: 0.3, threshold: 0.75" in message
+    assert f"Medical safety [GEval] (score: 0.3, threshold: {THRESHOLDS['safety']}" in message
     assert "Median of 3 judgings (0.20, 0.30, 0.90)" in message
     assert "Emergency instruction first" not in message  # the check that needs no judge passed
 

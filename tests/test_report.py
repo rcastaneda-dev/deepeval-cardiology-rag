@@ -1,10 +1,11 @@
 import json
 import os
+from datetime import date
 
 import pytest
 
-from evals.report import find_latest_run, main, summarize
-from evals.thresholds import REPORT_ONLY
+from evals.report import expired_flakes, find_latest_run, main, summarize
+from evals.thresholds import FLAKY, REPORT_ONLY
 
 
 def metric(name, score, success, threshold=0.8, **extra):
@@ -189,3 +190,110 @@ def test_main_reports_a_missing_folder_without_a_traceback(tmp_path, capsys):
 def test_main_reports_an_empty_folder(tmp_path, capsys):
     assert main([str(tmp_path)]) == 2
     assert "No test_run_*.json" in capsys.readouterr().err
+
+
+# Flaky entries past their review date ------------------------------------------------------
+
+SECTION = "### Flaky entries past their review date"
+
+
+@pytest.fixture
+def two_flakes(make_flake, monkeypatch):
+    """in-018 is due on 2026-11-15; saf-003 on 2026-12-01 and lists two keys."""
+    flakes = {
+        "saf-003": make_flake(
+            "safety",
+            "emergency_first",
+            reason="The judge read the symptom list as a diagnosis.",
+            added=date(2026, 11, 1),
+            review_by=date(2026, 12, 1),
+        ),
+        "in-018": make_flake(
+            "contextual_recall",
+            reason="Recall once scored 0.50 on a sentence from a retrieved chunk.",
+            added=date(2026, 10, 16),
+            review_by=date(2026, 11, 15),
+        ),
+    }
+    monkeypatch.setattr("evals.report.FLAKY", flakes)
+    return flakes
+
+
+def test_an_entry_is_expired_the_day_after_its_review_date_not_on_it(two_flakes):
+    assert expired_flakes(date(2026, 10, 19)) == []
+    assert expired_flakes(date(2026, 11, 15)) == []
+    assert expired_flakes(date(2026, 11, 16)) == [
+        "in-018 contextual_recall: review was due 2026-11-15, 1 day ago (added 2026-10-16). "
+        "Recall once scored 0.50 on a sentence from a retrieved chunk."
+    ]
+
+
+def test_expired_entries_are_listed_oldest_review_first_with_every_key(two_flakes):
+    assert expired_flakes(date(2026, 12, 11)) == [
+        "in-018 contextual_recall: review was due 2026-11-15, 26 days ago (added 2026-10-16). "
+        "Recall once scored 0.50 on a sentence from a retrieved chunk.",
+        "saf-003 emergency_first, safety: review was due 2026-12-01, 10 days ago (added "
+        "2026-11-01). The judge read the symptom list as a diagnosis.",
+    ]
+
+
+def test_no_entries_means_nothing_expired(monkeypatch):
+    monkeypatch.setattr("evals.report.FLAKY", {})
+    assert expired_flakes(date(2030, 1, 1)) == []
+
+
+def test_the_real_register_can_be_checked_on_any_date():
+    # Whatever is in FLAKY, whatever today is: a list of strings, never an exception.
+    assert all(isinstance(line, str) for line in expired_flakes(date(2040, 1, 1)))
+    assert len(expired_flakes(date(2040, 1, 1))) == len(FLAKY)
+
+
+def test_expired_flakes_are_listed_as_warnings_not_failures(two_flakes):
+    report = summarize(RUN, today=date(2026, 12, 11))
+    assert SECTION in report
+    section = report.split(SECTION)[1]
+    assert "Warning only" in section
+    assert "- in-018 contextual_recall: review was due 2026-11-15, 26 days ago" in section
+    assert "- saf-003 emergency_first, safety: review was due 2026-12-01, 10 days ago" in section
+    # They sit after the failures and are not among them.
+    assert report.index("### Failing metrics") < report.index(SECTION)
+    failing = report.split("### Failing metrics")[1].split(SECTION)[0]
+    assert "in-018 contextual_recall" not in failing
+
+
+def test_the_section_is_left_out_when_no_entry_is_past_its_review_date(two_flakes):
+    assert SECTION not in summarize(RUN, today=date(2026, 11, 15))
+
+
+def test_the_summary_without_a_date_has_no_section(two_flakes):
+    # summarize is a pure function of the run; only main reads the calendar.
+    assert SECTION not in summarize(RUN)
+    assert summarize(RUN) == summarize(RUN, today=date(2026, 10, 19))
+
+
+def test_a_run_without_metrics_says_so_even_past_a_review_date(two_flakes):
+    assert summarize({}, today=date(2030, 1, 1)) == "No metric results found in this run."
+
+
+def test_main_prints_the_section_and_still_exits_zero_past_a_review_date(
+    tmp_path, capsys, two_flakes
+):
+    (tmp_path / "test_run_20260101_000000.json").write_text(json.dumps(RUN))
+    assert main([str(tmp_path)], today=date(2026, 12, 11)) == 0
+    out = capsys.readouterr().out
+    assert SECTION in out
+    assert "| Faithfulness |" in out
+
+
+def test_main_reads_todays_date_when_none_is_given(tmp_path, capsys, monkeypatch, two_flakes):
+    class December11(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 12, 11)
+
+    monkeypatch.setattr("evals.report.date", December11)
+    (tmp_path / "test_run_20260101_000000.json").write_text(json.dumps(RUN))
+    assert main([str(tmp_path)]) == 0
+    assert "- in-018 contextual_recall: review was due 2026-11-15, 26 days ago" in (
+        capsys.readouterr().out
+    )
