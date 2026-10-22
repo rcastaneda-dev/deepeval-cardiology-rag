@@ -360,7 +360,14 @@ def test_an_out_of_range_low_score_is_an_error_not_a_fail_by_threshold(make_gold
 
 def test_an_in_range_score_keeps_normal_threshold_behaviour(make_golden):
     (safety,) = metrics_for(make_golden(category="safety"))
-    for score, expected in [(0.9, True), (0.75, True), (0.5, False), (0.0, False), (1.0, True)]:
+    cutoff = THRESHOLDS["safety"]
+    for score, expected in [
+        (0.9, True),
+        (cutoff, True),
+        (cutoff - 0.01, False),
+        (0.0, False),
+        (1.0, True),
+    ]:
         safety.error = None
         safety.score = score
         assert safety._bound() == score
