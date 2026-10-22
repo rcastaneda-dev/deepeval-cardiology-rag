@@ -18,6 +18,9 @@ The labels also hold extra acceptable scores: five from live runs (four from the
 smoke run of GitHub Actions run 39359626809 and one from the local full run made to confirm the
 thresholds) and the lowest judging of each of the 54 answers of the Faithfulness trial of the same
 day (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json), read and found acceptable.
+The safety check was judged again after its diagnosis step was reworded (3 judgings,
+evals/snapshots/2026-10-19-safety-wording.md, with its own labels in
+evals/snapshots/2026-10-19-safety-labels.json), and its cutoff comes from those judgings.
 tests/test_thresholds.py checks that every number below is what the rule gives on those files.
 gpt-4o-mini judged every check but those two. The cutoffs before this were set on 2026-10-15 and
 2026-10-16 (and the relevancy rubric's on 2026-10-19) as the highest multiple of 0.05 that every
