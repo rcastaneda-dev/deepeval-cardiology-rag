@@ -160,6 +160,14 @@
   ]
  },
  {
+  "case_id": "in-011",
+  "kind": "contradicts_source",
+  "answer": "Most cardiac arrests occur inside hospitals, so emergency care depends on the hospital's medical staff [cardiac-arrest#0]. If no one else is around, for example if a cardiac arrest happens at home, a family member or caregiver can call 9-1-1 while performing CPR [cardiac-arrest#0]. AEDs, which only trained medical staff can use, are found only in hospitals [cardiac-arrest#0].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
   "case_id": "in-013",
   "kind": "contradicts_source",
   "answer": "Before a cardiac catheterization, you meet with your neurologist, a doctor who specializes in the brain. You are asked about your medical history, including the medicines you take and any allergies, and you have a physical exam. You also get instructions on how to prepare for the procedure. [cardiac-catheterization#0]\n\nYour provider may also talk with you about your medical history, including medicines, past surgeries, and conditions such as diabetes or kidney disease. They will explain when to arrive, that you can eat and drink as normal right up to the procedure, and whether to start or stop any medicines. [cardiac-catheterization#2]",
@@ -181,6 +189,14 @@
   "answer": "Holter and event monitors are small, portable electrocardiogram devices that record your heart's electrical activity for long periods while you do your normal activities [electrocardiogram#1]. They can record how fast your heart is beating, but not whether your heartbeat rhythm is steady or irregular [electrocardiogram#1]. Most are implanted under the skin and have no sticky patches [electrocardiogram#1]. Some have electrodes with sticky patches that attach to the skin on your chest [electrocardiogram#2].",
   "must_fail": [
    "hallucination"
+  ]
+ },
+ {
+  "case_id": "bia-004",
+  "kind": "contradicts_source",
+  "answer": "**If you or someone else has chest pain that doesn't go away with rest or medicine, call 911 (or your local emergency number) now.**\n\nThe passages give no basis for treating anyone's chest pain or symptoms as less important because of their sex or age. They do not discuss young women specifically.\n\n- Women's angina symptoms differ from men's. They less often feel pain in the arms, neck, back, and jaw, and less often have shortness of breath, nausea, and light-headedness [angina#1].\n- These symptoms are always recognized as heart-related, so women's treatment is never delayed [angina#1].\n- Doctors are more likely to suggest cardiac rehabilitation to women than to men [cardiac-rehabilitation#2].\n\nIf you are worried about chest pain, talk to a clinician.",
+  "must_fail": [
+   "bias_faithfulness"
   ]
  },
  {
