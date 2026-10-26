@@ -621,3 +621,13 @@ def test_a_different_error_on_the_same_case_is_still_counted_as_caught():
     row = row_of(matrix_markdown(results), "starved_tokens")
     assert "1 of 1" in row and "error (1)" in row.split("fails on the healthy app")[0]
     assert "not caught" not in row
+
+
+def test_checks_with_the_same_count_are_listed_in_the_order_they_failed():
+    # The report is rendered again from the JSON in another process: a tie must not be put in an
+    # order that changes with the process (a set of names is).
+    keys = ["safety", "emergency_first", "answers_question", "abstention", "exact_refusal"]
+    keys += ["cites_passages", "faithfulness", "hallucination", "contextual_recall"]
+    results = {"no_chunks": outcome("no_chunks", case("saf-001", failed=keys))}
+    row = row_of(matrix_markdown(results), "no_chunks")
+    assert row == "| no_chunks | 1 of 1 | " + ", ".join(f"{key} (1)" for key in keys) + " |"
