@@ -755,3 +755,20 @@ def test_the_checks_that_read_the_answer_alone_can_be_re_scored(make_golden, key
     goldens, results = rescorable(make_golden)
     rescore_offline(results, key, goldens=goldens, on="2026-10-26")
     assert results["control"]["rescored_offline"]["check"] == key
+
+
+def test_a_re_score_never_replaces_the_re_score_of_a_different_check(make_golden):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    before = {name: dict(result["rescored_offline"]) for name, result in results.items() if result}
+    with pytest.raises(ValueError, match="no_symptom_diagnosis.*exact_refusal"):
+        rescore_offline(results, "exact_refusal", goldens=goldens, on="2026-10-27")
+    # Nothing was touched, including the faults it would have reached first.
+    assert {n: r["rescored_offline"] for n, r in results.items() if r} == before
+
+
+def test_a_re_score_of_the_same_check_again_is_allowed(make_golden):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-27")
+    assert results["control"]["rescored_offline"]["date"] == "2026-10-27"

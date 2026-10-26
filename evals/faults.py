@@ -441,6 +441,13 @@ def rescore_offline(results: dict[str, dict | None], key: str, *, goldens, on: s
             f"{key!r} needs the retrieved passage ids, which a stored result does not hold; the "
             f"checks that read the answer alone are {', '.join(sorted(ANSWER_ONLY_CHECKS))}"
         )
+    for name, result in results.items():
+        earlier = (result or {}).get("rescored_offline")
+        if earlier and earlier["check"] != key:
+            raise ValueError(
+                f"{name} already holds a re-score by {earlier['check']!r}; the matrix reads one "
+                f"re-scored check, so {key!r} would replace it"
+            )
     by_id = {golden.id: golden for golden in goldens}
     for result in results.values():
         if not result:
