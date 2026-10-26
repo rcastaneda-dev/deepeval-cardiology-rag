@@ -12,6 +12,10 @@ raises, since DeepEval does not ignore errors in the gate. An error is a caught 
 "error" in the matrix: a gate that cannot score the answer is red. `matrix_markdown` lists for
 each fault how many cases failed and which checks failed them, or "not caught".
 
+The control is the same pass with no fault on (`run_fault("control", ...)`, listed first in the
+matrix). A check that fails a case on the healthy app is marked "fails on the healthy app" and is
+never counted as catching a fault on that case: it would be red whatever the fault did.
+
 The answer of every case is kept, because "not caught" has two readings: no check noticed a
 defect that was there, or the app did not change (the model kept to a rule its prompt no longer
 states). Only the answers tell them apart.
@@ -193,7 +197,17 @@ FAULTS: dict[str, Callable[[], AbstractContextManager[None]]] = {
     "starved_tokens": _starved_tokens,
 }
 
+# The unfaulted app, run through the same gate as a tenth pass. It is not one of the nine faults.
+CONTROL = "control"
+CONTROL_LABEL = "control (no fault)"
+HEALTHY_NOTE = "fails on the healthy app"
+
 _MESSAGE_LIMIT = 300  # characters of an error or reason kept per check
+
+
+@contextmanager
+def _no_fault() -> Iterator[None]:
+    yield
 
 
 def run_fault(
@@ -207,7 +221,8 @@ def run_fault(
     timeout: float = CHECK_TIMEOUT_SECONDS,
 ) -> dict:
     """Ask the app every golden question with fault `name` applied, then judge the answers with
-    `specs_for(golden)` (the gate's own checks) after the fault is off.
+    `specs_for(golden)` (the gate's own checks) after the fault is off. `name` may also be CONTROL,
+    which applies no fault.
 
     `rag` and `corpus` default to what the gate uses (the pipeline with a rebuilt index, the corpus
     on disk). Returns {"fault", "cost" (what DeepEval reported for the judgings, in USD),
@@ -217,8 +232,8 @@ def run_fault(
     set an error), the "warned" keys (a flaky check, which only warns, that failed or errored),
     the "scores" and "reasons" of the checks that ran, and the case's "cost".
     """
-    if name not in FAULTS:
-        raise KeyError(f"{name}: not one of the faults {sorted(FAULTS)}")
+    if name != CONTROL and name not in FAULTS:
+        raise KeyError(f"{name}: not one of the faults {sorted(FAULTS)} or {CONTROL!r}")
     started = time.monotonic()
     if rag is None:
         rag = build_pipeline(Settings.from_env(), rebuild=True)
@@ -231,7 +246,7 @@ def run_fault(
         except Exception as exc:  # the gate's test would fail on it: a caught fault
             return None, _describe(exc)
 
-    with FAULTS[name]():
+    with _no_fault() if name == CONTROL else FAULTS[name]():
         with ThreadPoolExecutor(max_workers=ASK_WORKERS) as pool:
             asked = list(pool.map(ask, goldens))
     cases = _event_loop().run_until_complete(
@@ -333,39 +348,101 @@ def matrix_markdown(results: dict[str, dict | None]) -> str:
     (each with the number of cases), or "not caught"; then, per fault, the cases that failed.
     `results` maps a fault name to run_fault's result, or to None for a fault that was not run.
     A check that errored, or an app that raised, is counted under "error"; a flaky check that
-    failed only warns, and is listed apart from the catching checks."""
+    failed only warns, and is listed apart from the catching checks.
+
+    With a CONTROL result (the healthy app) the matrix lists it as the row "control (no fault)",
+    and a check that fails a case on the healthy app is not counted for that case in any fault's
+    row: it is listed apart as "fails on the healthy app", so a check that is red whatever the app
+    does never passes for catching a fault."""
     rows = ["| Fault | Cases failed | Catching checks |", "|---|---|---|"]
     details = []
+    healthy = _healthy_failures(results.get(CONTROL))
     for fault, result in results.items():
+        is_control = fault == CONTROL
+        label = CONTROL_LABEL if is_control else fault
         if result is None:
-            rows.append(f"| {fault} | not run | not run |")
+            rows.append(f"| {label} | not run | not run |")
             continue
         cases = result["cases"]
-        failing = [case for case in cases if case["failed"] or case["errors"]]
-        counts = Counter(key for case in cases for key in case["failed"])
-        if any(case["errors"] for case in cases):
-            counts["error"] = sum(1 for case in cases if case["errors"])
-        caught = ", ".join(f"{key} ({count})" for key, count in counts.most_common())
+        views = [
+            _view(case, {} if is_control else healthy.get(case["id"], set())) for case in cases
+        ]
+        failing = [(case, view) for case, view in zip(cases, views, strict=True) if view["counted"]]
+        counts = _count(cases, views, "counted")
+        also = _count(cases, views, "healthy")
         warned = Counter(key for case in cases for key in case["warned"])
-        cell = caught or "not caught"
+        if is_control:
+            cell = (
+                f"{HEALTHY_NOTE}: " + _listed(counts)
+                if counts
+                else "no check fails on the healthy app"
+            )
+        else:
+            cell = _listed(counts) or "not caught"
+            if also:
+                cell += f"; {HEALTHY_NOTE} too, not counted: {_listed(also)}"
         if warned:
-            noticed = ", ".join(f"{key} ({count})" for key, count in warned.most_common())
-            cell += f"; report-only warnings: {noticed}"
-        rows.append(f"| {fault} | {len(failing)} of {len(cases)} | {cell} |")
-        details.append(_detail(fault, cases, failing))
+            cell += f"; report-only warnings: {_listed(warned)}"
+        rows.append(f"| {label} | {len(failing)} of {len(cases)} | {cell} |")
+        details.append(_detail(fault, label, cases, failing))
     return "\n".join(rows) + "\n" + "".join(details)
 
 
-def _detail(fault: str, cases: list[dict], failing: list[dict]) -> str:
-    warned = [case for case in cases if case["warned"] and case not in failing]
+def _listed(counts: Counter) -> str:
+    return ", ".join(f"{key} ({count})" for key, count in counts.most_common())
+
+
+def _healthy_failures(control: dict | None) -> dict[str, set[str]]:
+    """Case id -> the check keys that failed or errored on the healthy app ("generation" for an
+    app that raised)."""
+    if not control:
+        return {}
+    return {case["id"]: {*case["failed"], *case["errors"]} for case in control["cases"]}
+
+
+def _label(case: dict, key: str) -> str:
+    """How the matrix names a failure: a check's key, or "error" for anything that raised or set
+    an error (an app that raised, a check that raised)."""
+    return "error" if key in case["errors"] else key
+
+
+def _view(case: dict, healthy: set[str]) -> dict:
+    """What failed `case`, split into the check keys that count and those that also fail the case
+    on the healthy app (`healthy`)."""
+    keys = [*case["failed"], *case["errors"]]
+    return {
+        "counted": [key for key in keys if key not in healthy],
+        "healthy": [key for key in keys if key in healthy],
+    }
+
+
+def _count(cases: list[dict], views: list[dict], which: str) -> Counter:
+    """How many cases each label (see `_label`) failed, one count per case however many checks
+    of that label failed it."""
+    counts: Counter = Counter()
+    for case, view in zip(cases, views, strict=True):
+        counts.update({_label(case, key) for key in view[which]})
+    return counts
+
+
+def _detail(fault: str, label: str, cases: list[dict], failing: list[tuple[dict, dict]]) -> str:
+    failing_ids = {case["id"] for case, _ in failing}
+    warned = [case for case in cases if case["warned"] and case["id"] not in failing_ids]
     if not failing and not warned:
         return ""
     lines = [f"\n### {fault}\n"]
     if failing:
         lines += ["| Case | Failed checks | Errors |", "|---|---|---|"]
-        for case in failing:
-            errors = "; ".join(f"{key}: {_cell(text)}" for key, text in case["errors"].items())
-            lines.append(f"| {case['id']} | {', '.join(case['failed'])} | {errors} |")
+        for case, view in failing:
+            failed = ", ".join(
+                f"{key} ({HEALTHY_NOTE})" if key in view["healthy"] else key
+                for key in case["failed"]
+            )
+            errors = "; ".join(
+                f"{key}: {_cell(text)}" + (f" ({HEALTHY_NOTE})" if key in view["healthy"] else "")
+                for key, text in case["errors"].items()
+            )
+            lines.append(f"| {case['id']} | {failed} | {errors} |")
     if warned:
         listed = ", ".join(f"{case['id']} ({', '.join(case['warned'])})" for case in warned)
         lines.append(f"\nReport-only warnings that did not fail their case: {listed}.")

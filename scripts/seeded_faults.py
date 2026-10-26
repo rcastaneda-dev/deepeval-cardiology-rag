@@ -2,23 +2,28 @@
 
 Usage: DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE=600 \\
            uv run python scripts/seeded_faults.py --out docs/evidence/seeded-faults-<date>.md
-           [--faults NAME,NAME] [--max-cost USD]
-       uv run python scripts/seeded_faults.py --from-json PATH --out PATH   (offline)
+           [--faults NAME,NAME] [--max-cost USD] [--notes PATH]
+       uv run python scripts/seeded_faults.py --from-json PATH --out PATH [--notes PATH]  (offline)
 
-For each fault of evals/faults.py it asks the app the smoke goldens once with the fault on, then
+First it runs the control: the same smoke goldens with no fault on, judged the same way, which is
+the first row of the matrix. A check that fails a case on the healthy app is marked "fails on the
+healthy app" and never counted as catching a fault on that case. Then, for each fault of
+evals/faults.py, it asks the app the smoke goldens once with the fault on, then
 judges the answers with the checks the gate builds (evals.metrics.metric_specs_for, with the
 gate's own repeats and judges), and writes the matrix of which checks failed which fault to --out
 and every case's answer, failing checks and scores to a JSON file beside it. The run is paid (the
-judges, and Claude for the answers), about $0.15 a fault, and it is not part of the quality gate.
-The JSON is rewritten after every fault, so a crash keeps the faults already paid for. Before
-each fault the script checks the cost DeepEval has reported so far (the generator's cost is not in
-it) and stops starting faults once it reaches --max-cost (default 2.00).
+judges, and Claude for the answers), about $0.15 a pass (ten passes), and it is not part of the
+quality gate. The JSON is rewritten after every fault, so a crash keeps the faults already paid
+for. Before each pass the script checks the cost DeepEval has reported so far (the generator's cost
+is not in it) and stops starting passes once it reaches --max-cost (default 2.00).
 
 It refuses to run with JUDGE_REPEATS set, so the report's "gate's own repeats" is true, and
 it asks the app one smoke question with no fault on first (one generator call) and stops if
 that raises, so a rejected key is not read as nine caught faults.
 
 --from-json renders the report again from a JSON file that run wrote, with no API call.
+--notes PATH appends a hand-written Markdown file (such as a "Known gaps" section) to the end of
+the report, on a run and on --from-json, which would otherwise write the whole report afresh.
 """
 
 import argparse
@@ -35,7 +40,7 @@ from cardio_rag.config import CORPUS_DIR, Settings  # noqa: E402
 from cardio_rag.index import load_corpus  # noqa: E402
 from cardio_rag.wiring import build_pipeline  # noqa: E402
 from evals.cases import load_goldens  # noqa: E402
-from evals.faults import FAULTS, matrix_markdown, run_fault  # noqa: E402
+from evals.faults import CONTROL, FAULTS, matrix_markdown, run_fault  # noqa: E402
 from scripts.record_answers import _git_dirty, _git_sha  # noqa: E402
 
 DEFAULT_MAX_COST = 2.00
@@ -68,8 +73,9 @@ def _failed(result: dict) -> int:
     return sum(1 for case in result["cases"] if case["failed"] or case["errors"])
 
 
-def render(data: dict) -> str:
-    """The Markdown report for the data main writes to the JSON file."""
+def render(data: dict, notes: str | None = None) -> str:
+    """The Markdown report for the data main writes to the JSON file, with the hand-written
+    `notes` (Markdown) after it when there are any."""
     faults = data["faults"]
     skipped = [name for name, result in faults.items() if result is None]
     minutes = data["seconds"] / 60
@@ -84,7 +90,10 @@ def render(data: dict) -> str:
         "judged with the checks the gate builds (`metric_specs_for`, `JUDGE_REPEATS` unset). A "
         "case fails a fault when a check that counts fails or errors, as `assert_test` would; "
         "Bias and Answer Relevancy are report-only and only warn. An error (an app that raised, "
-        "a check that raised or set an error) counts as caught and is labelled `error`.",
+        "a check that raised or set an error) counts as caught and is labelled `error`. The "
+        "control is the same pass with no fault on, the first row of the matrix: a check that "
+        'fails a case on the healthy app is marked "fails on the healthy app" and is not '
+        "counted as catching a fault on that case.",
         "",
         f"DeepEval reported ${data['spent']:.2f} for the judgings (the generator's cost is not in "
         f"that number); the run took {minutes:.0f} minutes. The answer of every case is in the "
@@ -101,7 +110,10 @@ def render(data: dict) -> str:
             else "because the run stopped before them"
         )
         lines += ["", f"Not run, {why}: " + ", ".join(skipped) + "."]
-    return "\n".join(lines) + "\n"
+    text = "\n".join(lines) + "\n"
+    if notes and notes.strip():
+        text += "\n" + notes.strip("\n") + "\n"
+    return text
 
 
 def _csv(text: str) -> list[str]:
@@ -113,11 +125,11 @@ def _refuse(message: str) -> int:
     return 2
 
 
-def _write(data: dict, out: Path) -> None:
+def _write(data: dict, out: Path, notes: str | None = None) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(data, indent=1, ensure_ascii=False)
     out.with_suffix(".json").write_text(text + "\n", encoding="utf-8")
-    out.write_text(render(data), encoding="utf-8")
+    out.write_text(render(data, notes), encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -126,12 +138,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--faults", type=_csv, help="only these faults (default: all nine)")
     parser.add_argument("--max-cost", type=float, default=DEFAULT_MAX_COST, help="spend guard, USD")
     parser.add_argument("--from-json", type=Path, help="render this results file, no API call")
+    parser.add_argument("--notes", type=Path, help="Markdown to append to the report as written")
     args = parser.parse_args(argv)
+
+    notes = None
+    if args.notes:
+        try:
+            notes = args.notes.read_text(encoding="utf-8")
+        except OSError as error:
+            return _refuse(f"cannot read --notes {args.notes}: {error}")
 
     if args.from_json:
         data = json.loads(args.from_json.read_text(encoding="utf-8"))
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(render(data), encoding="utf-8")
+        args.out.write_text(render(data, notes), encoding="utf-8")
         print(f"Wrote {args.out}")
         return 0
 
@@ -139,10 +159,14 @@ def main(argv: list[str] | None = None) -> int:
         return _refuse(
             "JUDGE_REPEATS is set; the faults are judged with the gate's own repeats, so unset it"
         )
-    names = args.faults or list(FAULTS)
-    unknown = [name for name in names if name not in FAULTS]
+    faults = args.faults or list(FAULTS)
+    unknown = [name for name in faults if name not in FAULTS]
     if unknown:
-        return _refuse(f"unknown fault(s) {', '.join(unknown)}; the faults are {', '.join(FAULTS)}")
+        return _refuse(
+            f"unknown fault(s) {', '.join(unknown)}; the faults are {', '.join(FAULTS)} "
+            f"(the {CONTROL} always runs first)"
+        )
+    names = [CONTROL, *faults]
     smoke = [golden for golden in load_goldens() if golden.smoke]
     if not smoke:
         return _refuse("the dataset has no smoke cases")
@@ -167,9 +191,12 @@ def main(argv: list[str] | None = None) -> int:
         done = [result for result in results.values() if result]
         data["spent"] = sum(result["cost"] for result in done)
         data["seconds"] = sum(result["seconds"] for result in done)
-        _write(data, args.out)
+        _write(data, args.out, notes)
 
-    print(f"{len(names)} faults x {len(smoke)} smoke cases, spend guard ${args.max_cost:.2f}")
+    print(
+        f"{CONTROL} + {len(faults)} faults x {len(smoke)} smoke cases, "
+        f"spend guard ${args.max_cost:.2f}"
+    )
     rag = build_pipeline(settings, rebuild=True)
     # With no fault on, the app must answer. A rejected key makes every case of every fault raise,
     # and a matrix of "error" for nine faults would read as nine catches.

@@ -18,7 +18,14 @@ from cardio_rag.index import Index
 from cardio_rag.pipeline import RagPipeline, RagResult
 from cardio_rag.retriever import RetrievedChunk, Retriever
 from evals.cases import load_goldens
-from evals.faults import FAULTS, PROMPT_REPLACEMENTS, PROMPT_TARGETS, matrix_markdown, run_fault
+from evals.faults import (
+    CONTROL,
+    FAULTS,
+    PROMPT_REPLACEMENTS,
+    PROMPT_TARGETS,
+    matrix_markdown,
+    run_fault,
+)
 from evals.metrics import is_strict, metric_specs_for
 
 NINE = [
@@ -363,6 +370,21 @@ def test_the_fault_is_off_afterwards_even_when_judging_fails_badly(make_golden):
     assert generate.SYSTEM_PROMPT is SYSTEM_PROMPT
 
 
+def test_the_control_asks_the_app_under_the_real_prompt_and_is_not_one_of_the_nine_faults(
+    make_golden,
+):
+    # The healthy app, run through the same gate: what a fault is measured against.
+    assert CONTROL == "control" and CONTROL not in FAULTS
+    goldens = [safety_golden(make_golden, "saf-001"), safety_golden(make_golden, "saf-005")]
+    plan = {"saf-001": {"safety": Scripted(0.9)}, "saf-005": {"safety": Scripted(0.2)}}
+    app = FakeApp()
+    result = run_fault(CONTROL, goldens, rag=app, corpus={}, specs_for=specs(plan))
+    assert app.prompts == [SYSTEM_PROMPT, SYSTEM_PROMPT]
+    assert result["fault"] == "control"
+    assert by_id(result)["saf-005"]["failed"] == ["safety"]
+    assert generate.SYSTEM_PROMPT is SYSTEM_PROMPT
+
+
 def test_an_unknown_fault_is_refused(make_golden):
     with pytest.raises(KeyError, match="not_a_fault"):
         run_fault("not_a_fault", [safety_golden(make_golden, "saf-001")], rag=FakeApp(), corpus={})
@@ -499,3 +521,103 @@ def test_the_matrix_lists_the_failing_cases_of_each_fault():
     markdown = matrix_markdown(results)
     assert "oos-001" in markdown and "oos-002" in markdown
     assert "in-001" not in markdown  # it passed, so the matrix does not list it
+
+
+# ---- the control row -------------------------------------------------------------------------
+
+
+def test_the_matrix_shows_the_control_row_first_with_what_fails_on_the_healthy_app():
+    results = {
+        "control": outcome("control", case("saf-001", failed=["safety"]), case("saf-005")),
+        "no_chunks": outcome("no_chunks", case("saf-001"), case("saf-005")),
+    }
+    markdown = matrix_markdown(results)
+    rows = [line for line in markdown.splitlines() if line.startswith("| ")]
+    assert rows[0].startswith("| Fault") and rows[1].startswith("| control")
+    assert rows[2].startswith("| no_chunks")
+    control = row_of(markdown, "control")
+    assert "1 of 2" in control
+    assert "fails on the healthy app: safety (1)" in control
+
+
+def test_a_control_that_fails_nothing_says_so():
+    results = {"control": outcome("control", case("saf-001"), case("saf-005"))}
+    control = row_of(matrix_markdown(results), "control")
+    assert "0 of 2" in control
+    assert "no check fails" in control
+
+
+def test_a_check_that_fails_on_the_healthy_app_is_never_counted_as_catching_a_fault():
+    results = {
+        "control": outcome("control", case("saf-001", failed=["safety"]), case("saf-005")),
+        "no_clinician_rule": outcome(
+            "no_clinician_rule", case("saf-001", failed=["safety"]), case("saf-005")
+        ),
+    }
+    row = row_of(matrix_markdown(results), "no_clinician_rule")
+    assert "0 of 2" in row
+    assert "not caught" in row
+    assert "fails on the healthy app" in row and "safety (1)" in row
+
+
+def test_the_healthy_app_is_compared_case_by_case_not_check_by_check():
+    # safety fails on saf-001 of the healthy app, so the fault's failure on saf-001 is not a
+    # catch; its failure of the same check on saf-005, which the healthy app passes, is.
+    results = {
+        "control": outcome("control", case("saf-001", failed=["safety"]), case("saf-005")),
+        "no_clinician_rule": outcome(
+            "no_clinician_rule",
+            case("saf-001", failed=["safety", "emergency_first"]),
+            case("saf-005", failed=["safety"]),
+        ),
+    }
+    markdown = matrix_markdown(results)
+    row = row_of(markdown, "no_clinician_rule")
+    assert "2 of 2" in row
+    assert "safety (1)" in row.split("fails on the healthy app")[0]
+    assert "emergency_first (1)" in row.split("fails on the healthy app")[0]
+    assert "safety (1)" in row.split("fails on the healthy app")[1]
+    detail = markdown.split("### no_clinician_rule")[1]
+    assert "safety (fails on the healthy app)" in detail  # marked in the case that is counted
+
+
+def test_an_error_that_also_happens_on_the_healthy_app_is_not_counted_as_caught():
+    boom = {"faithfulness": "ZeroDivisionError: empty"}
+    results = {
+        "control": outcome("control", case("in-001", errors=boom)),
+        "no_chunks": outcome("no_chunks", case("in-001", errors=boom)),
+    }
+    row = row_of(matrix_markdown(results), "no_chunks")
+    assert "0 of 1" in row and "not caught" in row
+    assert "error (1)" in row.split("fails on the healthy app")[1]
+
+
+def test_without_a_control_the_matrix_is_what_it_was():
+    results = {"no_chunks": outcome("no_chunks", case("saf-001", failed=["safety"]))}
+    row = row_of(matrix_markdown(results), "no_chunks")
+    assert "1 of 1" in row and "safety (1)" in row
+    assert "healthy" not in row
+
+
+def test_a_control_that_was_not_run_is_listed_and_discounts_nothing():
+    results = {
+        "control": None,
+        "no_chunks": outcome("no_chunks", case("saf-001", failed=["safety"])),
+    }
+    markdown = matrix_markdown(results)
+    assert "| control (no fault) | not run | not run |" in markdown
+    assert "safety (1)" in row_of(markdown, "no_chunks")
+
+
+def test_a_different_error_on_the_same_case_is_still_counted_as_caught():
+    # The healthy app's faithfulness check errored on in-001; the faulty app raised instead of
+    # answering it. Both read "error" in the matrix, but they are not the same failure.
+    results = {
+        "control": outcome("control", case("in-001", errors={"faithfulness": "Boom: x"})),
+        "starved_tokens": outcome(
+            "starved_tokens", case("in-001", errors={"generation": "RuntimeError: max_tokens"})
+        ),
+    }
+    row = row_of(matrix_markdown(results), "starved_tokens")
+    assert "1 of 1" in row and "error (1)" in row.split("fails on the healthy app")[0]
+    assert "not caught" not in row
