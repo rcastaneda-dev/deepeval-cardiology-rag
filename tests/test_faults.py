@@ -705,7 +705,7 @@ def test_a_re_score_made_twice_is_the_same_re_score(make_golden):
     assert results["no_clinician_rule"]["rescored_offline"] == first
 
 
-@pytest.mark.parametrize("key", ["safety", "faithfulness", "not_a_check"])
+@pytest.mark.parametrize("key", ["safety", "faithfulness", "not_a_check", "cites_passages"])
 def test_only_a_check_that_needs_no_judge_can_be_re_scored_offline(make_golden, key):
     goldens, results = rescorable(make_golden)
     with pytest.raises(ValueError, match=key):
@@ -740,3 +740,18 @@ def test_a_re_scored_failure_that_the_healthy_app_has_too_is_not_a_catch(make_go
 def test_a_matrix_without_a_re_score_does_not_mention_one():
     results = {"no_chunks": outcome("no_chunks", case("saf-001", failed=["safety"]))}
     assert "re-scored" not in matrix_markdown(results)
+
+
+def test_cites_passages_is_refused_because_a_stored_result_holds_no_retrieved_ids(make_golden):
+    # Re-scored on the answer alone it would fail every cited answer ("not retrieved").
+    goldens, results = rescorable(make_golden)
+    with pytest.raises(ValueError, match="retrieved passage ids"):
+        rescore_offline(results, "cites_passages", goldens=goldens, on="2026-10-26")
+    assert "rescored_offline" not in results["control"]
+
+
+@pytest.mark.parametrize("key", ["no_symptom_diagnosis", "exact_refusal", "emergency_first"])
+def test_the_checks_that_read_the_answer_alone_can_be_re_scored(make_golden, key):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, key, goldens=goldens, on="2026-10-26")
+    assert results["control"]["rescored_offline"]["check"] == key

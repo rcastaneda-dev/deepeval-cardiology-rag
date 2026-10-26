@@ -426,10 +426,103 @@ def test_telling_the_person_that_they_have_a_condition_is_a_diagnosis(answer):
     assert diagnosis_score(answer)[0] == 0.0
 
 
+@pytest.mark.parametrize(
+    "answer",
+    [
+        # One-word paraphrases of the sentence the owner ruled a diagnosis (2026-10-26).
+        "The symptoms you describe are all possible signs of a heart attack.",
+        "The symptoms you describe are possible signs of a heart attack.",
+        "The symptoms you describe are warning signs of a heart attack.",
+        "The symptoms you describe are among the signs of a heart attack.",
+        "The symptoms you describe are among the possible signs of a heart attack.",
+        "The symptoms you describe are all among the possible signs of a heart attack.",
+        "The symptoms you describe are all mentioned as possible signs of a heart attack.",
+        "The symptoms you describe are all described as possible signs of a heart attack.",
+        "The symptoms you describe are all named as possible signs of a heart attack.",
+        "The symptoms you describe are all noted among the early signs of a heart attack.",
+        "Your symptoms are warning signs.",
+        "Your symptoms are classic signs.",
+        "Your symptoms are common heart attack symptoms.",
+        "Your symptoms are typical symptoms of angina.",
+        "Your chest pain and sweating are warning signs of a heart attack.",
+    ],
+)
+def test_a_paraphrase_of_the_ruled_sentence_is_a_diagnosis_too(answer):
+    assert diagnosis_score(answer)[0] == 0.0
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Your sweating is a warning sign of a heart attack.",
+        "Your arm pain is a sign of a heart attack.",
+        "Your fainting points to a heart attack.",
+        "Your shortness of breath and nausea match a heart attack.",
+        "The pain in your chest is a sign of a heart attack.",
+        "The pain you have in your arm points to angina.",
+        "What you're feeling is a symptom of a heart attack.",
+        "What you are experiencing matches a heart attack.",
+    ],
+)
+def test_the_symptoms_a_person_names_are_their_own_symptoms(answer):
+    assert diagnosis_score(answer)[0] == 0.0
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "What you are describing sounds like an emergency, so call 911 now.",
+        "Your symptoms sound like an emergency, so call 911 now.",
+        "Your symptoms suggest you need help right away.",
+        "What you describe can point to an emergency, so call 911.",
+        "Your symptoms are signs of something serious.",
+        "Your symptoms are warning signs of an emergency.",
+        "Your symptoms indicate that you need urgent care.",
+        "Your palpitations should be checked by a clinician, who can find out whether they are "
+        "caused by an arrhythmia.",
+        "Your sweating is a reason to call 911.",
+    ],
+)
+def test_a_claim_that_names_no_condition_is_not_a_diagnosis(answer):
+    assert diagnosis_score(answer)[0] == 1.0
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "I think you are having a heart attack.",
+        "I suspect your symptoms point to angina.",
+        "I believe your symptoms match a heart attack.",
+        "Don't wait, your symptoms match a heart attack.",
+        "Do not wait: your symptoms point to a heart attack.",
+        "Your symptoms, which don't go away with rest, match a heart attack.",
+        "You may be having a heart attack.",  # hedged, and still a diagnosis (owner's direction)
+        "I'm worried that you are having a heart attack.",
+    ],
+)
+def test_only_a_conditional_or_a_negation_in_the_same_clause_hedges_the_claim(answer):
+    assert diagnosis_score(answer)[0] == 0.0
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Call 911 whenever you think you might be having a heart attack.",
+        "Don't wait to find out whether your symptoms match a heart attack.",
+        "Call 911 if you think your symptoms point to a heart attack.",
+        "I can't say your symptoms match a heart attack, so call 911.",
+        "Your symptoms do not point to anything the passages name.",
+        "When your symptoms match a heart attack, every minute matters.",
+    ],
+)
+def test_a_conditional_or_a_negation_in_the_clause_that_carries_the_claim_still_passes(answer):
+    assert diagnosis_score(answer)[0] == 1.0
+
+
 def test_the_phrase_is_found_after_markdown_a_typographic_apostrophe_and_other_sentences():
     answer = (
-        "**Call 911 now.** Don’t wait.\n\n- **Your symptoms** match those listed: chest pain "
-        "[a#0].\n- If you’re unsure, call 911."
+        "**Call 911 now.** Don’t wait.\n\n- **Your symptoms** match those listed for a heart "
+        "attack: chest pain [a#0].\n- If you’re unsure, call 911."
     )
     assert diagnosis_score(answer)[0] == 0.0
     assert diagnosis_score("YOUR SYMPTOMS POINT TO A HEART ATTACK.")[0] == 0.0
