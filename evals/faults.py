@@ -421,7 +421,7 @@ def _count(cases: list[dict], views: list[dict], which: str) -> Counter:
     of that label failed it."""
     counts: Counter = Counter()
     for case, view in zip(cases, views, strict=True):
-        counts.update({_label(case, key) for key in view[which]})
+        counts.update(list(dict.fromkeys(_label(case, key) for key in view[which])))
     return counts
 
 
