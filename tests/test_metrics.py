@@ -35,8 +35,8 @@ EXPECTED_CLASSES = {
         "CitesRetrievedPassages",
     ],
     "out_of_scope": ["FaithfulnessMetric", "BoundedGEval", "ExactRefusal"],
-    # EmergencyFirst joins it only on emergency cases (see below).
-    "safety": ["BoundedGEval"],
+    # EmergencyFirst joins them only on emergency cases (see below).
+    "safety": ["BoundedGEval", "NoSymptomDiagnosis"],
     "bias": ["BiasMetric", "FaithfulnessMetric", "BoundedGEval", "CitesRetrievedPassages"],
 }
 
@@ -211,7 +211,7 @@ def test_rubric_metrics_use_fixed_evaluation_steps(make_golden, category):
 
 
 def test_safety_rubric_scores_are_anchored(make_golden):
-    (safety,) = metrics_for(make_golden(category="safety"))
+    safety = metrics_for(make_golden(category="safety"))[0]
     assert [r.score_range for r in safety.rubric] == [(0, 3), (4, 7), (8, 10)]
 
 
@@ -340,7 +340,7 @@ def test_an_out_of_range_bias_rubric_score_is_an_error_not_a_pass(make_golden):
 
 
 def test_an_out_of_range_high_score_is_an_error_not_a_pass(make_golden):
-    (safety,) = metrics_for(make_golden(category="safety"))
+    safety = metrics_for(make_golden(category="safety"))[0]
     safety.error = None
     safety.score = 3.54
     safety._bound()
@@ -350,7 +350,7 @@ def test_an_out_of_range_high_score_is_an_error_not_a_pass(make_golden):
 
 
 def test_an_out_of_range_low_score_is_an_error_not_a_fail_by_threshold(make_golden):
-    (safety,) = metrics_for(make_golden(category="safety"))
+    safety = metrics_for(make_golden(category="safety"))[0]
     safety.error = None
     safety.score = -0.2
     safety._bound()
@@ -359,7 +359,7 @@ def test_an_out_of_range_low_score_is_an_error_not_a_fail_by_threshold(make_gold
 
 
 def test_an_in_range_score_keeps_normal_threshold_behaviour(make_golden):
-    (safety,) = metrics_for(make_golden(category="safety"))
+    safety = metrics_for(make_golden(category="safety"))[0]
     cutoff = THRESHOLDS["safety"]
     for score, expected in [
         (0.9, True),
@@ -377,7 +377,7 @@ def test_an_in_range_score_keeps_normal_threshold_behaviour(make_golden):
 
 def test_a_score_a_float_rounding_error_above_one_is_not_an_error(make_golden):
     # DeepEval often reports 1.0000000000000002 for a full-marks answer.
-    (safety,) = metrics_for(make_golden(category="safety"))
+    safety = metrics_for(make_golden(category="safety"))[0]
     safety.error = None
     safety.score = 1.0000000000000002
     assert safety._bound() == 1.0
@@ -487,10 +487,25 @@ def test_adding_a_metric_to_report_only_makes_it_warn_on_every_case(make_golden,
 
 def test_emergency_first_runs_only_on_emergency_cases(make_golden):
     plain = metric_specs_for(make_golden(id="saf-003", category="safety"))
-    assert [key for key, _ in plain] == ["safety"]
+    assert [key for key, _ in plain] == ["safety", "no_symptom_diagnosis"]
     urgent = metric_specs_for(make_golden(id="saf-001", category="safety", emergency=True))
-    assert [key for key, _ in urgent] == ["safety", "emergency_first"]
-    assert [type(metric).__name__ for _, metric in urgent] == ["BoundedGEval", "EmergencyFirst"]
+    assert [key for key, _ in urgent] == ["safety", "no_symptom_diagnosis", "emergency_first"]
+    assert [type(metric).__name__ for _, metric in urgent] == [
+        "BoundedGEval",
+        "NoSymptomDiagnosis",
+        "EmergencyFirst",
+    ]
+
+
+def test_the_diagnosis_check_runs_on_every_safety_case_at_the_threshold_one(make_golden):
+    # The owner's diagnosis line (evals/deterministic.py) holds for any question a person asks
+    # about their own health, emergency or not.
+    for emergency in (False, True):
+        golden = make_golden(id="saf-003", category="safety", emergency=emergency)
+        (check,) = [m for key, m in metric_specs_for(golden) if key == "no_symptom_diagnosis"]
+        assert type(check).__name__ == "NoSymptomDiagnosis"
+        assert check.threshold == THRESHOLDS["no_symptom_diagnosis"] == 1.0
+        assert check.model is None
 
 
 def test_deterministic_checks_are_built_at_their_own_threshold_without_a_judge(make_golden):
@@ -505,7 +520,7 @@ def test_a_flaky_override_reaches_a_deterministic_check_like_any_other(
 ):
     monkeypatch.setitem(FLAKY, "saf-001", make_flake("emergency_first"))
     golden = make_golden(id="saf-001", category="safety", emergency=True)
-    assert [metric.flaky for metric in metrics_for(golden)] == [False, True]
+    assert [metric.flaky for metric in metrics_for(golden)] == [False, False, True]
 
 
 # Median-of-3 judging ------------------------------------------------------------------------
@@ -636,7 +651,7 @@ def test_a_median_reports_the_name_threshold_and_flaky_flag_of_the_plain_metric(
 def test_the_copies_of_one_check_are_separate_objects(make_golden, monkeypatch):
     # A metric keeps its score, verdicts and cost between measures, so each judging needs its own.
     monkeypatch.setenv("JUDGE_REPEATS", "3")
-    (median,) = metrics_for(make_golden(category="safety"))
+    median = metrics_for(make_golden(category="safety"))[0]
     assert len({id(copy) for copy in median.copies}) == 3
 
 
@@ -653,11 +668,17 @@ def test_deterministic_checks_are_never_repeated(make_golden, monkeypatch):
         for key, metric in metric_specs_for(golden)
         if key in DETERMINISTIC
     ]
-    assert [key for key, _ in checks] == ["cites_passages", "exact_refusal", "emergency_first"]
-    assert [type(metric) is MedianOf for _, metric in checks] == [False] * 3
+    assert [key for key, _ in checks] == [
+        "cites_passages",
+        "exact_refusal",
+        "no_symptom_diagnosis",
+        "emergency_first",
+    ]
+    assert [type(metric) is MedianOf for _, metric in checks] == [False] * 4
     assert [type(metric).__name__ for _, metric in checks] == [
         "CitesRetrievedPassages",
         "ExactRefusal",
+        "NoSymptomDiagnosis",
         "EmergencyFirst",
     ]
 
