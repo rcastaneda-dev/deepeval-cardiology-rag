@@ -29,6 +29,12 @@ class MedianOf(BaseMetric):
     such as the 3.54 BoundedGEval refuses, never gets outvoted into a pass. An exception from a
     copy is raised as a plain metric would raise it, after the other copies have finished.
 
+    One error is given a second chance (Ruling 41): a copy whose judge returned a score outside 0
+    to 1 (`out_of_range`, set by BoundedGEval) is replaced once by a fresh copy, which judges the
+    answer again, and the reason says "judging i of n re-judged after an out-of-range score".
+    Only if the new judging is out of range too, or errors in any way, is the check an error. Any
+    other error fails the check at once, as before.
+
     DeepEval builds a measured metric again from `build` and `times` (copy_metrics), so those two
     names must stay as they are. With an even number of copies the median is the mean of the two
     in the middle, and the reason is the lower one's.
@@ -43,6 +49,8 @@ class MedianOf(BaseMetric):
         self.build = build
         self.times = times
         self.copies = [build() for _ in range(times)]
+        self._discarded: list[BaseMetric] = []  # the judgings that were out of range
+        self._retried: dict[int, str] = {}  # copy number -> the error its first judging ended in
         first = self.copies[0]
         self.threshold = first.threshold
         self.flaky = first.flaky
@@ -54,6 +62,8 @@ class MedianOf(BaseMetric):
         self._prepare()
         for copy in self.copies:
             copy.measure(test_case, *args, **kwargs)
+        for number in self._out_of_range():
+            self._replace(number).measure(test_case, *args, **kwargs)
         return self._combine()
 
     async def a_measure(self, test_case, *args, **kwargs) -> float | None:
@@ -67,15 +77,44 @@ class MedianOf(BaseMetric):
         for outcome in outcomes:
             if isinstance(outcome, BaseException):
                 raise outcome
+        fresh = [self._replace(number) for number in self._out_of_range()]
+        outcomes = await asyncio.gather(
+            *(copy.a_measure(test_case, *args, **kwargs) for copy in fresh),
+            return_exceptions=True,
+        )
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                raise outcome
         return self._combine()
 
     def _prepare(self) -> None:
         """What DeepEval does to a metric before it measures, done for the copies: it clears the
         error (BoundedGEval sets one but never clears it) and, in its synchronous path, switches
         async_mode off on the metric it is given."""
+        self._discarded, self._retried = [], {}
         for copy in self.copies:
             copy.error = None
             copy.async_mode = self.async_mode
+
+    def _out_of_range(self) -> list[int]:
+        """The numbers of the copies whose judge returned a score outside 0 to 1."""
+        return [
+            number
+            for number, copy in enumerate(self.copies)
+            if copy.error is not None and getattr(copy, "out_of_range", False)
+        ]
+
+    def _replace(self, number: int) -> BaseMetric:
+        """Puts a fresh copy in place of copy `number`, keeping the old one for its cost, and
+        returns it ready to measure."""
+        old = self.copies[number]
+        self._discarded.append(old)
+        self._retried[number] = str(old.error)
+        fresh = self.build()
+        fresh.error = None
+        fresh.async_mode = self.async_mode
+        self.copies[number] = fresh
+        return fresh
 
     def _combine(self) -> float | None:
         """Sets this metric's score, reason, error, cost and verdict from the measured copies."""
@@ -85,7 +124,12 @@ class MedianOf(BaseMetric):
         shown = ", ".join(
             "err" if copy.score is None else f"{copy.score:.2f}" for copy in self.copies
         )
-        self.reason = f"Median of {count} judgings ({shown})."
+        self.reason = f"Median of {count} judgings ({shown})"
+        self.reason += "".join(
+            f"; judging {number + 1} of {count} re-judged after an out-of-range score"
+            for number in sorted(self._retried)
+        )
+        self.reason += "."
         if scored:
             middle = scored[(len(scored) - 1) // 2]
             if middle.reason:
@@ -94,15 +138,18 @@ class MedianOf(BaseMetric):
         problems = []
         for number, copy in enumerate(self.copies, 1):
             if copy.error is not None:
-                problems.append(f"judging {number} of {count}: {copy.error}")
+                again = self._retried.get(number - 1)
+                after = "" if again is None else f" (re-judged once after: {again})"
+                problems.append(f"judging {number} of {count}: {copy.error}{after}")
             elif copy.score is None:
                 problems.append(f"judging {number} of {count}: no score")
         self.error = "; ".join(problems) or None
 
-        costs = [copy.evaluation_cost for copy in self.copies]
+        paid = [*self.copies, *self._discarded]  # a discarded judging was paid for too
+        costs = [copy.evaluation_cost for copy in paid]
         self.evaluation_cost = None if None in costs else sum(costs)
-        self.input_tokens = _total(copy.input_tokens for copy in self.copies)
-        self.output_tokens = _total(copy.output_tokens for copy in self.copies)
+        self.input_tokens = _total(copy.input_tokens for copy in paid)
+        self.output_tokens = _total(copy.output_tokens for copy in paid)
         self.is_successful()  # sets self.success; an error always fails
         return self.score
 

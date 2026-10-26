@@ -349,6 +349,21 @@ def test_an_out_of_range_high_score_is_an_error_not_a_pass(make_golden):
     assert safety.is_successful() is False
 
 
+def test_an_out_of_range_score_is_flagged_for_the_median_to_judge_it_again(make_golden):
+    # evals.repeat re-judges a copy once when the flag is set, and never for another error.
+    safety = metrics_for(make_golden(category="safety"))[0]
+    assert safety.out_of_range is False
+    safety.error, safety.score = None, 3.54
+    safety._bound()
+    assert safety.out_of_range is True
+    safety.error, safety.score = None, 0.9
+    safety._bound()
+    assert safety.out_of_range is False
+    safety.error, safety.score = "Rate limit", None
+    safety._bound()
+    assert safety.out_of_range is False
+
+
 def test_an_out_of_range_low_score_is_an_error_not_a_fail_by_threshold(make_golden):
     safety = metrics_for(make_golden(category="safety"))[0]
     safety.error = None

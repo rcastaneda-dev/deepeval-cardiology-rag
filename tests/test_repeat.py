@@ -46,8 +46,10 @@ class FakeMetric(BaseMetric):
         name="Fake check",
         tracker=None,
         delay=0.01,
+        out_of_range=False,
     ):
         self.planned = (score, error, raises, reason)
+        self.planned_out_of_range = out_of_range
         self.threshold, self.flaky, self._name = threshold, flaky, name
         self.evaluation_cost = cost
         self.tracker, self.delay = tracker, delay
@@ -67,6 +69,7 @@ class FakeMetric(BaseMetric):
         if error is not None:  # like BoundedGEval, a success does not clear an error
             self.error = error
         self.reason = None if reason is None else reason.format(score=score)
+        self.out_of_range = self.planned_out_of_range  # as BoundedGEval sets it
         self.success = self.is_successful()
         self.finished = True
         return self.score
@@ -220,15 +223,147 @@ def test_the_errors_of_one_measure_are_gone_after_a_clean_one(run):
     assert metric.is_successful() is True
 
 
-def test_an_out_of_range_geval_copy_is_an_error_not_a_pass(make_golden, monkeypatch, run):
+def malformed(score=3.54):
+    """A copy whose judge returned a score outside 0..1, as BoundedGEval reports it."""
+    return FakeMetric(
+        score, error=f"GEval score {score} outside 0..1", out_of_range=True, reason=None
+    )
+
+
+def counting(*fakes):
+    """A `build` that hands out these fakes and counts how many it was asked for."""
+    queue = iter(fakes)
+    asked = []
+
+    def build():
+        asked.append(1)
+        return next(queue)
+
+    build.asked = asked
+    return build
+
+
+def test_an_out_of_range_copy_is_judged_again_once_and_the_new_score_counts(run):
+    # Ruling 41: the copy is re-judged by a fresh copy; a good retry replaces its score.
+    build = counting(FakeMetric(0.9), malformed(), FakeMetric(0.8), FakeMetric(0.85))
+    metric = MedianOf(build, 3)
+    assert run(metric) == 0.85
+    assert (metric.error, metric.is_successful()) == (None, True)
+    assert len(build.asked) == 4
+    assert "judging 2 of 3 re-judged after an out-of-range score" in metric.reason
+    assert metric.reason.startswith("Median of 3 judgings (0.90, 0.85, 0.80); ")
+
+
+def test_the_retried_score_can_fail_the_check_on_its_median_without_an_error(run):
+    metric = MedianOf(counting(FakeMetric(0.2), malformed(), FakeMetric(0.9), FakeMetric(0.3)), 3)
+    assert run(metric) == 0.3
+    assert metric.error is None
+    assert metric.is_successful() is False
+
+
+def test_only_the_out_of_range_copy_is_judged_again(run):
+    others = [FakeMetric(0.9), FakeMetric(0.8)]
+    first = malformed()
+    retry = FakeMetric(0.85)
+    metric = MedianOf(counting(others[0], first, others[1], retry), 3)
+    run(metric)
+    assert [len(fake.calls) for fake in (others[0], first, others[1], retry)] == [1, 1, 1, 1]
+    assert metric.copies == [others[0], retry, others[1]]
+    # The retry is measured with the arguments DeepEval passed the others.
+    assert retry.calls == others[0].calls == [{"_show_indicator": False}]
+
+
+def test_a_second_out_of_range_score_makes_the_whole_check_an_error(run):
+    metric = MedianOf(
+        counting(FakeMetric(0.9), malformed(3.54), FakeMetric(0.8), malformed(4.27)), 3
+    )
+    run(metric)
+    # The median 0.9 would pass; two malformed judgings of the same copy are an error.
+    assert metric.error == (
+        "judging 2 of 3: GEval score 4.27 outside 0..1 "
+        "(re-judged once after: GEval score 3.54 outside 0..1)"
+    )
+    assert metric.is_successful() is False
+    assert "judging 2 of 3 re-judged after an out-of-range score" in metric.reason
+
+
+def test_a_retry_that_errors_in_another_way_makes_the_whole_check_an_error(run):
+    metric = MedianOf(
+        counting(
+            FakeMetric(0.9),
+            malformed(),
+            FakeMetric(0.8),
+            FakeMetric(None, error="Rate limit", reason=None),
+        ),
+        3,
+    )
+    run(metric)
+    assert metric.error.startswith("judging 2 of 3: Rate limit")
+    assert metric.is_successful() is False
+
+
+def test_an_error_that_is_not_an_out_of_range_score_is_not_judged_again(run):
+    build = counting(FakeMetric(0.9), FakeMetric(None, error="Rate limit"), FakeMetric(0.8))
+    metric = MedianOf(build, 3)
+    run(metric)
+    assert len(build.asked) == 3  # a fourth would have raised StopIteration
+    assert metric.error == "judging 2 of 3: Rate limit"
+    assert "re-judged" not in metric.reason
+
+
+def test_two_out_of_range_copies_are_each_judged_again(run):
+    build = counting(
+        malformed(3.54), FakeMetric(0.9), malformed(4.27), FakeMetric(0.85), FakeMetric(0.8)
+    )
+    metric = MedianOf(build, 3)
+    assert run(metric) == 0.85
+    assert metric.error is None
+    assert "judging 1 of 3 re-judged after an out-of-range score" in metric.reason
+    assert "judging 3 of 3 re-judged after an out-of-range score" in metric.reason
+
+
+def test_the_cost_of_the_discarded_judging_is_still_counted(run):
+    metric = MedianOf(counting(FakeMetric(0.9), malformed(), FakeMetric(0.8), FakeMetric(0.85)), 3)
+    run(metric)
+    assert metric.evaluation_cost == pytest.approx(0.04)
+
+
+def test_an_exception_from_the_retry_is_raised_like_any_other(run):
+    metric = MedianOf(
+        counting(
+            FakeMetric(0.9),
+            malformed(),
+            FakeMetric(0.8),
+            FakeMetric(0.9, raises=RuntimeError("rate limited")),
+        ),
+        3,
+    )
+    with pytest.raises(RuntimeError, match="rate limited"):
+        run(metric)
+
+
+def test_a_clean_measure_after_a_retry_judges_the_replacement_copy_again(run):
+    metric = MedianOf(counting(FakeMetric(0.9), malformed(), FakeMetric(0.8), FakeMetric(0.85)), 3)
+    run(metric)
+    assert "re-judged" in metric.reason
+    for copy in metric.copies:  # the same copies measure the next case; none is malformed now
+        copy.planned = (0.9, None, None, "Reason for {score}.")
+        copy.planned_out_of_range = False
+    run(metric)
+    assert metric.reason == "Median of 3 judgings (0.90, 0.90, 0.90). Reason for 0.9."
+
+
+def test_a_real_out_of_range_geval_copy_is_judged_again_before_it_is_an_error(
+    make_golden, monkeypatch, run
+):
     # The copies are real BoundedGEvals, built as the gate builds them. Only the parent measure,
     # the judge call, is replaced; BoundedGEval's own bound check runs for real.
     wrapper = dict(metric_specs_for(make_golden(category="safety"), repeats=3))["safety"]
     assert type(wrapper) is MedianOf
-    scores = {id(copy): score for copy, score in zip(wrapper.copies, (0.9, 3.54, 0.8), strict=True)}
+    plan = iter([0.9, 3.54, 0.8, 0.85])
 
     def measured(self, test_case, *args, **kwargs):
-        self.score, self.error = scores[id(self)], None
+        self.score, self.error = next(plan), None
         return self.score
 
     async def a_measured(self, test_case, *args, **kwargs):
@@ -237,9 +372,32 @@ def test_an_out_of_range_geval_copy_is_an_error_not_a_pass(make_golden, monkeypa
     monkeypatch.setattr(GEval, "measure", measured)
     monkeypatch.setattr(GEval, "a_measure", a_measured)
     run(wrapper)
-    # The middle score, 0.9, would pass at 0.75; the malformed one decides.
+    assert wrapper.score == 0.85
+    assert wrapper.error is None
+    assert wrapper.is_successful() is True
+    assert "judging 2 of 3 re-judged after an out-of-range score" in wrapper.reason
+
+
+def test_a_real_geval_copy_out_of_range_twice_is_an_error_not_a_pass(make_golden, monkeypatch, run):
+    wrapper = dict(metric_specs_for(make_golden(category="safety"), repeats=3))["safety"]
+    plan = iter([0.9, 3.54, 0.8, 4.27])
+
+    def measured(self, test_case, *args, **kwargs):
+        self.score, self.error = next(plan), None
+        return self.score
+
+    async def a_measured(self, test_case, *args, **kwargs):
+        return measured(self, test_case)
+
+    monkeypatch.setattr(GEval, "measure", measured)
+    monkeypatch.setattr(GEval, "a_measure", a_measured)
+    run(wrapper)
+    # The middle score, 0.9, would pass at the cutoff; the malformed one decides.
     assert wrapper.score == 0.9
-    assert wrapper.error == "judging 2 of 3: GEval score 3.54 outside 0..1"
+    assert wrapper.error == (
+        "judging 2 of 3: GEval score 4.27 outside 0..1 "
+        "(re-judged once after: GEval score 3.54 outside 0..1)"
+    )
     assert wrapper.is_successful() is False
 
 
@@ -495,12 +653,23 @@ def test_deepeval_fails_the_gates_metrics_when_the_median_of_the_judgings_fails(
 
 
 @pytest.mark.parametrize("run_async", [True, False])
-def test_deepeval_fails_the_gates_metrics_when_one_judging_is_out_of_range(
+def test_deepeval_fails_the_gates_metrics_when_a_judging_is_out_of_range_twice(
     make_golden, scored_by_the_geval_copies, run_async
 ):
-    # Two of three would pass, and the median 0.9 too, but a malformed score is an error.
-    scored_by_the_geval_copies(0.9, 3.54, 0.8)
+    # Two of three would pass, and the median 0.9 too, but a judging that is out of range twice (a
+    # second judging of the same copy is made) is an error.
+    scored_by_the_geval_copies(0.9, 3.54, 0.8, 4.27)
     golden = make_golden(id="saf-001", category="safety", emergency=True)
     metrics = [metric for _, metric in metric_specs_for(golden, repeats=3)]
-    with pytest.raises(AssertionError, match=r"GEval score 3\.54 outside 0\.\.1"):
+    with pytest.raises(AssertionError, match=r"GEval score 4\.27 outside 0\.\.1"):
         assert_test(test_case=EMERGENCY_CASE, metrics=metrics, run_async=run_async)
+
+
+@pytest.mark.parametrize("run_async", [True, False])
+def test_deepeval_passes_the_gates_metrics_when_a_malformed_judging_is_judged_again_and_fine(
+    make_golden, scored_by_the_geval_copies, run_async
+):
+    scored_by_the_geval_copies(0.9, 3.54, 0.8, 0.85)
+    golden = make_golden(id="saf-001", category="safety", emergency=True)
+    metrics = [metric for _, metric in metric_specs_for(golden, repeats=3)]
+    assert_test(test_case=EMERGENCY_CASE, metrics=metrics, run_async=run_async)
