@@ -127,6 +127,7 @@ def test_the_script_runs_the_smoke_cases_only_and_writes_the_matrix_and_the_resu
     assert seeded_faults.main(["--out", str(out), "--faults", "no_chunks,starved_tokens"]) == 0
 
     assert calls == [
+        ("control", ["saf-001", "saf-005"]),
         ("no_chunks", ["saf-001", "saf-005"]),
         ("starved_tokens", ["saf-001", "saf-005"]),
     ]
@@ -137,23 +138,27 @@ def test_the_script_runs_the_smoke_cases_only_and_writes_the_matrix_and_the_resu
     data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
     assert data["git_sha"] == "d41ab7e" and data["dirty"] is False
     assert data["smoke_cases"] == ["saf-001", "saf-005"]
-    assert list(data["faults"]) == ["no_chunks", "starved_tokens"]
-    assert data["spent"] == pytest.approx(0.2)
+    assert list(data["faults"]) == ["control", "no_chunks", "starved_tokens"]
+    assert data["spent"] == pytest.approx(0.3)
     assert data["faults"]["no_chunks"]["cases"][0]["answer"] == "saf-001 answer"
 
 
-def test_the_default_is_all_nine_faults_in_the_matrix_order(tmp_path, monkeypatch, make_golden):
+def test_the_default_is_the_control_then_all_nine_faults_in_the_matrix_order(
+    tmp_path, monkeypatch, make_golden
+):
     calls = []
     patch_script(monkeypatch, make_golden, planned, calls)
     assert seeded_faults.main(["--out", str(tmp_path / "all.md")]) == 0
-    assert [name for name, _ in calls] == list(FAULTS)
+    assert [name for name, _ in calls] == ["control", *FAULTS]
 
 
 def test_a_fault_the_guard_skipped_is_listed_as_not_run(tmp_path, monkeypatch, make_golden):
-    patch_script(monkeypatch, make_golden, lambda name: planned(name, cost=3.0))
+    # The control and the first fault cost $1 each, which reaches the limit of $2.
+    patch_script(monkeypatch, make_golden, lambda name: planned(name, cost=1.0))
     out = tmp_path / "guarded.md"
     assert seeded_faults.main(["--out", str(out), "--max-cost", "2"]) == 0
     markdown = out.read_text(encoding="utf-8")
+    assert "| control (no fault) | 0 of 2 |" in markdown
     assert "| answer_from_memory | 0 of 2 | not caught |" in markdown
     assert "| no_citation_rule | not run | not run |" in markdown
     assert "spend guard" in markdown
@@ -192,6 +197,90 @@ def test_the_app_is_asked_the_first_smoke_question_once_with_no_fault_on(
     patch_script(monkeypatch, make_golden, planned, app=app)
     assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--faults", "no_chunks"]) == 0
     assert app.asked == ["What is a heart attack?"]  # the first smoke case's question
+
+
+def test_the_control_runs_first_once_even_when_only_some_faults_are_asked_for(
+    tmp_path, monkeypatch, make_golden
+):
+    calls = []
+    patch_script(monkeypatch, make_golden, planned, calls)
+    assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--faults", "worst_chunks"]) == 0
+    assert [name for name, _ in calls] == ["control", "worst_chunks"]
+
+
+def test_the_control_is_automatic_so_it_cannot_be_asked_for_as_a_fault(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    calls = []
+    patch_script(monkeypatch, make_golden, planned, calls)
+    assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--faults", "control"]) == 2
+    assert "control" in capsys.readouterr().err
+    assert calls == []
+
+
+def test_a_check_that_fails_on_the_healthy_app_is_marked_and_does_not_catch_a_fault(
+    tmp_path, monkeypatch, make_golden
+):
+    def plan(name):
+        return planned(name, failed=["safety"] if name in ("control", "no_clinician_rule") else [])
+
+    patch_script(monkeypatch, make_golden, plan)
+    out = tmp_path / "healthy.md"
+    assert seeded_faults.main(["--out", str(out), "--faults", "no_clinician_rule"]) == 0
+    markdown = out.read_text(encoding="utf-8")
+    assert "| control (no fault) | 1 of 2 | fails on the healthy app: safety (1) |" in markdown
+    (row,) = [line for line in markdown.splitlines() if line.startswith("| no_clinician_rule ")]
+    assert "0 of 2" in row and "not caught" in row and "fails on the healthy app" in row
+    assert "control" in markdown.split("## Matrix")[0]  # the header says what the control is
+
+
+def test_a_hand_written_section_is_kept_when_the_report_is_rendered_again(
+    tmp_path, monkeypatch, make_golden
+):
+    patch_script(monkeypatch, make_golden, planned)
+    first = tmp_path / "first.md"
+    assert seeded_faults.main(["--out", str(first), "--faults", "no_chunks"]) == 0
+    assert "Known gaps" not in first.read_text(encoding="utf-8")
+
+    notes = tmp_path / "gaps.md"
+    notes.write_text("## Known gaps\n\n- no_clinician_rule: no check reads it.\n", encoding="utf-8")
+    again = tmp_path / "again.md"
+    args = ["--from-json", str(first.with_suffix(".json")), "--out", str(again)]
+    assert seeded_faults.main([*args, "--notes", str(notes)]) == 0
+    markdown = again.read_text(encoding="utf-8")
+    assert markdown.endswith("## Known gaps\n\n- no_clinician_rule: no check reads it.\n")
+    assert markdown.index("## Matrix") < markdown.index("## Known gaps")
+    # The same JSON without the option renders the report without the section, as before.
+    plain = tmp_path / "plain.md"
+    assert (
+        seeded_faults.main(["--from-json", str(first.with_suffix(".json")), "--out", str(plain)])
+        == 0
+    )
+    assert plain.read_text(encoding="utf-8") == first.read_text(encoding="utf-8")
+
+
+def test_a_run_with_notes_writes_them_into_the_report_after_every_fault(
+    tmp_path, monkeypatch, make_golden
+):
+    patch_script(monkeypatch, make_golden, planned)
+    notes = tmp_path / "gaps.md"
+    notes.write_text("## Known gaps\n\nnone yet\n", encoding="utf-8")
+    out = tmp_path / "x.md"
+    assert (
+        seeded_faults.main(["--out", str(out), "--faults", "no_chunks", "--notes", str(notes)]) == 0
+    )
+    assert out.read_text(encoding="utf-8").endswith("## Known gaps\n\nnone yet\n")
+
+
+def test_notes_that_cannot_be_read_are_refused_before_anything_is_paid_for(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    calls = []
+    patch_script(monkeypatch, make_golden, planned, calls)
+    missing = tmp_path / "nope.md"
+    assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--notes", str(missing)]) == 2
+    assert "nope.md" in capsys.readouterr().err
+    assert calls == []
 
 
 def test_a_judge_repeats_override_is_refused_before_anything_is_paid_for(
