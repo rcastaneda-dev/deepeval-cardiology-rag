@@ -15,8 +15,8 @@ class FakeRag:
         )
 
 
-def patch_script(monkeypatch, make_golden, *, dirty=False):
-    monkeypatch.setattr(record_answers, "load_goldens", lambda: [make_golden()])
+def patch_script(monkeypatch, make_golden, *, dirty=False, goldens=None):
+    monkeypatch.setattr(record_answers, "load_goldens", lambda: goldens or [make_golden()])
     monkeypatch.setattr(record_answers, "build_pipeline", lambda settings, rebuild: FakeRag())
     monkeypatch.setattr(record_answers, "_git_sha", lambda: "d41ab7e")
     monkeypatch.setattr(record_answers, "_git_dirty", lambda: dirty)
@@ -78,3 +78,72 @@ def test_the_script_names_the_default_file_after_the_day(tmp_path, monkeypatch, 
     assert record_answers.main([]) == 0
     (written,) = tmp_path.glob("*.json")
     assert written.stem == load(written)["created"]
+
+
+def three_cases(make_golden):
+    return [
+        make_golden(id="saf-001", category="safety", question="Chest pain now?"),
+        make_golden(id="saf-002", category="safety", question="Face drooping now?"),
+        make_golden(id="in-001"),
+    ]
+
+
+def test_cases_limits_the_script_to_the_named_goldens_in_dataset_order(
+    tmp_path, monkeypatch, make_golden
+):
+    patch_script(monkeypatch, make_golden, goldens=three_cases(make_golden))
+    out = tmp_path / "answers.json"
+    assert record_answers.main(["--out", str(out), "--cases", "in-001,saf-001"]) == 0
+    assert [case["id"] for case in load(out)["cases"]] == ["saf-001", "in-001"]
+
+
+def test_a_case_that_is_not_in_the_dataset_is_refused_before_anything_is_paid_for(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    patch_script(monkeypatch, make_golden, goldens=three_cases(make_golden))
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("an API call was attempted")
+
+    monkeypatch.setattr(record_answers, "build_pipeline", refuse)
+    out = tmp_path / "answers.json"
+    assert record_answers.main(["--out", str(out), "--cases", "saf-001,saf-099"]) == 2
+    assert "saf-099" in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_samples_asks_each_question_that_many_times_into_one_file(
+    tmp_path, monkeypatch, make_golden
+):
+    patch_script(monkeypatch, make_golden, goldens=three_cases(make_golden))
+    out = tmp_path / "samples.json"
+    assert record_answers.main(["--out", str(out), "--cases", "saf-001", "--samples", "3"]) == 0
+    snapshot = load(out)
+    assert snapshot["samples"] == 3 and snapshot["git_sha"] == "d41ab7e"
+    assert [(case["id"], case["sample"]) for case in snapshot["cases"]] == [
+        ("saf-001", 1),
+        ("saf-001", 2),
+        ("saf-001", 3),
+    ]
+
+
+def test_one_sample_is_an_ordinary_snapshot(tmp_path, monkeypatch, make_golden):
+    patch_script(monkeypatch, make_golden)
+    out = tmp_path / "answers.json"
+    assert record_answers.main(["--out", str(out), "--samples", "1"]) == 0
+    snapshot = load(out)
+    assert "samples" not in snapshot and "sample" not in snapshot["cases"][0]
+
+
+def test_a_number_of_samples_that_is_a_typo_is_refused_before_anything_is_paid_for(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    patch_script(monkeypatch, make_golden)
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("an API call was attempted")
+
+    monkeypatch.setattr(record_answers, "build_pipeline", refuse)
+    for bad in ("0", "-1", "51"):
+        assert record_answers.main(["--out", str(tmp_path / "x.json"), "--samples", bad]) == 2
+    assert "samples" in capsys.readouterr().err

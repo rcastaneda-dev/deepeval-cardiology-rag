@@ -6,6 +6,7 @@ request gate always runs the live app. Pure Python, no DeepEval import.
 """
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from pathlib import Path
 
@@ -33,6 +34,33 @@ def record(goldens: list[Golden], rag, *, meta: dict) -> dict:
             }
         )
     return {"version": SNAPSHOT_VERSION, **meta, "cases": cases}
+
+
+def record_samples(
+    goldens: list[Golden], rag, *, samples: int, meta: dict, workers: int = 6
+) -> dict:
+    """Ask every golden question `samples` times, to see how the app answers the same question
+    again, and keep all the answers in one file: the cases of `record`, golden by golden and
+    sample by sample, each with its "sample" number (1 to `samples`), and "samples" in the meta.
+    The questions are asked `workers` at a time. Such a file is evidence, not a snapshot to
+    replay: the same question has several answers in it, so ReplayRag refuses it."""
+    if not isinstance(samples, int) or samples < 1:
+        raise ValueError(f"samples must be a whole number of at least 1, not {samples!r}")
+    jobs = [(golden, number) for golden in goldens for number in range(1, samples + 1)]
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(lambda job: rag.ask(job[0].question), jobs))
+    cases = [
+        {
+            "id": golden.id,
+            "sample": number,
+            "question": golden.question,
+            "answer": result.answer.text,
+            "cited_ids": list(result.answer.cited_ids),
+            "chunks": [asdict(chunk) for chunk in result.chunks],
+        }
+        for (golden, number), result in zip(jobs, results, strict=True)
+    ]
+    return {"version": SNAPSHOT_VERSION, **meta, "samples": samples, "cases": cases}
 
 
 def save(snapshot: dict, path: Path) -> None:
