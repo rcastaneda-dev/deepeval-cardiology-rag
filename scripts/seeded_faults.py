@@ -14,7 +14,9 @@ The JSON is rewritten after every fault, so a crash keeps the faults already pai
 each fault the script checks the cost DeepEval has reported so far (the generator's cost is not in
 it) and stops starting faults once it reaches --max-cost (default 2.00).
 
-It refuses to run with JUDGE_REPEATS set, so the report's "gate's own repeats" is true.
+It refuses to run with JUDGE_REPEATS set, so the report's "gate's own repeats" is true, and
+it asks the app one smoke question with no fault on first (one generator call) and stops if
+that raises, so a rejected key is not read as nine caught faults.
 
 --from-json renders the report again from a JSON file that run wrote, with no API call.
 """
@@ -169,6 +171,15 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"{len(names)} faults x {len(smoke)} smoke cases, spend guard ${args.max_cost:.2f}")
     rag = build_pipeline(settings, rebuild=True)
+    # With no fault on, the app must answer. A rejected key makes every case of every fault raise,
+    # and a matrix of "error" for nine faults would read as nine catches.
+    try:
+        rag.ask(smoke[0].question)
+    except Exception as exc:
+        return _refuse(
+            f"the app cannot answer {smoke[0].id} with no fault on, so no fault was run: "
+            f"{type(exc).__name__}: {exc}"
+        )
     results = run_all(
         names,
         smoke,

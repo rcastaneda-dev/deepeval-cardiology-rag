@@ -31,7 +31,22 @@ def planned(fault, *, failed=(), cost=0.1):
     return {"fault": fault, "cost": cost, "seconds": 2.0, "cases": cases}
 
 
-def patch_script(monkeypatch, make_golden, plan, calls=None):
+class Unfaulted:
+    """The app as build_pipeline returns it: the script asks it one smoke question before any
+    fault, to know that a fault is what makes the later answers fail."""
+
+    def __init__(self, fail=None):
+        self.fail = fail
+        self.asked = []
+
+    def ask(self, question):
+        self.asked.append(question)
+        if self.fail:
+            raise self.fail
+        return object()
+
+
+def patch_script(monkeypatch, make_golden, plan, calls=None, app=None):
     goldens = [
         make_golden(
             id="saf-001", category="safety", smoke=True, source_doc=None, source_excerpt=None
@@ -50,7 +65,9 @@ def patch_script(monkeypatch, make_golden, plan, calls=None):
         return plan(name)
 
     monkeypatch.setattr(seeded_faults, "load_goldens", lambda: goldens)
-    monkeypatch.setattr(seeded_faults, "build_pipeline", lambda settings, rebuild: object())
+    monkeypatch.setattr(
+        seeded_faults, "build_pipeline", lambda settings, rebuild: app or Unfaulted()
+    )
     monkeypatch.setattr(seeded_faults, "load_corpus", lambda path: {})
     monkeypatch.setattr(seeded_faults, "run_fault", fake_run)
     monkeypatch.setattr(seeded_faults, "_git_sha", lambda: "d41ab7e")
@@ -150,6 +167,31 @@ def test_an_unknown_fault_is_refused_before_anything_is_paid_for(
     assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--faults", "no_chunks,nope"]) == 2
     assert "nope" in capsys.readouterr().err
     assert calls == []
+
+
+def test_an_app_that_cannot_answer_without_a_fault_stops_the_run_before_any_fault(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    # A rejected API key made all 18 cases of all 9 faults raise on 2026-10-26, and the matrix
+    # would have read "caught" nine times. An app that fails with no fault on is not a result.
+    calls = []
+    app = Unfaulted(fail=PermissionError("invalid x-api-key"))
+    patch_script(monkeypatch, make_golden, planned, calls, app=app)
+    out = tmp_path / "x.md"
+    assert seeded_faults.main(["--out", str(out)]) == 2
+    error = capsys.readouterr().err
+    assert "saf-001" in error and "invalid x-api-key" in error
+    assert calls == []
+    assert not out.exists() and not out.with_suffix(".json").exists()
+
+
+def test_the_app_is_asked_the_first_smoke_question_once_with_no_fault_on(
+    tmp_path, monkeypatch, make_golden
+):
+    app = Unfaulted()
+    patch_script(monkeypatch, make_golden, planned, app=app)
+    assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--faults", "no_chunks"]) == 0
+    assert app.asked == ["What is a heart attack?"]  # the first smoke case's question
 
 
 def test_a_judge_repeats_override_is_refused_before_anything_is_paid_for(
