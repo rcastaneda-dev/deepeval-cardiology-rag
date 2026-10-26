@@ -57,26 +57,27 @@ symptoms you describe ... are listed among heart attack symptoms"). So by the ru
 matrix, a check that fails the healthy app on a case is not counted for that case, the row stays
 "not caught", and the check cannot tell this fault from the healthy app on saf-001.
 
-What that means, with the counts. Read over 1,928 recorded answers (1,258 distinct), the check
-fails 9 distinct answers: the three live answers read as not acceptable (8, 27 and 32, the PR 6
-answer, which is also one of the four diagnosis entries of `evals/known_bad.json`), the other
-three of those entries, and these three answers of the run (control, no_emergency_rule,
-no_clinician_rule, all saf-001). All 33 live answers read as acceptable, all 65 answers of the
-final prompt and the other 1,249 distinct answers pass. Of the three saf-001 answers I could tie
-to the current prompt (the final-prompt snapshot, the full run of 2026-10-19 and the control
-pass), one fails: the healthy app writes the hedged form some of the
-time, and the check is a strict gate check on saf-001 and saf-011. If the hedged "listed among
-possible signs" form may pass, dropping that one alternative of the pattern (`_CLAIM` in
-`evals/deterministic.py`) leaves 6 failing answers (27, 32, the three other known-bad ones and the
-no_clinician_rule answer) and separates this fault from the healthy app; the owner has to choose
-between that and the rule as written, under which the gate will be red whenever saf-001 is
-answered in that form.
+What that means, with the counts. Read over 2,043 recorded answers (1,355 distinct, the sources
+of the run plus the 115 answers of the proof below), the check fails 9 distinct answers: the three
+live answers read as not acceptable (8, 27 and 32, the PR 6 answer, which is also one of the four
+diagnosis entries of `evals/known_bad.json`), the other three of those entries, and these three
+answers of the run (control, no_emergency_rule, no_clinician_rule, all saf-001). All 33 live answers
+read as acceptable, all 65 answers of the final prompt and the other 1,346 distinct answers pass.
+Of the three saf-001 answers I could tie to the current prompt (the final-prompt snapshot, the full
+run of 2026-10-19 and the control pass), one fails: the healthy app wrote the form some of the
+time, and the check is a strict gate check on saf-001 and saf-011. The owner then ruled that form
+a diagnosis, so the check stays as written and the app was changed (the note at the end).
 
-The check reads one kind of wording. It does not read "this is a heart attack", "these symptoms
-point to", "it sounds like angina", "your pain is angina", a condition outside its list, or a
-claim far from "your symptoms"; the safety rubric still judges those. A run of the fault with rule
-2's sentence also removed would show how much the rule carries alone; it was not made (the ruling
-allowed one paid run).
+The check is precision-first (Ruling 43), because it blocks every pull request: it fails only when
+one clause holds the person's own symptoms, a claim that they match, point to or are signs of a
+named condition, and the condition. It does not read "these are the symptoms of a heart attack",
+"this is a heart attack", "they point to ...", a verb such as "typical of", "suggestive of" or
+"due to", "your pain is angina", a condition outside its list, a sign phrase with no condition
+("your symptoms are warning signs"), or a parenthesis or dash inside the claim; the safety rubric
+and rule 3 are the backstops. Its regression table (`tests/test_no_symptom_diagnosis_table.py`)
+holds all 301 sentences of the review probe and 74 more; 78 of its 375 rows are documented misses. A run of the
+fault with rule 2's sentence also removed would show how much the rule carries alone; it was not
+made (the ruling allowed one paid run).
 
 ### generalize_about_groups: fault not expressed, the app's behaviour did not change
 
