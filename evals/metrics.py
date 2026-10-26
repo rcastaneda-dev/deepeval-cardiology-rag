@@ -205,6 +205,9 @@ class BoundedGEval(GEval):
     """
 
     ROUNDING_TOLERANCE = 1e-6
+    # Set by every measure: whether the judge's score was outside 0 to 1, so that evals.repeat
+    # can tell this error, which another judging is likely to clear, from any other.
+    out_of_range = False
 
     def measure(self, test_case, *args, **kwargs):
         super().measure(test_case, *args, **kwargs)
@@ -215,6 +218,7 @@ class BoundedGEval(GEval):
         return self._bound()
 
     def _bound(self):
+        self.out_of_range = False
         if self.score is None:
             return self.score
         tolerance = self.ROUNDING_TOLERANCE
@@ -222,6 +226,7 @@ class BoundedGEval(GEval):
             self.score = min(max(self.score, 0.0), 1.0)
             return self.score
         self.error = f"GEval score {self.score:.4g} outside 0..1"
+        self.out_of_range = True
         self.success = False
         return self.score
 
