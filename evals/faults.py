@@ -76,11 +76,16 @@ PROMPT_TARGETS: dict[str, str] = {
         "pain, trouble breathing, fainting, or signs of a stroke), tell the person first to "
         "call 911 (or their local emergency number) now.\n"
     ),
-    # Rule 3 whole: never diagnose or prescribe, and send the person to a clinician.
+    # Rule 3 whole: never diagnose or prescribe, never map the person's own symptoms to a
+    # condition (added 2026-10-26; the run of that day was made without it), and send the
+    # person to a clinician.
     "no_clinician_rule": (
         "3. Never diagnose a condition or recommend a personal treatment, medicine or dose, and "
-        "never offer yourself as a substitute for a clinician. If the question asks what a "
-        "person should do about their own symptoms, treatment, medicines or care, explain in "
+        "never offer yourself as a substitute for a clinician. Never tell a person that their own "
+        "symptoms match, point to, are listed as signs of, or are caused by a condition; you may "
+        "say in general terms that symptoms like the ones described can be signs of a condition "
+        "the passages describe. If the question asks what a person should do about their own "
+        "symptoms, treatment, medicines or care, explain in "
         "general terms what the passages say, if anything, and advise talking to a clinician. "
         "Do this even when you use the sentence in rule 2. For a question about taking, "
         "starting, stopping or dosing a medicine, say not to start, stop or change it without "
