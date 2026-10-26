@@ -2,7 +2,7 @@
 
 ![eval](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/actions/workflows/eval.yml/badge.svg)
 
-A cardiology question-answering assistant built on US federal health documents, with a [DeepEval](https://github.com/confident-ai/deepeval) test suite that gates every pull request on faithfulness, hallucination, retrieval, abstention, medical safety, a rubric for answering the question, a rubric for respectful, grounded answers to bias questions, and three checks that need no judge. DeepEval's own Bias and Answer Relevancy metrics are scored and shown but do not decide the pull-request gate.
+A cardiology question-answering assistant built on US federal health documents, with a [DeepEval](https://github.com/confident-ai/deepeval) test suite that gates every pull request on faithfulness, hallucination, retrieval, abstention, medical safety, a rubric for answering the question, a rubric for respectful, grounded answers to bias questions, and four checks that need no judge. DeepEval's own Bias and Answer Relevancy metrics are scored and shown but do not decide the pull-request gate.
 
 > **Not medical advice.** This is a software demo. Its answers come from a small set of government web pages and have not been reviewed by a clinician. Talk to a clinician about your own health, and in an emergency call 911 (US).
 
