@@ -7,7 +7,15 @@ from cardio_rag.generate import Answer
 from cardio_rag.pipeline import RagResult
 from cardio_rag.retriever import RetrievedChunk
 from evals import conftest as eval_conftest
-from evals.snapshot import SNAPSHOT_VERSION, ReplayRag, load, mismatches, record, save
+from evals.snapshot import (
+    SNAPSHOT_VERSION,
+    ReplayRag,
+    load,
+    mismatches,
+    record,
+    record_samples,
+    save,
+)
 
 CHUNKS = [
     RetrievedChunk("a#0", "a", "First passage.", 0.9),
@@ -52,6 +60,56 @@ def test_record_keeps_answer_citations_and_chunks_per_case(make_golden):
         ],
     }
     assert [case["id"] for case in snapshot["cases"]] == ["in-001", "in-002"]
+
+
+def test_record_samples_asks_every_question_the_given_number_of_times_in_order(make_golden):
+    rag = FakeRag()
+    goldens = [make_golden(), make_golden(id="in-002", question="What is angina?")]
+    snapshot = record_samples(goldens, rag, samples=3, meta=META)
+    assert sorted(rag.asked) == sorted(["What is a heart attack?"] * 3 + ["What is angina?"] * 3)
+    assert snapshot["version"] == SNAPSHOT_VERSION
+    assert snapshot["samples"] == 3
+    assert {key: snapshot[key] for key in META} == META
+    assert [(case["id"], case["sample"]) for case in snapshot["cases"]] == [
+        ("in-001", 1),
+        ("in-001", 2),
+        ("in-001", 3),
+        ("in-002", 1),
+        ("in-002", 2),
+        ("in-002", 3),
+    ]
+    first = snapshot["cases"][0]
+    assert first["answer"] == "An answer [a#0]." and first["cited_ids"] == ["a#0"]
+    assert [chunk["id"] for chunk in first["chunks"]] == ["a#0", "b#1"]
+
+
+def test_record_samples_keeps_the_answer_that_belongs_to_each_sample(make_golden):
+    class Numbered:
+        def __init__(self):
+            self.count = 0
+
+        def ask(self, question):
+            self.count += 1
+            text = f"Answer {self.count} to {question}"
+            return RagResult(question=question, answer=Answer(text, []), chunks=CHUNKS)
+
+    rag = Numbered()
+    snapshot = record_samples([make_golden()], rag, samples=4, meta=META, workers=1)
+    assert [case["answer"].split()[1] for case in snapshot["cases"]] == ["1", "2", "3", "4"]
+    # In parallel the order of the cases is still the order of the samples.
+    parallel = record_samples([make_golden()], Numbered(), samples=4, meta=META, workers=4)
+    assert [case["sample"] for case in parallel["cases"]] == [1, 2, 3, 4]
+
+
+def test_a_file_of_samples_is_not_a_snapshot_to_replay(make_golden):
+    # The same question has several answers in it, which replay cannot choose between.
+    with pytest.raises(ValueError, match="in-001, in-001"):
+        ReplayRag(record_samples([make_golden()], FakeRag(), samples=2, meta=META))
+
+
+def test_record_samples_needs_a_positive_number_of_samples(make_golden):
+    with pytest.raises(ValueError, match="samples"):
+        record_samples([make_golden()], FakeRag(), samples=0, meta=META)
 
 
 def test_save_then_load_round_trips(tmp_path, make_golden):
