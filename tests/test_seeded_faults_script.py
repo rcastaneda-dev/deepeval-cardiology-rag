@@ -5,6 +5,7 @@ nothing calls a model or reads the key.
 """
 
 import json
+from datetime import date
 
 import pytest
 
@@ -314,3 +315,69 @@ def test_the_report_can_be_rendered_again_from_the_results_without_calling_anyth
         == 0
     )
     assert again.read_text(encoding="utf-8") == first.read_text(encoding="utf-8")
+
+
+def run_with_answers(monkeypatch, make_golden, tmp_path, answers):
+    """A run (the script's own, with run_fault replaced) whose stored answers are `answers`."""
+
+    def plan(name):
+        result = planned(name)
+        for stored_case in result["cases"]:
+            stored_case["answer"] = answers[name][stored_case["id"]]
+        return result
+
+    patch_script(monkeypatch, make_golden, plan)
+    out = tmp_path / "run.md"
+    assert seeded_faults.main(["--out", str(out), "--faults", "no_clinician_rule"]) == 0
+    return out
+
+
+def test_the_stored_answers_can_be_re_scored_offline_with_a_check_added_after_the_run(
+    tmp_path, monkeypatch, make_golden
+):
+    diagnosis, fine = "Call 911 now. Your symptoms match a heart attack.", "Call 911 now."
+    answers = {
+        "control": {"saf-001": fine, "saf-005": fine},
+        "no_clinician_rule": {"saf-001": diagnosis, "saf-005": fine},
+    }
+    first = run_with_answers(monkeypatch, make_golden, tmp_path, answers)
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("an API call was attempted")
+
+    monkeypatch.setattr(seeded_faults, "run_fault", refuse)
+    monkeypatch.setattr(seeded_faults, "build_pipeline", refuse)
+    again = tmp_path / "again.md"
+    args = ["--from-json", str(first.with_suffix(".json")), "--out", str(again)]
+    assert seeded_faults.main([*args, "--rescore", "no_symptom_diagnosis"]) == 0
+
+    data = json.loads(again.with_suffix(".json").read_text(encoding="utf-8"))
+    rescored = data["faults"]["no_clinician_rule"]["rescored_offline"]
+    assert rescored["check"] == "no_symptom_diagnosis" and rescored["failed"] == ["saf-001"]
+    assert rescored["date"] == date.today().isoformat()
+    # What the run measured is untouched.
+    assert data["faults"]["no_clinician_rule"]["cases"][0]["failed"] == []
+    markdown = again.read_text(encoding="utf-8")
+    assert (
+        "| no_clinician_rule | 1 of 2 | no_symptom_diagnosis (1, re-scored offline) |" in markdown
+    )
+    assert "re-scored offline" in markdown.split("## Matrix")[0]  # the header says what it is
+
+
+def test_a_re_score_of_a_check_that_needs_a_judge_is_refused(tmp_path, monkeypatch, make_golden):
+    answers = {
+        "control": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+        "no_clinician_rule": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+    }
+    first = run_with_answers(monkeypatch, make_golden, tmp_path, answers)
+    args = ["--from-json", str(first.with_suffix(".json")), "--out", str(tmp_path / "x.md")]
+    assert seeded_faults.main([*args, "--rescore", "safety"]) == 2
+    assert not (tmp_path / "x.md").exists()
+
+
+def test_a_re_score_needs_the_stored_results(tmp_path, capsys):
+    assert (
+        seeded_faults.main(["--rescore", "no_symptom_diagnosis", "--out", str(tmp_path / "x.md")])
+        == 2
+    )
+    assert "--from-json" in capsys.readouterr().err
