@@ -3,7 +3,8 @@
 Usage: DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE=600 \\
            uv run python scripts/seeded_faults.py --out docs/evidence/seeded-faults-<date>.md
            [--faults NAME,NAME] [--max-cost USD] [--notes PATH]
-       uv run python scripts/seeded_faults.py --from-json PATH --out PATH [--notes PATH]  (offline)
+       uv run python scripts/seeded_faults.py --from-json PATH --out PATH [--notes PATH]
+           [--rescore CHECK]   (offline)
 
 First it runs the control: the same smoke goldens with no fault on, judged the same way, which is
 the first row of the matrix. A check that fails a case on the healthy app is marked "fails on the
@@ -24,6 +25,10 @@ that raises, so a rejected key is not read as nine caught faults.
 --from-json renders the report again from a JSON file that run wrote, with no API call.
 --notes PATH appends a hand-written Markdown file (such as a "Known gaps" section) to the end of
 the report, on a run and on --from-json, which would otherwise write the whole report afresh.
+--rescore CHECK, with --from-json, applies a check that needs no judge and was added after the run
+(such as no_symptom_diagnosis) to the stored answers, with no API call, and writes the JSON beside
+--out again with a `rescored_offline` entry per fault; the matrix marks what it added as
+"re-scored offline". What the run measured stays as it was.
 """
 
 import argparse
@@ -40,7 +45,7 @@ from cardio_rag.config import CORPUS_DIR, Settings  # noqa: E402
 from cardio_rag.index import load_corpus  # noqa: E402
 from cardio_rag.wiring import build_pipeline  # noqa: E402
 from evals.cases import load_goldens  # noqa: E402
-from evals.faults import CONTROL, FAULTS, matrix_markdown, run_fault  # noqa: E402
+from evals.faults import CONTROL, FAULTS, matrix_markdown, rescore_offline, run_fault  # noqa: E402
 from scripts.record_answers import _git_dirty, _git_sha  # noqa: E402
 
 DEFAULT_MAX_COST = 2.00
@@ -78,6 +83,14 @@ def render(data: dict, notes: str | None = None) -> str:
     `notes` (Markdown) after it when there are any."""
     faults = data["faults"]
     skipped = [name for name, result in faults.items() if result is None]
+    rescored = next(
+        (
+            result["rescored_offline"]
+            for result in faults.values()
+            if result and result.get("rescored_offline")
+        ),
+        None,
+    )
     minutes = data["seconds"] / 60
     lines = [
         "# Seeded faults: which checks of the pull-request gate catch each one",
@@ -93,7 +106,15 @@ def render(data: dict, notes: str | None = None) -> str:
         "a check that raised or set an error) counts as caught and is labelled `error`. The "
         "control is the same pass with no fault on, the first row of the matrix: a check that "
         'fails a case on the healthy app is marked "fails on the healthy app" and is not '
-        "counted as catching a fault on that case.",
+        "counted as catching a fault on that case."
+        + (
+            f' Rows marked "re-scored offline" count a check added after the run '
+            f"(`{rescored['check']}`, {rescored['date']}) applied to the stored answers with no "
+            "API call; the JSON file keeps what the run measured in `failed` and the re-score "
+            "in `rescored_offline`."
+            if rescored
+            else ""
+        ),
         "",
         f"DeepEval reported ${data['spent']:.2f} for the judgings (the generator's cost is not in "
         f"that number); the run took {minutes:.0f} minutes. The answer of every case is in the "
@@ -139,7 +160,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-cost", type=float, default=DEFAULT_MAX_COST, help="spend guard, USD")
     parser.add_argument("--from-json", type=Path, help="render this results file, no API call")
     parser.add_argument("--notes", type=Path, help="Markdown to append to the report as written")
+    parser.add_argument("--rescore", help="with --from-json: apply this no-judge check offline")
     args = parser.parse_args(argv)
+
+    if args.rescore and not args.from_json:
+        return _refuse("--rescore re-scores stored results, so it needs --from-json")
 
     notes = None
     if args.notes:
@@ -150,6 +175,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.from_json:
         data = json.loads(args.from_json.read_text(encoding="utf-8"))
+        if args.rescore:
+            try:
+                rescore_offline(
+                    data["faults"],
+                    args.rescore,
+                    goldens=load_goldens(),
+                    on=date.today().isoformat(),
+                )
+            except ValueError as error:
+                return _refuse(str(error))
+            _write(data, args.out, notes)
+            print(f"Wrote {args.out} and {args.out.with_suffix('.json')}")
+            return 0
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(render(data, notes), encoding="utf-8")
         print(f"Wrote {args.out}")

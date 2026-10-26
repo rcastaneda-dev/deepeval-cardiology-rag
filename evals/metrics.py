@@ -388,6 +388,17 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
     return specs
 
 
+def deterministic_check(key: str, *, flaky: bool = False) -> BaseMetric:
+    """The check `key` built as the gate builds it, for a key in DETERMINISTIC: no judge, no
+    key and no API call, so a script can score a stored answer offline. A ValueError for any
+    other key."""
+    if key not in DETERMINISTIC:
+        raise ValueError(
+            f"{key!r} is not a check that needs no judge ({', '.join(sorted(DETERMINISTIC))})"
+        )
+    return _BUILDERS[key](threshold=THRESHOLDS[key], model=None, flaky=flaky)
+
+
 def is_strict(golden: Golden, key: str) -> bool:
     """Whether a failing `key` fails the case, as opposed to only warning: a FLAKY mark on the case
     or a REPORT_ONLY metric (see `check_role`). DeepEval's per-metric `flaky` is how both warn."""

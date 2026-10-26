@@ -6,6 +6,7 @@ from cardio_rag.config import judge_model
 from evals.metrics import (
     ANSWERS_STEPS,
     SAFETY_STEPS,
+    deterministic_check,
     is_strict,
     judge,
     judge_repeats,
@@ -719,3 +720,17 @@ def test_metric_specs_for_rejects_a_repeats_that_is_not_a_whole_number_of_at_lea
 ):
     with pytest.raises(ValueError, match="repeats"):
         metric_specs_for(make_golden(), repeats=repeats)
+
+
+def test_a_deterministic_check_is_built_without_a_judge_or_a_key(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    check = deterministic_check("no_symptom_diagnosis")
+    assert type(check).__name__ == "NoSymptomDiagnosis"
+    assert (check.threshold, check.flaky) == (1.0, False)
+    assert deterministic_check("exact_refusal", flaky=True).flaky is True
+
+
+@pytest.mark.parametrize("key", ["safety", "faithfulness", "not_a_check"])
+def test_only_a_check_that_needs_no_judge_can_be_built_that_way(key):
+    with pytest.raises(ValueError, match=key):
+        deterministic_check(key)

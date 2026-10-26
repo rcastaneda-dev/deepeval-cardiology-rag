@@ -16,6 +16,11 @@ The control is the same pass with no fault on (`run_fault("control", ...)`, list
 matrix). A check that fails a case on the healthy app is marked "fails on the healthy app" and is
 never counted as catching a fault on that case: it would be red whatever the fault did.
 
+A check added after a run can be applied to the stored answers with no API call
+(`rescore_offline`, for a check that needs no judge). The result keeps what the run measured in
+`failed` and the re-score apart in `rescored_offline`, and the matrix marks what the re-score
+added as "re-scored offline".
+
 The answer of every case is kept, because "not caught" has two readings: no check noticed a
 defect that was there, or the app did not change (the model kept to a rule its prompt no longer
 states). Only the answers tell them apart.
@@ -31,6 +36,7 @@ from functools import partial
 from unittest import mock
 
 import numpy as np
+from deepeval.test_case import LLMTestCase
 
 from cardio_rag import generate, pipeline
 from cardio_rag.config import CORPUS_DIR, Settings
@@ -39,7 +45,8 @@ from cardio_rag.retriever import RetrievedChunk, Retriever
 from cardio_rag.wiring import build_pipeline
 from evals.cases import Golden
 from evals.harness import build_test_case
-from evals.metrics import metric_specs_for
+from evals.metrics import deterministic_check, is_strict, metric_specs_for
+from evals.thresholds import keys_for
 
 # Cases judged at once (the checks of one case always run together), and how long one check may
 # take before it counts as an error. The gate's DeepEval timeout is 600 s a case in CI.
@@ -353,7 +360,15 @@ def matrix_markdown(results: dict[str, dict | None]) -> str:
     With a CONTROL result (the healthy app) the matrix lists it as the row "control (no fault)",
     and a check that fails a case on the healthy app is not counted for that case in any fault's
     row: it is listed apart as "fails on the healthy app", so a check that is red whatever the app
-    does never passes for catching a fault."""
+    does never passes for catching a fault. A result with `rescored_offline` (see
+    `rescore_offline`) counts the cases that check failed as failures of its key, marked
+    "re-scored offline"."""
+    results = {name: _with_rescore(result) for name, result in results.items()}
+    rescored = {
+        result["rescored_offline"]["check"]
+        for result in results.values()
+        if result and result.get("rescored_offline")
+    }
     rows = ["| Fault | Cases failed | Catching checks |", "|---|---|---|"]
     details = []
     healthy = _healthy_failures(results.get(CONTROL))
@@ -373,23 +388,70 @@ def matrix_markdown(results: dict[str, dict | None]) -> str:
         warned = Counter(key for case in cases for key in case["warned"])
         if is_control:
             cell = (
-                f"{HEALTHY_NOTE}: " + _listed(counts)
+                f"{HEALTHY_NOTE}: " + _listed(counts, rescored)
                 if counts
                 else "no check fails on the healthy app"
             )
         else:
-            cell = _listed(counts) or "not caught"
+            cell = _listed(counts, rescored) or "not caught"
             if also:
-                cell += f"; {HEALTHY_NOTE} too, not counted: {_listed(also)}"
+                cell += f"; {HEALTHY_NOTE} too, not counted: {_listed(also, rescored)}"
         if warned:
-            cell += f"; report-only warnings: {_listed(warned)}"
+            cell += f"; report-only warnings: {_listed(warned, rescored)}"
         rows.append(f"| {label} | {len(failing)} of {len(cases)} | {cell} |")
-        details.append(_detail(fault, label, cases, failing))
+        details.append(_detail(fault, label, cases, failing, rescored))
     return "\n".join(rows) + "\n" + "".join(details)
 
 
-def _listed(counts: Counter) -> str:
-    return ", ".join(f"{key} ({count})" for key, count in counts.most_common())
+def _with_rescore(result: dict | None) -> dict | None:
+    """The result with the cases that its re-score failed counted as failures of the re-scored
+    check (a copy; the stored result is not changed)."""
+    if not result or not result.get("rescored_offline"):
+        return result
+    rescore = result["rescored_offline"]
+    key, failed = rescore["check"], set(rescore["failed"])
+    cases = [
+        {**case, "failed": [*case["failed"], key]}
+        if case["id"] in failed and key not in case["failed"]
+        else case
+        for case in result["cases"]
+    ]
+    return {**result, "cases": cases}
+
+
+def rescore_offline(results: dict[str, dict | None], key: str, *, goldens, on: str) -> None:
+    """Applies the check `key` (one that needs no judge, added after the run) to the stored
+    answers of every result, with no API call. Each result gets `rescored_offline`: the check,
+    the date `on`, the ids of the cases it applies to (an answer exists, the case runs the check
+    and counts it) and the ids it failed. What the run measured is left as it was. A fault that
+    was not run (None) stays None. The check reads the answer alone (as NoSymptomDiagnosis does),
+    which is all a stored result holds besides the case ids."""
+    deterministic_check(key)  # a ValueError for a key that needs a judge, before anything is read
+    by_id = {golden.id: golden for golden in goldens}
+    for result in results.values():
+        if not result:
+            continue
+        applies, failed = [], []
+        for case in result["cases"]:
+            golden = by_id.get(case["id"])
+            if golden is None or case["answer"] is None:
+                continue
+            if key not in keys_for(golden) or not is_strict(golden, key):
+                continue
+            check = deterministic_check(key)
+            applies.append(case["id"])
+            if check.measure(LLMTestCase(input=golden.question, actual_output=case["answer"])) < (
+                check.threshold
+            ):
+                failed.append(case["id"])
+        result["rescored_offline"] = {"check": key, "date": on, "cases": applies, "failed": failed}
+
+
+def _listed(counts: Counter, rescored: set[str] = frozenset()) -> str:
+    return ", ".join(
+        f"{key} ({count}{', re-scored offline' if key in rescored else ''})"
+        for key, count in counts.most_common()
+    )
 
 
 def _healthy_failures(control: dict | None) -> dict[str, set[str]]:
@@ -425,7 +487,13 @@ def _count(cases: list[dict], views: list[dict], which: str) -> Counter:
     return counts
 
 
-def _detail(fault: str, label: str, cases: list[dict], failing: list[tuple[dict, dict]]) -> str:
+def _detail(
+    fault: str,
+    label: str,
+    cases: list[dict],
+    failing: list[tuple[dict, dict]],
+    rescored: set[str] = frozenset(),
+) -> str:
     failing_ids = {case["id"] for case, _ in failing}
     warned = [case for case in cases if case["warned"] and case["id"] not in failing_ids]
     if not failing and not warned:
@@ -435,7 +503,9 @@ def _detail(fault: str, label: str, cases: list[dict], failing: list[tuple[dict,
         lines += ["| Case | Failed checks | Errors |", "|---|---|---|"]
         for case, view in failing:
             failed = ", ".join(
-                f"{key} ({HEALTHY_NOTE})" if key in view["healthy"] else key
+                key
+                + (f" ({HEALTHY_NOTE})" if key in view["healthy"] else "")
+                + (" (re-scored offline)" if key in rescored else "")
                 for key in case["failed"]
             )
             errors = "; ".join(

@@ -24,6 +24,7 @@ from evals.faults import (
     PROMPT_REPLACEMENTS,
     PROMPT_TARGETS,
     matrix_markdown,
+    rescore_offline,
     run_fault,
 )
 from evals.metrics import is_strict, metric_specs_for
@@ -631,3 +632,111 @@ def test_checks_with_the_same_count_are_listed_in_the_order_they_failed():
     results = {"no_chunks": outcome("no_chunks", case("saf-001", failed=keys))}
     row = row_of(matrix_markdown(results), "no_chunks")
     assert row == "| no_chunks | 1 of 1 | " + ", ".join(f"{key} (1)" for key in keys) + " |"
+
+
+# ---- re-scoring the stored answers with a check added after the run ---------------------------
+
+DIAGNOSIS = "Call 911 now. Your symptoms match a heart attack."
+FINE = "Call 911 now. Talk to a clinician about your symptoms."
+
+
+def stored(case_id, answer, *, category="safety", failed=()):
+    return {**case(case_id, failed=failed), "category": category, "answer": answer}
+
+
+def rescorable(make_golden):
+    goldens = [
+        make_golden(id="saf-001", category="safety", source_doc=None, source_excerpt=None),
+        make_golden(id="saf-005", category="safety", source_doc=None, source_excerpt=None),
+        make_golden(id="in-001", category="in_corpus"),
+    ]
+    results = {
+        "control": outcome(
+            "control",
+            stored("saf-001", FINE),
+            stored("saf-005", FINE),
+            stored("in-001", DIAGNOSIS, category="in_corpus"),
+        ),
+        "no_clinician_rule": outcome(
+            "no_clinician_rule",
+            stored("saf-001", DIAGNOSIS),
+            stored("saf-005", FINE),
+            stored("in-001", FINE, category="in_corpus"),
+        ),
+        "worst_chunks": None,
+    }
+    return goldens, results
+
+
+def test_a_re_score_records_the_cases_the_check_failed_and_the_ones_it_applies_to(make_golden):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    assert results["no_clinician_rule"]["rescored_offline"] == {
+        "check": "no_symptom_diagnosis",
+        "date": "2026-10-26",
+        "cases": ["saf-001", "saf-005"],  # in-001 is not a safety case, so the check is not run
+        "failed": ["saf-001"],
+    }
+    assert results["control"]["rescored_offline"]["failed"] == []
+    assert results["worst_chunks"] is None  # a fault that was not run stays so
+
+
+def test_a_re_score_leaves_what_the_run_measured_alone(make_golden):
+    goldens, results = rescorable(make_golden)
+    results["no_clinician_rule"]["cases"][0]["failed"] = ["safety"]
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    assert results["no_clinician_rule"]["cases"][0]["failed"] == ["safety"]
+    assert results["no_clinician_rule"]["cases"][0]["answer"] == DIAGNOSIS
+
+
+def test_a_case_without_an_answer_is_not_re_scored(make_golden):
+    goldens, results = rescorable(make_golden)
+    results["no_clinician_rule"]["cases"][0]["answer"] = None
+    results["no_clinician_rule"]["cases"][0]["errors"] = {"generation": "RuntimeError: x"}
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    assert results["no_clinician_rule"]["rescored_offline"]["cases"] == ["saf-005"]
+
+
+def test_a_re_score_made_twice_is_the_same_re_score(make_golden):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    first = results["no_clinician_rule"]["rescored_offline"]
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    assert results["no_clinician_rule"]["rescored_offline"] == first
+
+
+@pytest.mark.parametrize("key", ["safety", "faithfulness", "not_a_check"])
+def test_only_a_check_that_needs_no_judge_can_be_re_scored_offline(make_golden, key):
+    goldens, results = rescorable(make_golden)
+    with pytest.raises(ValueError, match=key):
+        rescore_offline(results, key, goldens=goldens, on="2026-10-26")
+
+
+def test_the_matrix_counts_a_re_scored_failure_and_says_it_was_re_scored_offline(make_golden):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    markdown = matrix_markdown(results)
+    assert "| no_clinician_rule | 1 of 3 |" in markdown
+    row = row_of(markdown, "no_clinician_rule")
+    assert "no_symptom_diagnosis (1, re-scored offline)" in row
+    assert "not caught" not in row
+    detail = markdown.split("### no_clinician_rule")[1]
+    assert "saf-001 | no_symptom_diagnosis (re-scored offline)" in detail
+
+
+def test_a_re_scored_failure_that_the_healthy_app_has_too_is_not_a_catch(make_golden):
+    # The control's saf-001 answer is a diagnosis as well, so the fault's is not a detection.
+    goldens, results = rescorable(make_golden)
+    results["control"]["cases"][0]["answer"] = DIAGNOSIS
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    markdown = matrix_markdown(results)
+    control = row_of(markdown, "control")
+    assert "fails on the healthy app: no_symptom_diagnosis (1, re-scored offline)" in control
+    row = row_of(markdown, "no_clinician_rule")
+    assert "0 of 3" in row and "not caught" in row
+    assert "fails on the healthy app too, not counted: no_symptom_diagnosis (1" in row
+
+
+def test_a_matrix_without_a_re_score_does_not_mention_one():
+    results = {"no_chunks": outcome("no_chunks", case("saf-001", failed=["safety"]))}
+    assert "re-scored" not in matrix_markdown(results)
