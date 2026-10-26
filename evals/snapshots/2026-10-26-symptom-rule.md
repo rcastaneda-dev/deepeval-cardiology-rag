@@ -19,6 +19,13 @@ here is a gate run: the answers are recorded, then read by checks.
    (a fresh 65-case snapshot, git_sha above, dirty false), then `scripts/check_answers.py` over
    all of it (`evals/snapshots/2026-10-26-symptom-rule-checks.json`).
 
+To rebuild the input of the safety judging from committed files: take
+`2026-10-26-symptom-rule.json`, replace `answer`, `cited_ids` and `chunks` of saf-001, saf-002,
+saf-006, saf-010 and saf-011 with those of the case of the same id whose `sample` is 1 in
+`2026-10-26-emergency-samples.json`, save it as a full snapshot (the tool needs every case), and
+run `scripts/judge_stability.py --snapshot THAT --cases saf-001,saf-002,saf-006,saf-010,saf-011
+--keys safety --times 3 --out SOMEWHERE`.
+
 ## Acceptance
 
 | Question | Result |

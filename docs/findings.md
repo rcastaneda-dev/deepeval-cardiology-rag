@@ -91,4 +91,4 @@ The question was whether a bug is caught when the product deviates from its desi
 
 **The fix, proved on 2026-10-26.** I sampled each of the five emergency cases ten times at the new commit: 0 of 50 fail `no_symptom_diagnosis`, 0 of 50 fail `emergency_first`, one sample of each judged three times on the safety rubric scored 0.85 to 1.00, and a fresh 65-case snapshot passes all 70 checks that need no judge ([evidence](../evals/snapshots/2026-10-26-symptom-rule.md)). The earlier statement of section 7 that no product change was needed was wrong, and it is corrected there.
 
-**Also from the run.** A judge's score outside 0 to 1 (29.84 on a correct saf-001 answer) failed a case; `MedianOf` now judges such a copy once more and fails the check only if the second judging is out of range too.
+**Also from the run.** A judge's score outside 0 to 1 (29.84, in the no_emergency_rule pass, on a correct saf-011 answer) failed a case; `MedianOf` now judges such a copy once more and fails the check only if the second judging is out of range too or errors in any other way. Any other error still fails the check at once.
