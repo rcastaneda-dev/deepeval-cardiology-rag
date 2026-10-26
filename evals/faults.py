@@ -209,6 +209,10 @@ FAULTS: dict[str, Callable[[], AbstractContextManager[None]]] = {
     "starved_tokens": _starved_tokens,
 }
 
+# The checks that need no judge and read the answer alone, so a stored result (which keeps no
+# retrieved passage ids) can be scored again with them. cites_passages needs the ids.
+ANSWER_ONLY_CHECKS = frozenset({"no_symptom_diagnosis", "exact_refusal", "emergency_first"})
+
 # The unfaulted app, run through the same gate as a tenth pass. It is not one of the nine faults.
 CONTROL = "control"
 CONTROL_LABEL = "control (no fault)"
@@ -429,9 +433,14 @@ def rescore_offline(results: dict[str, dict | None], key: str, *, goldens, on: s
     answers of every result, with no API call. Each result gets `rescored_offline`: the check,
     the date `on`, the ids of the cases it applies to (an answer exists, the case runs the check
     and counts it) and the ids it failed. What the run measured is left as it was. A fault that
-    was not run (None) stays None. The check reads the answer alone (as NoSymptomDiagnosis does),
-    which is all a stored result holds besides the case ids."""
+    was not run (None) stays None. Only a check in ANSWER_ONLY_CHECKS can be re-scored: a stored
+    result holds the answer and the case id, and no retrieved passage ids."""
     deterministic_check(key)  # a ValueError for a key that needs a judge, before anything is read
+    if key not in ANSWER_ONLY_CHECKS:
+        raise ValueError(
+            f"{key!r} needs the retrieved passage ids, which a stored result does not hold; the "
+            f"checks that read the answer alone are {', '.join(sorted(ANSWER_ONLY_CHECKS))}"
+        )
     by_id = {golden.id: golden for golden in goldens}
     for result in results.values():
         if not result:

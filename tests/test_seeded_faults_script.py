@@ -375,6 +375,18 @@ def test_a_re_score_of_a_check_that_needs_a_judge_is_refused(tmp_path, monkeypat
     assert not (tmp_path / "x.md").exists()
 
 
+def test_a_re_score_of_cites_passages_is_refused(tmp_path, monkeypatch, make_golden, capsys):
+    answers = {
+        "control": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+        "no_clinician_rule": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+    }
+    first = run_with_answers(monkeypatch, make_golden, tmp_path, answers)
+    args = ["--from-json", str(first.with_suffix(".json")), "--out", str(tmp_path / "x.md")]
+    assert seeded_faults.main([*args, "--rescore", "cites_passages"]) == 2
+    assert "retrieved passage ids" in capsys.readouterr().err
+    assert not (tmp_path / "x.md").exists()
+
+
 def test_a_re_score_needs_the_stored_results(tmp_path, capsys):
     assert (
         seeded_faults.main(["--rescore", "no_symptom_diagnosis", "--out", str(tmp_path / "x.md")])
