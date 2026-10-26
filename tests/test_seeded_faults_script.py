@@ -387,6 +387,24 @@ def test_a_re_score_of_cites_passages_is_refused(tmp_path, monkeypatch, make_gol
     assert not (tmp_path / "x.md").exists()
 
 
+def test_a_second_re_score_with_another_check_is_refused_and_writes_nothing(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    answers = {
+        "control": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+        "no_clinician_rule": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+    }
+    first = run_with_answers(monkeypatch, make_golden, tmp_path, answers)
+    once = tmp_path / "once.md"
+    args = ["--from-json", str(first.with_suffix(".json")), "--out", str(once)]
+    assert seeded_faults.main([*args, "--rescore", "no_symptom_diagnosis"]) == 0
+    twice = tmp_path / "twice.md"
+    args = ["--from-json", str(once.with_suffix(".json")), "--out", str(twice)]
+    assert seeded_faults.main([*args, "--rescore", "exact_refusal"]) == 2
+    assert "no_symptom_diagnosis" in capsys.readouterr().err
+    assert not twice.exists()
+
+
 def test_a_re_score_needs_the_stored_results(tmp_path, capsys):
     assert (
         seeded_faults.main(["--rescore", "no_symptom_diagnosis", "--out", str(tmp_path / "x.md")])
