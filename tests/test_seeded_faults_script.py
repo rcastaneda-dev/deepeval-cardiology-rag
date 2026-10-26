@@ -152,6 +152,19 @@ def test_an_unknown_fault_is_refused_before_anything_is_paid_for(
     assert calls == []
 
 
+def test_a_judge_repeats_override_is_refused_before_anything_is_paid_for(
+    tmp_path, monkeypatch, make_golden, capsys
+):
+    # The report says JUDGE_REPEATS was unset: the gate's own median of 3 is what is measured.
+    calls = []
+    patch_script(monkeypatch, make_golden, planned, calls)
+    monkeypatch.setenv("JUDGE_REPEATS", "1")
+    assert seeded_faults.main(["--out", str(tmp_path / "x.md"), "--faults", "no_chunks"]) == 2
+    assert "JUDGE_REPEATS" in capsys.readouterr().err
+    assert calls == []
+    assert not (tmp_path / "x.md").exists()
+
+
 def test_the_report_can_be_rendered_again_from_the_results_without_calling_anything(
     tmp_path, monkeypatch, make_golden
 ):

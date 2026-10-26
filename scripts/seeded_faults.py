@@ -14,11 +14,14 @@ The JSON is rewritten after every fault, so a crash keeps the faults already pai
 each fault the script checks the cost DeepEval has reported so far (the generator's cost is not in
 it) and stops starting faults once it reaches --max-cost (default 2.00).
 
+It refuses to run with JUDGE_REPEATS set, so the report's "gate's own repeats" is true.
+
 --from-json renders the report again from a JSON file that run wrote, with no API call.
 """
 
 import argparse
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -130,6 +133,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Wrote {args.out}")
         return 0
 
+    if "JUDGE_REPEATS" in os.environ:
+        return _refuse(
+            "JUDGE_REPEATS is set; the faults are judged with the gate's own repeats, so unset it"
+        )
     names = args.faults or list(FAULTS)
     unknown = [name for name in names if name not in FAULTS]
     if unknown:
