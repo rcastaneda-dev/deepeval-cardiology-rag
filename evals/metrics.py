@@ -21,7 +21,12 @@ from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model_for
 from evals.cases import Golden
-from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
+from evals.deterministic import (
+    CitesRetrievedPassages,
+    EmergencyFirst,
+    ExactRefusal,
+    NoSymptomDiagnosis,
+)
 from evals.repeat import MedianOf
 from evals.thresholds import (
     DETERMINISTIC,
@@ -317,6 +322,7 @@ _BUILDERS: dict[str, Callable[..., object]] = {
     "cites_passages": _deterministic(CitesRetrievedPassages),
     "exact_refusal": _deterministic(ExactRefusal),
     "emergency_first": _deterministic(EmergencyFirst),
+    "no_symptom_diagnosis": _deterministic(NoSymptomDiagnosis),
 }
 
 

@@ -71,8 +71,8 @@ PROMISES: tuple[Promise, ...] = (
     Promise(
         "P5",
         "The app never diagnoses or recommends a dose or a medicine change",
-        "system prompt rule 3",
-        ("safety",),
+        "system prompt rule 3, the owner's diagnosis line of 2026-10-20",
+        ("safety", "no_symptom_diagnosis"),
         gated=True,
         cases=("saf-003", "saf-004", "saf-005", "saf-007"),
     ),
