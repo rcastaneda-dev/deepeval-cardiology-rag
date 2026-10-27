@@ -147,7 +147,9 @@ def _describe_failure(case_name: str, metric: dict) -> str:
 # harness that packages each answer and the test file itself. src/cardio_rag/config.py picks the
 # judge models (DEFAULT_JUDGE_MODELS), so a change there changes who scores the gate.
 # pyproject.toml and uv.lock hold the DeepEval pin (==4.2.9): a new version can score the same
-# answers differently.
+# answers differently. The last three: evals/params.py applies the smoke mark, so it decides
+# which cases the pull request runs; evals/cases.py loads and validates the goldens; and
+# evals/report.py writes the verdict and this notice.
 GATE_PATHS = (
     "evals/thresholds.py",
     "evals/metrics.py",
@@ -162,9 +164,13 @@ GATE_PATHS = (
     "src/cardio_rag/config.py",
     "pyproject.toml",
     "uv.lock",
+    "evals/params.py",
+    "evals/cases.py",
+    "evals/report.py",
 )
 
 OUTCOMES = ("success", "failure", "cancelled", "skipped")  # a GitHub Actions step outcome
+UNFINISHED_OUTCOMES = tuple(outcome for outcome in OUTCOMES if outcome != "success")
 LISTED_AT_MOST = 10
 ERROR_TEXT_LIMIT = 80
 NO_CHANGED_FILES_LIST = (
@@ -235,7 +241,7 @@ def _tally(run: dict) -> _Tally:
                 tally.errored_warnings += bool(error)
             elif error:
                 # An error is not a low score: no number is shown for it.
-                tally.errors.append(f"{where}: {_shorten(str(error), ERROR_TEXT_LIMIT)}")
+                tally.errors.append(f"{where}: {_code(_shorten(str(error), ERROR_TEXT_LIMIT))}")
             else:
                 score = metric.get("score")
                 shown = "no score" if score is None else f"{score:.2f}"
@@ -264,12 +270,20 @@ def _counts(tally: _Tally, cases_first: bool = True) -> str:
     return "; ".join([cases, *parts] if cases_first else [*parts, cases]) + "."
 
 
-def _step_state(outcome: str) -> str:
-    return {
-        "failure": "failed outside the scored metrics",
-        "cancelled": "was cancelled",
-        "skipped": "was skipped",
-    }[outcome]
+_NOT_FINISHED = {
+    "failure": 'The "Run DeepEval" step failed outside the scored metrics; see its log.',
+    "cancelled": 'The "Run DeepEval" step was cancelled; see the job log.',
+    # The step is skipped when an earlier one (the install, say) failed or was skipped, so it has
+    # no log of its own.
+    "skipped": "DeepEval did not run: an earlier step failed or was skipped; see the job log.",
+}
+assert tuple(_NOT_FINISHED) == UNFINISHED_OUTCOMES
+
+
+def _code(text: str) -> str:
+    """`text` as one Markdown code span on one line: whitespace is collapsed and a backtick in it
+    becomes an apostrophe, so nothing in an error message can end the span or format the line."""
+    return f"`{' '.join(text.split()).replace(chr(96), chr(39)) or 'no text'}`"
 
 
 def headline(run: dict, outcome: str | None = None, gate: bool = True) -> str:
@@ -284,15 +298,14 @@ def headline(run: dict, outcome: str | None = None, gate: bool = True) -> str:
     tally = _tally(run)
     strict = _listed(tally.strict_failures, "; ") or "none"
     errors = _listed(tally.errors, "; ") or "none"
-    unfinished = outcome in ("failure", "cancelled", "skipped")
     if not gate:
         text = f"**Full suite (trend only, does not gate): {_counts(tally, cases_first=False)}**"
         if tally.strict_failures:
             text += f" Strict failures: {strict}."
         if tally.errors:
             text += f" Errors: {errors}."
-        if unfinished and not tally.fails_gate:
-            text += f' The "Run DeepEval" step {_step_state(outcome)}; see its log.'
+        if outcome in UNFINISHED_OUTCOMES and not tally.fails_gate:
+            text += f" {_NOT_FINISHED[outcome]}"
         return text
     if tally.fails_gate:
         text = f"**Gate: FAILED.** Strict failures: {strict}. Errors: {errors}."
@@ -306,10 +319,10 @@ def headline(run: dict, outcome: str | None = None, gate: bool = True) -> str:
             "**Gate: FAILED.** The test run failed outside the scored metrics; see the "
             f'"Run DeepEval" log. {_counts(tally)}'
         )
-    if outcome in ("cancelled", "skipped"):
+    if outcome in UNFINISHED_OUTCOMES:  # the failure was handled above: cancelled or skipped
         return (
-            f'**Gate: not decided.** The "Run DeepEval" step {_step_state(outcome)}, so these '
-            f"results are partial or absent. {_counts(tally)}"
+            f"**Gate: not decided.** {_NOT_FINISHED[outcome]} These results are partial or "
+            f"absent. {_counts(tally)}"
         )
     if not tally.metrics:
         return "**Gate: no results.** The run has no metric results, so nothing was scored."
@@ -323,10 +336,10 @@ def no_results_headline(reason: str, outcome: str | None = None, gate: bool = Tr
         if gate
         else "**Full suite (trend only, does not gate): no results.**"
     )
-    text = f'{lead} The run results could not be read (`{reason}`); see the "Run DeepEval" log.'
-    if outcome in ("failure", "cancelled", "skipped"):
-        text += f' The "Run DeepEval" step {_step_state(outcome)}.'
-    return text
+    text = f"{lead} The run results could not be read ({_code(reason)})"
+    if outcome in UNFINISHED_OUTCOMES:
+        return f"{text}. {_NOT_FINISHED[outcome]}"
+    return f'{text}; see the "Run DeepEval" log.'
 
 
 def _changed_files_notice(path: Path | None) -> str:
@@ -375,8 +388,19 @@ def main(argv: list[str] | None = None, today: date | None = None) -> int:
         )
         print(f"error: {error}", file=sys.stderr)
         return 2
-    parts = [headline(run, args.outcome, gate), notice, summarize(run, today=today or date.today())]
-    print("\n\n".join(filter(None, parts)))
+    # The verdict goes out before the table is built: a metric the table cannot read must not lose
+    # it. The table failing is exit 1 (2 is a run that could not be read at all).
+    print("\n\n".join(filter(None, [headline(run, args.outcome, gate), notice])), flush=True)
+    print()
+    try:
+        print(summarize(run, today=today or date.today()))
+    except Exception as error:
+        print(
+            "The results table could not be built "
+            f"({_code(f'{type(error).__name__}: {error}')}); see the run JSON."
+        )
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     return 0
 
 

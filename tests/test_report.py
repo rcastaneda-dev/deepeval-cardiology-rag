@@ -6,11 +6,13 @@ import pytest
 
 from evals.report import (
     GATE_PATHS,
+    OUTCOMES,
     expired_flakes,
     find_latest_run,
     gate_change_notice,
     headline,
     main,
+    no_results_headline,
     summarize,
 )
 from evals.thresholds import FLAKY, REPORT_ONLY
@@ -351,7 +353,7 @@ def test_headline_names_strict_failures_and_errors_separately():
     errored = case("in-009", metric("Faithfulness", None, None, error="Rate limit exceeded"))
     assert headline(run_of(failing_case(), errored)) == (
         "**Gate: FAILED.** Strict failures: in-005 / Answers the question (0.42 < 0.70). "
-        "Errors: in-009 / Faithfulness: Rate limit exceeded."
+        "Errors: in-009 / Faithfulness: `Rate limit exceeded`."
     )
 
 
@@ -383,17 +385,18 @@ def test_an_error_on_a_strict_metric_is_listed_as_an_error():
         "**Gate: FAILED.** Strict failures: none. Errors: in-009 / Faithfulness: "
     )
     assert "RateLimitError: too many requests" in text
-    assert text.endswith("….")
+    assert text.endswith("…`.")
     assert "no score" not in text and " < " not in text
     detail = text.split("Faithfulness: ", 1)[1]
-    assert len(detail) <= 81  # the shortened error (80) and the closing full stop
+    # the code span: the shortened error (80), two backticks and the closing full stop
+    assert len(detail) <= 83
 
 
 def test_an_error_on_a_strict_metric_with_success_false_is_one_error_not_also_a_failure():
     errored = metric("Faithfulness", None, False, error="Timeout")
     text = headline(run_of(case("in-009", errored)))
     assert (
-        text == "**Gate: FAILED.** Strict failures: none. Errors: in-009 / Faithfulness: Timeout."
+        text == "**Gate: FAILED.** Strict failures: none. Errors: in-009 / Faithfulness: `Timeout`."
     )
 
 
@@ -481,10 +484,55 @@ def test_a_full_run_headline_does_not_say_gate():
         "**Full suite (trend only, does not gate): 1 strict failure; 1 error; 1 warning; 3 cases.**"
     )
     assert "Strict failures: in-005 / Answers the question (0.42 < 0.70)." in text
-    assert "Errors: in-009 / Faithfulness: Timeout." in text
+    assert "Errors: in-009 / Faithfulness: `Timeout`." in text
     for outcome in (None, "success", "failure", "cancelled", "skipped"):
         for the_run in (run, RUN_ALL_PASSING, {}):
             assert "Gate" not in headline(the_run, outcome=outcome, gate=False)
+
+
+def test_a_skipped_step_points_at_the_job_log_not_at_the_deepeval_log():
+    # "Run DeepEval" is skipped when an earlier step (the install) failed or was skipped, so its
+    # own log does not exist: the reader is sent to the job log.
+    expected = "an earlier step failed or was skipped; see the job log"
+    gated = headline(RUN_ALL_PASSING, outcome="skipped")
+    assert expected in gated and "Run DeepEval" not in gated
+    trend = headline(RUN_ALL_PASSING, outcome="skipped", gate=False)
+    assert expected in trend and "Run DeepEval" not in trend
+    unread = no_results_headline("nothing", outcome="skipped")
+    assert expected in unread and "Run DeepEval" not in unread
+
+
+def test_a_cancelled_or_failed_step_still_points_at_its_own_log():
+    assert 'see the "Run DeepEval" log' in headline(RUN_ALL_PASSING, outcome="failure")
+    assert "step was cancelled" in headline(RUN_ALL_PASSING, outcome="cancelled")
+    assert 'The "Run DeepEval" step failed' in no_results_headline("x", outcome="failure")
+    assert 'see the "Run DeepEval" log' in no_results_headline("x", outcome="success")
+
+
+@pytest.mark.parametrize("outcome", [None, *OUTCOMES])
+@pytest.mark.parametrize("gate", [True, False])
+def test_every_step_outcome_gives_a_headline_with_or_without_results(outcome, gate):
+    for the_run in (RUN_ALL_PASSING, run_of(failing_case()), {}):
+        assert headline(the_run, outcome=outcome, gate=gate).startswith("**")
+    assert no_results_headline("x", outcome=outcome, gate=gate).startswith("**")
+
+
+def test_the_outcomes_are_the_four_a_step_can_have():
+    assert OUTCOMES == ("success", "failure", "cancelled", "skipped")
+
+
+def test_an_error_text_cannot_break_out_of_its_code_span():
+    error = "bad `tick` and **bold** and <b>tag</b> |pipe|"
+    run = run_of(case("in-009", metric("Faithfulness", None, None, error=error)))
+    text = headline(run)
+    assert "Errors: in-009 / Faithfulness: `bad 'tick' and **bold** and <b>tag</b> |pipe|`." in text
+    assert text.count("`") == 2
+
+
+def test_the_reason_in_the_no_results_headline_cannot_break_out_of_its_code_span():
+    text = no_results_headline("odd `path`\nsecond line")
+    assert "(`odd 'path' second line`)" in text
+    assert text.count("`") == 2
 
 
 def test_a_full_run_that_crashed_says_so():
@@ -548,7 +596,11 @@ def test_the_notice_is_cut_after_ten_files():
         ("src/cardio_rag/config.py", True),
         ("src/cardio_rag/config.pyc", False),
         ("pyproject.toml.orig", False),
-        ("evals/report.py", False),
+        ("evals/params.py", True),  # applies the smoke mark: decides what the gate runs
+        ("evals/cases.py", True),  # loads and validates the goldens
+        ("evals/report.py", True),  # writes this verdict
+        ("evals/promises.py", False),
+        ("evals/report.pyc", False),
         ("README.md", False),
     ],
 )
@@ -571,6 +623,9 @@ def test_gate_paths_name_the_files_that_define_what_the_gate_measures():
         "src/cardio_rag/config.py",
         "pyproject.toml",
         "uv.lock",
+        "evals/params.py",
+        "evals/cases.py",
+        "evals/report.py",
     } == set(GATE_PATHS)
 
 
@@ -630,6 +685,21 @@ def test_main_without_changed_files_prints_neither_notice(tmp_path, capsys):
     assert main([str(tmp_path)]) == 0
     out = capsys.readouterr().out
     assert "changes the gate itself" not in out and "Could not list" not in out
+
+
+def test_main_keeps_the_verdict_when_the_table_cannot_be_built(tmp_path, capsys):
+    # summarize reads metric["name"]; a metric without one cannot crash the verdict printed first.
+    nameless = {"score": 0.9, "success": True, "threshold": 0.8}
+    write_run(tmp_path, run_of(case("in-001", nameless), failing_case()))
+    changed = tmp_path / "changed-files.txt"
+    changed.write_text("evals/thresholds.py\n")
+    assert main([str(tmp_path), "--changed-files", str(changed)]) == 1
+    captured = capsys.readouterr()
+    verdict, notice, note = captured.out.split("\n\n", 2)
+    assert verdict.startswith("**Gate: FAILED.** Strict failures: in-005 / Answers the question")
+    assert notice.startswith("**This pull request changes the gate itself:**")
+    assert note.startswith("The results table could not be built (`KeyError: 'name'`)")
+    assert "error:" in captured.err
 
 
 def test_main_passes_the_outcome_and_the_full_run_flag_to_the_headline(tmp_path, capsys):
