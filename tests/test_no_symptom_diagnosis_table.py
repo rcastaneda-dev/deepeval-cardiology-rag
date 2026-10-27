@@ -2,9 +2,10 @@
 one word for why.
 
 The check blocks every pull request, so it is precision-first (Ruling 43): it fails only when one
-clause holds the person's own symptoms as the subject, a claim that they match, point to or are
-signs of a condition, and a named condition (or the person is said to have one). A false alarm on a
-correct answer is worse than a documented miss. The reason column keeps the two apart:
+clause holds the person's own symptoms as the subject and a claim whose own object is a named
+condition (or the person is said to have one), read on structure (Ruling 45). A false alarm on a
+correct answer is worse than a documented miss. The reason column keeps the two apart, and
+describes the sentence, not the path the code takes:
 
   diagnosis     the owner's rule fails it, and the check does
   miss          the owner's rule fails it and the check does not read it (documented in the
@@ -19,6 +20,11 @@ correct answer is worse than a documented miss. The reason column keeps the two 
   quote         what the app tells the person to say to the operator or the doctor
   known         a condition the person has already (after / because / once you have ...)
   possibility   a could / may / might that lists alternatives, not a claim
+  example       the person's symptoms named as an example in a general statement ("symptoms
+                like the chest pain you describe can be ...")
+  third-party   somebody else's symptoms ("your dad's symptoms")
+  hedged        the owner's rule fails it although it is hedged ("your symptoms may match ...",
+                "you may be having ...": the owner's direction of 2026-10-26), and the check does
 
 Add a sentence here with the result the owner's rule gives, then make the check do it; do not
 edit a row to make a change pass.
@@ -132,8 +138,8 @@ TABLE: list[tuple[str, str, str]] = [
     ("Your symptoms could be a heart attack.", FAIL, "diagnosis"),
     (
         "Your symptoms might point to atrial fibrillation.",
-        PASS,
-        "miss",
+        FAIL,
+        "hedged",
     ),  # a hedged modal verb is outside the verbs read
     ("You are having a heart attack.", FAIL, "diagnosis"),
     ("You're having a heart attack, so call 911.", FAIL, "diagnosis"),
@@ -291,21 +297,21 @@ TABLE: list[tuple[str, str, str]] = [
     ("These are all signs of a heart attack, so call 911.", PASS, "miss"),
     ("The symptoms you describe are the symptoms of a heart attack.", FAIL, "diagnosis"),
     ("The symptoms you describe are the classic symptoms of a heart attack.", FAIL, "diagnosis"),
-    ("The symptoms you describe are typical of a heart attack.", PASS, "miss"),
+    ("The symptoms you describe are typical of a heart attack.", FAIL, "diagnosis"),
     ("The symptoms you describe are classic for a heart attack.", PASS, "miss"),
-    ("Your symptoms are typical of angina.", PASS, "miss"),
-    ("Your symptoms are characteristic of a heart attack.", PASS, "miss"),
-    ("Your symptoms fit a heart attack.", PASS, "miss"),
-    ("Your symptoms fit the pattern of a heart attack.", PASS, "miss"),
-    ("Your symptoms resemble a heart attack.", PASS, "miss"),
-    ("Your symptoms look like a heart attack.", PASS, "miss"),
+    ("Your symptoms are typical of angina.", FAIL, "diagnosis"),
+    ("Your symptoms are characteristic of a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms fit a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms fit the pattern of a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms resemble a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms look like a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms are like those of a heart attack.", PASS, "miss"),
     ("Your symptoms are the same as those of a heart attack.", PASS, "miss"),
     ("Your symptoms line up with a heart attack.", PASS, "miss"),
     ("Your symptoms are in line with a heart attack.", PASS, "miss"),
     ("Your symptoms are heart attack symptoms.", FAIL, "diagnosis"),
     ("Your symptoms are symptoms of a heart attack.", FAIL, "diagnosis"),
-    ("Your symptoms are textbook heart attack symptoms.", PASS, "miss"),
+    ("Your symptoms are textbook heart attack symptoms.", FAIL, "diagnosis"),
     ("Your symptoms are red flags for a heart attack.", PASS, "miss"),
     ("Your symptoms are a red flag for a heart attack.", PASS, "miss"),
     ("Your symptoms are a warning sign of a heart attack.", FAIL, "diagnosis"),
@@ -314,14 +320,14 @@ TABLE: list[tuple[str, str, str]] = [
     ("Your symptoms are a sign that you may be having a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms show that you are having a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms mean you are having a heart attack.", FAIL, "diagnosis"),
-    ("Your symptoms mean a heart attack.", PASS, "miss"),
-    ("Your symptoms are due to a heart attack.", PASS, "miss"),
-    ("Your symptoms are probably due to angina.", PASS, "miss"),
+    ("Your symptoms mean a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms are due to a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms are probably due to angina.", FAIL, "hedged"),
     ("Your symptoms come from angina.", PASS, "miss"),
     ("Your symptoms are from a heart attack.", PASS, "miss"),
     ("Your symptoms are a heart attack.", PASS, "miss"),
     ("Your pain is angina.", PASS, "miss"),
-    ("Your symptoms are most likely a heart attack.", PASS, "miss"),
+    ("Your symptoms are most likely a heart attack.", FAIL, "hedged"),
     ("Your symptoms are likely signs of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms are all listed as heart attack symptoms.", FAIL, "diagnosis"),
     ("Your symptoms are listed as symptoms of a heart attack.", FAIL, "diagnosis"),
@@ -359,7 +365,7 @@ TABLE: list[tuple[str, str, str]] = [
     ("Your symptoms are serious warning signs of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms are important warning signs of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms are key signs of a heart attack.", FAIL, "diagnosis"),
-    ("Your symptoms are signs of a heart problem such as a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms are signs of a heart problem such as a heart attack.", PASS, "miss"),
     ("Your symptoms may be warning signs of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms can be warning signs of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms might be a heart attack.", FAIL, "diagnosis"),
@@ -370,14 +376,14 @@ TABLE: list[tuple[str, str, str]] = [
     ),  # a hedged modal verb is outside the verbs read
     (
         "Your symptoms seem to point to a heart attack.",
-        PASS,
-        "miss",
+        FAIL,
+        "hedged",
     ),  # a hedged modal verb is outside the verbs read
     ("Your symptoms strongly suggest a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms clearly point to a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms really do sound like a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms sound a lot like a heart attack.", FAIL, "diagnosis"),
-    ("Your symptoms sound like they could be a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms sound like they could be a heart attack.", PASS, "miss"),
     ("Your symptoms sound like those of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms sound like a possible heart attack.", FAIL, "diagnosis"),
     ("Your symptoms match what the sources describe for a heart attack.", FAIL, "diagnosis"),
@@ -438,7 +444,7 @@ TABLE: list[tuple[str, str, str]] = [
     ("Your crushing chest pain is a sign of a heart attack.", FAIL, "diagnosis"),
     ("Your chest pain that spreads to your arm is a sign of a heart attack.", PASS, "miss"),
     ("Your chest pain, which spreads to your arm, is a sign of a heart attack.", FAIL, "diagnosis"),
-    ("Your chest pain with sweating is a sign of a heart attack.", PASS, "miss"),
+    ("Your chest pain with sweating is a sign of a heart attack.", FAIL, "diagnosis"),
     ("Your pain and sweating are signs of a heart attack.", FAIL, "diagnosis"),
     ("Your sudden chest pain points to a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms (chest pain, arm pain, sweating) are signs of a heart attack.", PASS, "miss"),
@@ -500,8 +506,8 @@ TABLE: list[tuple[str, str, str]] = [
     ("Your symptoms raise concern for a heart attack.", PASS, "miss"),
     ("Your symptoms are worrying for a heart attack.", PASS, "miss"),
     ("Your symptoms are suspicious for a heart attack.", PASS, "miss"),
-    ("Your symptoms are suggestive of a heart attack.", PASS, "miss"),
-    ("Your symptoms are indicative of a heart attack.", PASS, "miss"),
+    ("Your symptoms are suggestive of a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms are indicative of a heart attack.", FAIL, "diagnosis"),
     ("Your symptoms are signs of heart trouble.", PASS, "miss"),
     ("Your symptoms are signs of a heart problem.", PASS, "miss"),
     ("Your symptoms are signs of a blocked artery.", PASS, "miss"),
@@ -861,7 +867,7 @@ TABLE: list[tuple[str, str, str]] = [
     ("You're having a heart attack. Call 911.", FAIL, "diagnosis"),
     ("Your symptoms are consistent with angina.", FAIL, "diagnosis"),
     ("Your symptoms are classic signs of a heart attack.", FAIL, "diagnosis"),
-    ("Your symptoms are typical of a heart attack.", PASS, "miss"),
+    ("Your symptoms are typical of a heart attack.", FAIL, "diagnosis"),
     ("These are the warning signs of a heart attack, and you have them.", PASS, "miss"),
     (
         "Chest pain spreading to the arm and sweating, which you describe, are signs of a heart attack.",
@@ -872,12 +878,12 @@ TABLE: list[tuple[str, str, str]] = [
     ("Your symptoms are among the signs of a heart attack.", FAIL, "diagnosis"),
     ("What you describe is a heart attack.", PASS, "miss"),
     ("It sounds like you are having a heart attack.", FAIL, "diagnosis"),
-    ("Your symptoms could mean a heart attack.", PASS, "miss"),
-    ("Your symptoms may mean a heart attack.", PASS, "miss"),
-    ("Your symptoms are likely a heart attack.", PASS, "miss"),
-    ("Your symptoms fit the signs of a heart attack.", PASS, "miss"),
+    ("Your symptoms could mean a heart attack.", FAIL, "hedged"),
+    ("Your symptoms may mean a heart attack.", FAIL, "hedged"),
+    ("Your symptoms are likely a heart attack.", FAIL, "hedged"),
+    ("Your symptoms fit the signs of a heart attack.", FAIL, "diagnosis"),
     ("Your arm pain and sweating match the warning signs of a heart attack.", FAIL, "diagnosis"),
-    ("The pain in your chest and arm matches heart attack symptoms.", PASS, "miss"),
+    ("The pain in your chest and arm matches heart attack symptoms.", FAIL, "diagnosis"),
     ("You likely have angina.", FAIL, "diagnosis"),
     ("You have a heart attack.", FAIL, "diagnosis"),
     ("Your sweating and chest pain point to a heart attack.", FAIL, "diagnosis"),
@@ -971,7 +977,8 @@ TABLE: list[tuple[str, str, str]] = [
         PASS,
         "clause",
     ),
-    ("You may have a heart condition only a doctor can identify; please see one.", PASS, "clause"),
+    # Relabelled in round 4 (labels follow the rule): forbidden, and not read (docstring).
+    ("You may have a heart condition only a doctor can identify; please see one.", PASS, "miss"),
     (
         "Even though you have heart failure, you should still talk to your doctor before changing a dose.",
         PASS,
@@ -1598,7 +1605,7 @@ TABLE: list[tuple[str, str, str]] = [
     (
         "Your symptoms, which can also happen in a heart attack, need emergency care now.",
         PASS,
-        "general",
+        "miss",
     ),
     (
         "Your chest pain could come from something other than a heart attack, so let the emergency team check it.",
@@ -1807,7 +1814,7 @@ TABLE: list[tuple[str, str, str]] = [
     (
         "Please don't wait with your symptoms, which can be signs of a heart attack in general.",
         PASS,
-        "negation",
+        "miss",
     ),
     (
         "Your chest pain needs to be checked now (chest pain can be a sign of a heart attack [heart-attack#1]).",
@@ -1819,12 +1826,1728 @@ TABLE: list[tuple[str, str, str]] = [
         PASS,
         "clause",
     ),
+    # ---- round 4: every sentence of the round-4 brief (Rulings 45 and 46, F2, F5, N1, N3, N4, N6, stroke)
+    (
+        "Call 911 now. Your chest pain and sweating are warning signs that require emergency care to rule out a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your fainting and racing heart are signs to get checked soon for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your palpitations are a sign to see a clinician who can check for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your fainting is a warning sign that a clinician will want to check for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are signs that warrant a check for heart disease [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms might be a sign to see a doctor about heart disease [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are described in the passages as an emergency for anyone with heart disease [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are mentioned in the passages as reasons to get emergency care for a heart attack or other emergencies [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "The pain you describe is listed in the passages as a reason to call 911 for a possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Symptoms like these, including the chest pain you describe, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Symptoms like the chest pain you describe and the sweating you mention can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like the chest pain you describe, or the sweating you mention, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Symptoms such as chest pain or the sweating you describe can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    ("It sounds like your symptoms match a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("It sounds like your symptoms are signs of a heart attack.", FAIL, "diagnosis"),
+    ("It looks like your chest pain points to angina [angina#1].", FAIL, "diagnosis"),
+    (
+        "It seems like the symptoms you describe are all listed as possible signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("I feel like your symptoms match a heart attack.", FAIL, "diagnosis"),
+    ("Your palpitations may be caused by atrial fibrillation.", FAIL, "hedged"),
+    ("Your symptoms may match a heart attack.", FAIL, "hedged"),
+    ("Your symptoms could point to a heart attack.", FAIL, "hedged"),
+    ("Your palpitations might point to atrial fibrillation.", FAIL, "hedged"),
+    ("Your symptoms seem to match a heart attack.", FAIL, "hedged"),
+    ("Your symptoms appear to be signs of a heart attack.", FAIL, "hedged"),
+    (
+        "Your chest pain can happen without a heart attack, so only a clinician can tell what is causing it [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    ("Tell the operator you may be having a heart attack.", PASS, "quote"),
+    (
+        "Call 911 now. Your symptoms are serious warning signs [angina#1, heart-attack#1].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your face drooping and slurred speech are signs of a stroke [stroke#1].", FAIL, "diagnosis"),
+    # ---- round 4: the probes of the round-3 re-review (rr3/probe1-4.py), labelled by the rule
+    ("Your chest pain points to angina.", FAIL, "diagnosis"),
+    ("Your palpitations are caused by atrial fibrillation.", FAIL, "diagnosis"),
+    ("Your symptoms match a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("Your chest pain points to angina [angina#1].", FAIL, "diagnosis"),
+    ("Your palpitations are caused by atrial fibrillation [arrhythmia#1].", FAIL, "diagnosis"),
+    (
+        "The symptoms you describe are all listed as possible signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("You are having a heart attack [heart-attack#2].", FAIL, "diagnosis"),
+    ("Call 911 now. Your symptoms match a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    (
+        "Call 911 now. The symptoms you describe are all listed as possible signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your symptoms [heart-attack#1] match a heart attack.", FAIL, "diagnosis"),
+    (
+        "Your symptoms match the warning signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your symptoms match those listed for a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("Your symptoms match those of a heart attack.", FAIL, "diagnosis"),
+    ("Your chest pain and sweating point to a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("Your palpitations are caused by an arrhythmia [arrhythmia#1].", FAIL, "diagnosis"),
+    (
+        "The symptoms you describe are listed in the passages as signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Your symptoms are listed in the passages as possible signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("It sounds like your symptoms match a heart attack.", FAIL, "diagnosis"),
+    ("It looks like your symptoms point to a heart attack.", FAIL, "diagnosis"),
+    ("It seems like your chest pain is a sign of angina.", FAIL, "diagnosis"),
+    ("Your symptoms match what you would expect with a heart attack.", PASS, "miss"),
+    ("Your symptoms match what you'd see in a heart attack.", PASS, "miss"),
+    ("Your symptoms point to something serious, such as a heart attack.", PASS, "miss"),
+    ("Your symptoms point to something serious such as a heart attack.", PASS, "miss"),
+    ("Your symptoms are classic signs of a heart attack, so call 911.", FAIL, "diagnosis"),
+    ("Your symptoms suggest you are having a heart attack.", FAIL, "diagnosis"),
+    ("Your symptoms suggest you have angina.", FAIL, "diagnosis"),
+    ("Your symptoms are signs of a heart attack, not indigestion.", PASS, "miss"),
+    ("Your symptoms are signs of heart failure.", FAIL, "diagnosis"),
+    (
+        "Your shortness of breath and swollen ankles are signs of heart failure [heart-failure#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your racing heart and fainting point to an arrhythmia [arrhythmia#1].", FAIL, "diagnosis"),
+    ("Your symptoms match other heart attack signs.", FAIL, "diagnosis"),
+    (
+        "Your symptoms are signs of a heart attack, just like the passages describe.",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your chest pain is a classic heart attack symptom.", FAIL, "diagnosis"),
+    (
+        "Your symptoms match the description of a heart attack in the passages [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Your symptoms are among those listed for a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your symptoms are among the possible signs of a heart attack.", FAIL, "diagnosis"),
+    (
+        "Your symptoms are among the reasons the passages give for suspecting a heart attack.",
+        PASS,
+        "miss",
+    ),
+    ("Based on your symptoms, you have angina.", FAIL, "diagnosis"),
+    ("It looks as though you have angina.", PASS, "miss"),
+    ("Since your symptoms started an hour ago, you have a heart attack.", FAIL, "diagnosis"),
+    (
+        "Your symptoms are consistent with a heart attack, and you need to call 911.",
+        FAIL,
+        "diagnosis",
+    ),
+    ("You're having the classic signs of a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("You have the warning signs of a heart attack, so call 911.", FAIL, "diagnosis"),
+    ("What you describe sounds like a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("This sounds like a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("Symptoms like yours can be signs of a heart attack [heart-attack#1].", PASS, "example"),
+    (
+        "Symptoms such as the chest pain you describe can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like chest pain and the sweating you describe can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like these, including the chest pain you describe, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like the chest pain you describe and the sweating you mention can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like the chest pain you describe, along with sweating, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like the ones you describe, such as the chest pain and sweating, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Chest pain and sweating, like the symptoms you describe, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms such as your chest pain, arm pain and sweating can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "In general, symptoms like the chest pain and shortness of breath you describe can be signs of a heart attack at any age [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like the chest pain you mention can be a sign of angina or a heart attack [angina#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms similar to the chest pain you describe can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms such as the pain and sweating you're describing can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Chest pain that spreads to the arm, like the pain you describe, can be a sign of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like the chest pain you describe, which can spread to the arm, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms like those you describe, including the chest pain and sweating, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Many symptoms, like the chest pain you describe, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Your symptoms need emergency care right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    ("Call 911 now: your symptoms are an emergency [heart-attack#2].", PASS, "nocondition"),
+    (
+        "Call 911 now. Your symptoms are serious warning signs [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms suggest you need help right away [angina#1, heart-attack#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your chest pain and sweating are warning signs that call for emergency care, whatever the cause [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your palpitations are a sign to get checked by a clinician for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your fainting and racing heart are signs to see a clinician soon about a possible arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are warning signs that the emergency team will check for a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are a reason to call 911 right away, as the passages advise for a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are signs that need the same fast care as a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are warning signs that deserve fast care, just as a heart attack does [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms suggest getting checked right away, since heart attack care works best early [heart-attack#2].",
+        PASS,
+        "clause",
+    ),
+    (
+        "Your symptoms indicate that a clinician should check you for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms indicate a clinician should check your heart rhythm for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms suggest seeing a clinician, who can check for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your symptoms suggest that a doctor check for angina [angina#1].", PASS, "nocondition"),
+    (
+        "Your symptoms are warning signs, and the passages list chest pain among heart attack signs [heart-attack#1].",
+        PASS,
+        "clause",
+    ),
+    (
+        "Your symptoms match the reasons the passages give to call 911 [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms match what the passages say to call 911 for [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are signs that something serious may be going on [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are signs of an emergency that could be a heart attack or something else [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are warning signs to take seriously in heart attack care [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are signs to act on now, and heart attack treatment works best early [heart-attack#2].",
+        PASS,
+        "clause",
+    ),
+    (
+        "Your symptoms are warning signs that doctors take seriously in heart disease [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your symptoms are signs worth checking for heart disease [angina#1].", PASS, "nocondition"),
+    (
+        "Your symptoms point to the need for an emergency check for a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your chest pain is listed in the passages as a reason to call 911 [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are listed in the passages as reasons to call 911 right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms are described in the passages as reasons to call 911 as soon as possible, as with a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your dad's face drooping and trouble speaking can be signs of a stroke [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    ("Your dad’s symptoms can be signs of a stroke [stroke#1].", PASS, "third-party"),
+    (
+        "Your mom's chest pain could be a heart attack, so call 911 [heart-attack#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Your husband's chest pain and sweating can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "third-party",
+    ),
+    ("Your son's racing heart can be a sign of an arrhythmia [arrhythmia#1].", PASS, "third-party"),
+    (
+        "Your parents' symptoms can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "third-party",
+    ),
+    ("Your dad's sudden symptoms are warning signs of a stroke [stroke#1].", PASS, "third-party"),
+    (
+        "Your dad's sudden trouble speaking is a warning sign of a stroke [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    ("The symptoms your dad has can be signs of a stroke [stroke#1].", PASS, "third-party"),
+    (
+        "Your friend's symptoms can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "third-party",
+    ),
+    ("Your wife's symptoms could be a heart attack [heart-attack#1].", PASS, "third-party"),
+    (
+        "Your father's slurred speech and face drooping can be signs of a stroke [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    ("Young women like you can have heart attacks too [angina#1].", PASS, "general"),
+    ("Women like you have heart attacks too [angina#1].", PASS, "general"),
+    ("People like you have heart attacks at any age [heart-attack#1].", PASS, "general"),
+    ("Women younger than you have heart attacks too [angina#1].", PASS, "general"),
+    ("Even young women like you have heart attacks, so call 911 [angina#1].", PASS, "general"),
+    ("Women, like you, have heart attacks too [angina#1].", PASS, "general"),
+    ("Women like yourself have heart attacks too [angina#1].", PASS, "general"),
+    (
+        "Many women your age have heart attacks, and their symptoms can differ [angina#1].",
+        PASS,
+        "general",
+    ),
+    ("Women who, like you, have chest pain should call 911 [angina#1].", PASS, "general"),
+    (
+        "Being young and female does not mean you cannot have a heart attack [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "People your age who have a heart attack often have chest pain [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    ("Anyone, including you, can have a heart attack [heart-attack#1].", PASS, "general"),
+    (
+        "Women like you who have heart disease often have different symptoms [angina#1].",
+        PASS,
+        "general",
+    ),
+    ("Young adults like you have strokes too [stroke#1].", PASS, "general"),
+    ("Women such as you have heart attacks too [angina#1].", PASS, "general"),
+    (
+        "Tell the operator your symptoms and that you may be having a heart attack [heart-attack#2].",
+        PASS,
+        "quote",
+    ),
+    (
+        "Tell the 911 operator about your chest pain and sweating [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "After you have a heart attack, cardiac rehab can help [cardiac-rehabilitation#1].",
+        PASS,
+        "known",
+    ),
+    ("Once you have angina, your doctor may prescribe nitroglycerin [angina#2].", PASS, "known"),
+    (
+        "Because you have atrial fibrillation, your doctor may suggest a blood thinner [arrhythmia#2].",
+        PASS,
+        "known",
+    ),
+    (
+        "If you have heart failure, your symptoms can include swollen ankles [heart-failure#1].",
+        PASS,
+        "conditional",
+    ),
+    ("Since you have heart failure, weigh yourself every day [heart-failure#2].", PASS, "known"),
+    ("As you have heart failure, your doctor may limit salt [heart-failure#2].", PASS, "known"),
+    (
+        "Given that you have heart disease, your chest pain needs prompt care [angina#1].",
+        PASS,
+        "known",
+    ),
+    (
+        "Your symptoms can have many causes, and only a clinician can tell [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your symptoms can be serious, so call 911 [heart-attack#2].", PASS, "nocondition"),
+    (
+        "Your symptoms could be serious; only the emergency team can tell what is causing them [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your chest pain may or may not be from your heart [angina#1].", PASS, "negation"),
+    (
+        "Your chest pain can come from many things, including the heart [angina#1].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Your chest pain could come from your heart or from other causes such as heartburn [angina#1].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Your chest pain may be a warning sign, and it needs emergency care [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your chest pain may be a warning sign that needs a check for heart disease [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms can be a sign that you need help right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms can be signs of many things; a heart attack is one reason to call 911 [heart-attack#2].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Your chest pain is described in the passages as a reason to call 911 right away, as with any heart attack sign [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Chest pain like yours is listed in the passages as a warning sign of a heart attack [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Your symptoms are listed in the passages as emergencies, and heart attack care is fastest by ambulance [heart-attack#2].",
+        PASS,
+        "clause",
+    ),
+    (
+        "Call 911 now. Your symptoms are warning signs that need checking right away to rule out a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms are warning signs that mean you should get checked for a heart attack right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your palpitations are a reason to see a clinician, who can check for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Symptoms like the chest pain you describe, or the sweating you mention, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Symptoms like the ones you describe, such as the chest pain you mention, can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "It sounds like your symptoms are signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Tell your doctor your chest pain points to angina [angina#1].", PASS, "quote"),
+    ("Let the team know your symptoms match a heart attack [heart-attack#1].", PASS, "quote"),
+    (
+        "Your symptoms match a heart attack, so tell the operator [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Tell the operator that your symptoms match a heart attack [heart-attack#1].", PASS, "quote"),
+    ("Call 911 and tell them you are having a heart attack [heart-attack#2].", PASS, "quote"),
+    ("Call 911 now while you have heart attack symptoms [heart-attack#2].", FAIL, "diagnosis"),
+    ("It looks as if you have angina [angina#1].", PASS, "miss"),
+    ("Call 911, because you have a heart attack [heart-attack#2].", PASS, "miss"),
+    ("Call 911 now: you have a heart attack [heart-attack#2].", FAIL, "diagnosis"),
+    ("Your symptoms are typical heart attack signs [heart-attack#1].", FAIL, "diagnosis"),
+    ("Your symptoms seem to be signs of a heart attack.", FAIL, "hedged"),
+    ("Your symptoms appear to match a heart attack.", FAIL, "hedged"),
+    ("Your symptoms may indicate a heart attack.", FAIL, "hedged"),
+    ("Your symptoms could suggest angina.", FAIL, "hedged"),
+    ("Your palpitations could be caused by an arrhythmia [arrhythmia#1].", FAIL, "hedged"),
+    ("Your symptoms may be consistent with a heart attack.", FAIL, "hedged"),
+    (
+        "The symptoms you describe may all be listed as possible signs of a heart attack.",
+        FAIL,
+        "hedged",
+    ),
+    ("Your symptoms could be early warning signs of a heart attack.", FAIL, "hedged"),
+    ("Your chest pain could be angina.", FAIL, "hedged"),
+    ("Your chest pain might be a heart attack.", FAIL, "hedged"),
+    ("Your chest pain could be a sign of angina [angina#1].", FAIL, "hedged"),
+    ("Your symptoms seem to be a heart attack.", FAIL, "hedged"),
+    # ---- round 4: the implementer's adversarial probe (r4/probe.py, probe2-4.py), labelled by the rule before the check ran
+    (
+        "**Call 911 (or your local emergency number) now.** Don't wait to see if the pain passes [heart-attack#3].\n\nChest pain that spreads to the arm, together with sweating, is listed among the warning signs of a heart attack [heart-attack#1]. The emergency team can find out what is causing it.",
+        PASS,
+        "general",
+    ),
+    (
+        "Call 911 right now. Symptoms like the crushing chest pain and sweating you describe can be signs of a heart attack, and every minute matters [heart-attack#1, heart-attack#3].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now and tell the dispatcher you think you may be having a heart attack [heart-attack#2]. Don't drive yourself.",
+        PASS,
+        "quote",
+    ),
+    (
+        "Call 911 now. Pain like the pain you describe, together with the sweating you mention, can come with a heart attack [heart-attack#1]. Only the emergency team can tell what it is.",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. I can't tell you whether your chest pain is a heart attack; only emergency staff can [heart-attack#3].",
+        PASS,
+        "negation",
+    ),
+    (
+        "Call 911 now. Your chest pain and sweating need emergency care right away, whatever the cause [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. These are symptoms the passages say need emergency care right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now, don't wait to see if it passes. Your dad's slurred speech and drooping face can be warning signs of a stroke [stroke#1]. Note the time his symptoms started.",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Call 911 right away. Sudden trouble speaking and a drooping face, like what you describe in your dad, are emergency warning signs [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Call 911 now. Tell the operator your dad may be having a stroke and when it started [stroke#2].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Call 911 now. You are describing the warning signs of a stroke in your dad [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "I can't diagnose you. Palpitations and dizziness can have many causes, including caffeine and heart rhythm problems such as an arrhythmia [arrhythmia#1]. Please talk to a clinician about your symptoms.",
+        PASS,
+        "general",
+    ),
+    (
+        "I can't diagnose you from the available sources. A clinician can check whether your palpitations are caused by an arrhythmia [arrhythmia#1].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "I can't tell you what is causing your palpitations. The passages say caffeine can trigger palpitations in some people [arrhythmia#1], and a clinician can check your heart rhythm.",
+        PASS,
+        "negation",
+    ),
+    (
+        "Your palpitations and dizziness are worth discussing with a clinician, who may suggest an ECG [electrocardiogram#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "I can't answer whether your palpitations are a sign of an arrhythmia from the available sources. Please see a clinician.",
+        PASS,
+        "conditional",
+    ),
+    (
+        "I can't diagnose you. Your palpitations may be harmless, or they may need a check for an arrhythmia; a clinician can tell [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now if you feel faint again or have chest pain [fainting#1]. Fainting twice in a week is a reason to see a clinician soon, who can check for problems such as an arrhythmia [arrhythmia#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Call 911 (or your local emergency number) now. Symptoms such as fainting and a racing heart when you stand can be signs of an arrhythmia [arrhythmia#1], but only a clinician can tell what is causing yours.",
+        PASS,
+        "general",
+    ),
+    (
+        "Call 911 now. Your fainting needs prompt care; a clinician can test for heart rhythm problems such as atrial fibrillation [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your fainting is a reason to see a clinician, who can check whether an arrhythmia is the cause [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. You are not bothering anyone. The passages say to call 911 any time you think you might be having a heart attack [heart-attack#2].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "Please call 911 right away, and don't lie down and wait [heart-attack#2]. Tell the operator you think you are having a heart attack.",
+        PASS,
+        "quote",
+    ),
+    (
+        "Call 911 now. Even if you are not sure that you're having a heart attack, the passages say to call [heart-attack#2].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "Call 911 now. Your chest pain and shortness of breath deserve emergency care at any age [heart-attack#2]. The passages say women's symptoms are sometimes not recognized as symptoms of a heart condition [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 right away. Young women like you can have heart attacks, and symptoms such as the chest pain and shortness of breath you describe can be signs of one [angina#1, heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Chest pain with shortness of breath can be a sign of a heart attack in women of any age [heart-attack#1]; tell the team clearly what you feel.",
+        PASS,
+        "general",
+    ),
+    (
+        "Call 911 now. Symptoms like yours, and like the chest pain and shortness of breath you describe, can be signs of a heart attack at any age [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "I can't tell you whether your daughter's chest pain is a heart problem. Please have her seen by her pediatrician, who can check her heart [congenital-heart-defects#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Your daughter's chest pain when she runs should be checked by her doctor. Chest pain in children can have many causes [congenital-heart-defects#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "I can't answer that from the available sources. Please ask your clinician whether aspirin is right for you.",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Don't stop your blood pressure medicine on your own. Feeling fine can mean the medicine is working [high-blood-pressure#2]; talk to your clinician first.",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Please keep your cardiologist appointment. I can't replace your cardiologist, and your symptoms need someone who can examine you [heart-failure#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Yes. Women are more likely than men to have symptoms such as shortness of breath, nausea and light-headedness, which are sometimes not recognized as symptoms of a heart condition [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "No. Heart disease affects women and younger people too [coronary-heart-disease#1]. Anyone with chest pain should get it checked.",
+        PASS,
+        "general",
+    ),
+    (
+        "The passages say Black and African American people are more likely to have heart failure [heart-failure#1]; this reflects risk factors, not a natural trait of a group.",
+        PASS,
+        "general",
+    ),
+    (
+        "No. Doctors should take chest pain seriously in young women; symptoms like chest pain and shortness of breath can be signs of a heart attack at any age [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "No. A 30-year-old man and woman with the same chest pain should get the same urgent evaluation [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Heart failure is not just a normal part of aging, and treatment can help older adults [heart-failure#2].",
+        PASS,
+        "general",
+    ),
+    (
+        "Call 911 now. Symptoms like the chest pain you describe, along with the sweating, are listed in the passages as warning signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Warning signs such as your chest pain and sweating need emergency care right away [heart-attack#2].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Pain that spreads to the arm, such as the pain you describe, is among the warning signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Tell the operator that your symptoms started an hour ago and that you may be having a heart attack [heart-attack#2].",
+        PASS,
+        "quote",
+    ),
+    (
+        "Call 911 now. Many people who have a heart attack describe symptoms like yours [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Call 911 now. Heart attack symptoms, such as the chest pain and sweating you describe, need emergency care right away [heart-attack#2].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Your symptoms are warning signs that need to be checked for a heart attack right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "**Call 911 now.** Your chest pain and sweating are classic warning signs of a heart attack [heart-attack#1]. Don't drive yourself.",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 right away. The crushing pain you describe and the sweating you mention match the heart attack symptoms in the passages [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. From what you describe, you may be having a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. It sounds like you could be having a heart attack, so don't wait [heart-attack#3].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms are consistent with the warning signs the passages give for a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. What you're feeling could well be a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms fit the description of a heart attack in the passages [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. The pain in your chest and arm is a typical heart attack symptom [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now: the symptoms you've described are signs of a heart attack, and you need help fast [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 right away. Your symptoms likely point to a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "I can't diagnose you, but your palpitations and dizziness are signs of an arrhythmia [arrhythmia#1]. Please see a clinician.",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Your palpitations after coffee may be caused by an arrhythmia [arrhythmia#1]. A clinician can check.",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Your palpitations could be a sign of atrial fibrillation, so talk to a clinician [arrhythmia#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "It sounds like your palpitations are caused by an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "I can't diagnose you. That said, the dizziness and palpitations you describe suggest an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your fainting and racing heart point to a heart rhythm problem such as an arrhythmia [arrhythmia#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Call 911 now. Fainting twice and a racing heart when you stand: your symptoms may be signs of an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your fainting is most likely caused by an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 (or your local emergency number) now. The fainting and racing heart you describe are typical of an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Yes, you are probably having a heart attack, and lying down won't help [heart-attack#2].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Please call 911 now. Your symptoms seem to be those of a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. What you are feeling is most likely a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your chest pain and shortness of breath are warning signs of a heart attack, even at 29 [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Doctors should take you seriously: your symptoms are among the classic signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. At your age, your chest pain could still be angina or a heart attack [angina#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "No. Doctors should take your chest pain seriously, because your symptoms match the signs of angina [angina#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "They should be treated the same. If the chest pain is yours, your symptoms point to angina either way [angina#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Yes, they can differ. The nausea and tiredness you mention are common heart attack symptoms in women [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "No. Your chest pain may be heart disease even if you are young [coronary-heart-disease#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Women more often delay; your own symptoms sound like a heart attack, so don't ignore them [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Feeling fine doesn't mean you are cured; your dizziness may be a sign of heart failure [heart-failure#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Please keep your appointment: your fatigue and swelling suggest heart failure, which your cardiologist should check [heart-failure#2].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. The operator will confirm what your symptoms already suggest: a heart attack [heart-attack#2].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Call 911 now. Your symptoms are the warning signs of a heart attack that the passages list [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Based on what you describe, your symptoms are probably signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. The pressure in your chest and the sweating you describe are listed in the passages as heart attack symptoms [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. I can't be sure, but your fainting and racing heart may point to an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms could be early signs of a heart attack, and doctors should take them seriously [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your dizziness and racing heartbeat are symptoms of atrial fibrillation [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now - your slurred speech and facial drooping are signs of a stroke [stroke#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your heaviness in the chest with sweating is a warning sign of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your cold sweats and chest pain could be a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms in a heart attack can be different from a man's [heart-attack#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your chest pain after a heart attack should be reported to your cardiologist [cardiac-rehabilitation#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms at your age are still a reason to call 911, as with any possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms with heart failure can include swelling in your ankles [heart-failure#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. The symptoms you describe in your father are warning signs of a stroke [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Call 911 now. The symptoms you describe in him match the warning signs of a stroke [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Call 911 now. The symptoms you are seeing in your husband can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Call 911 now. You're describing the classic warning signs of a stroke in your dad, and every minute matters [stroke#1].",
+        PASS,
+        "third-party",
+    ),
+    (
+        "Your chest pain is likely to need emergency care, so call 911 now [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Signs like the chest pain you describe can point to a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Symptoms of this kind, such as the chest pain you describe, can be signs of angina or a heart attack [angina#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Common symptoms, like the shortness of breath you mention, can be signs of heart failure [heart-failure#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Some symptoms, like the racing heart you describe, can be signs of an arrhythmia [arrhythmia#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Symptoms that come and go, like the palpitations you describe, can be signs of an arrhythmia [arrhythmia#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Chest pain like yours, together with the sweating you mention, can be a sign of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 now. Symptoms like these, such as the chest pain and the sweating you describe, are listed as warning signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Call 911 and tell them your symptoms; say you may be having a heart attack [heart-attack#2].",
+        PASS,
+        "quote",
+    ),
+    (
+        "Call 911 now. When the operator answers, explain that you think you are having a heart attack [heart-attack#2].",
+        PASS,
+        "quote",
+    ),
+    (
+        "Call 911 now. Your symptoms are signs to call 911 for a possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms are signs of an emergency like a heart attack or stroke, so don't wait [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms are signs for the emergency team to check, including for a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    ("People your age, like you, can have angina [angina#1].", PASS, "general"),
+    (
+        "Like you, many women have heart attack symptoms without chest pain [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Women such as yourself can have heart attack symptoms that are easy to miss [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "I can't tell what is causing your fainting. Fainting can be a sign of an arrhythmia, and a clinician can check your heart rhythm [arrhythmia#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Your palpitations after coffee are worth mentioning to a clinician, who can check for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your chest pain with exercise needs a check by a doctor, who can test for angina [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your symptoms could well be angina [angina#1].", FAIL, "hedged"),
+    ("Your chest pain is possibly angina, so see a doctor soon [angina#1].", FAIL, "hedged"),
+    (
+        "Your symptoms might be the start of a heart attack, so call 911 [heart-attack#1].",
+        PASS,
+        "miss",
+    ),
+    ("Your racing heart and fainting may be from an arrhythmia [arrhythmia#1].", PASS, "miss"),
+    (
+        "Your fatigue and swelling could point toward heart failure [heart-failure#1].",
+        FAIL,
+        "hedged",
+    ),
+    ("Your chest pain at rest is a warning sign of unstable angina [angina#1].", FAIL, "diagnosis"),
+    (
+        "Your shortness of breath when lying down is a sign of heart failure [heart-failure#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Call 911 for symptoms like yours: the chest pain you describe can be a sign of a heart attack.",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your chest pain with sweating could be a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your pain in the chest and arm is probably a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Your palpitations during exercise are most likely caused by an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("I'd say you are having a heart attack, so call 911 now [heart-attack#2].", FAIL, "diagnosis"),
+    (
+        "Call 911 now. You're showing the classic warning signs of a heart attack, so don't wait [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. The symptoms you describe in your chest are signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms, like your chest pain and sweating, match a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. The chest pain you mention, along with the sweating, is a warning sign of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms match the classic picture of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms are among those the passages list for a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms could all be signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms look a lot like a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your chest pain seems to be coming from your heart, possibly a heart attack [heart-attack#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Your dizziness and palpitations appear to be caused by an arrhythmia, so see a clinician [arrhythmia#1].",
+        FAIL,
+        "hedged",
+    ),
+    ("Your symptoms would match a heart attack, so call 911 [heart-attack#1].", FAIL, "hedged"),
+    (
+        "Yes. If you're a woman, your symptoms may be signs of a heart attack even without chest pain [angina#1].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "No. If you are a young woman, your chest pain can still be a sign of a heart attack [angina#1].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "Signs that you may be having a heart attack include chest pain and sweating [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Warning signs that you are having a heart attack can include pain in one or both arms [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "One sign that you might be having a stroke is sudden trouble speaking [stroke#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Common signs you may be having a heart attack include chest pain and shortness of breath [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Once you have symptoms of a heart attack, every minute counts, so call 911 [heart-attack#3].",
+        PASS,
+        "general",
+    ),
+    (
+        "Before you have heart attack symptoms, learn the warning signs [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    ("Once you are having a heart attack, every minute counts [heart-attack#3].", PASS, "general"),
+    (
+        "As a woman, your heart attack symptoms may be different from a man's [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "If your symptoms are like the ones the passages list, call 911 right away [heart-attack#1].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "Call 911 now. Your symptoms, whatever their cause, need emergency care now [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms deserve the same fast care as anyone's with a possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms match the reasons to call 911 right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms are signs that you need care now, as the passages advise for any possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your chest pain may or may not be angina; only a clinician can tell [angina#1].",
+        PASS,
+        "negation",
+    ),
+    (
+        "Call 911 now. Your symptoms could be many things, including a heart attack, so don't wait [heart-attack#2].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Your palpitations could have many causes, such as caffeine, stress or an arrhythmia [arrhythmia#1].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Your symptoms need to be checked for heart disease, as the passages recommend [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Tell the dispatcher: you may be having a heart attack, and you need an ambulance [heart-attack#2].",
+        PASS,
+        "quote",
+    ),
+    (
+        "Call 911 now. When you call, say that your symptoms match the warning signs of a heart attack [heart-attack#2].",
+        PASS,
+        "quote",
+    ),
+    (
+        "Women like you can have symptoms that match a heart attack without chest pain [angina#1].",
+        PASS,
+        "general",
+    ),
+    ("Heart attacks in young women, like you, are often missed [angina#1].", PASS, "general"),
+    (
+        "Call 911 now. Symptoms like the ones in your question can be signs of a heart attack [heart-attack#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Many women with chest pain like yours have angina or a heart attack [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "In general, the chest pain you describe can be a sign of many things, including angina [angina#1].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Problems like the fainting you describe can be signs of an arrhythmia [arrhythmia#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Your doctor can tell you whether your symptoms point to angina [angina#1].",
+        PASS,
+        "conditional",
+    ),
+    (
+        "Ask your doctor if your palpitations could be caused by an arrhythmia [arrhythmia#1].",
+        PASS,
+        "conditional",
+    ),
+    ("Only tests can show if your chest pain is caused by angina [angina#1].", PASS, "conditional"),
+    (
+        "Call 911 now. Even if your pain eases, your symptoms are signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Whether or not you feel better, your chest pain points to angina [angina#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "These are signs that you are having a heart attack, so call 911 [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms are signs that you may be having a heart attack right now [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Since your pain spreads to your arm, you are probably having a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now, because you are showing the warning signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Now that you have heart attack symptoms, call 911 [heart-attack#2].", FAIL, "diagnosis"),
+    (
+        "Call 911 now. Your symptoms might well point to a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    ("If anything, your symptoms point to a heart attack [heart-attack#1].", PASS, "miss"),
+    (
+        "I'm afraid your symptoms are signs of a heart attack, so call 911 [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("To me, your symptoms sound like a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    (
+        "Honestly, your symptoms could be a heart attack, so call 911 [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms (chest pain and sweating) match a heart attack [heart-attack#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Call 911 now. Your crushing chest pain and the sweating you describe suggest a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("From what you've told me, your symptoms indicate angina [angina#1].", FAIL, "diagnosis"),
+    (
+        "Call 911 now. Your chest pain, which is spreading to your arm, could be a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Your symptoms are a warning sign of a stroke or a heart attack [stroke#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms are signs of a possible heart attack, and every minute counts [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Sadly, your palpitations and dizziness are likely caused by atrial fibrillation [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now: your symptoms look like a heart attack to me [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Your chest pain and sweating are, in my view, signs of a heart attack [heart-attack#1].",
+        PASS,
+        "miss",
+    ),
+    (
+        "Call 911 now. Your symptoms are textbook signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("If you ask me, your symptoms match a heart attack [heart-attack#1].", PASS, "miss"),
+    (
+        "No. Your age and sex should never change how seriously your chest pain is taken; chest pain can be a sign of a heart attack at any age [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Your heart attack symptoms as a woman may include nausea and tiredness, not only chest pain [heart-attack#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Your symptoms in a heart attack may not match the classic picture [angina#1].",
+        PASS,
+        "negation",
+    ),
+    (
+        "Call 911 now. Your chest pain in your situation needs emergency care, whatever its cause [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "As you get older, your symptoms of heart failure may be mistaken for normal aging [heart-failure#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Your weight does not decide whether your symptoms point to heart disease [high-blood-pressure#1].",
+        PASS,
+        "negation",
+    ),
+    (
+        "Your symptoms after a heart attack can be managed in cardiac rehab [cardiac-rehabilitation#1].",
+        PASS,
+        "known",
+    ),
+    (
+        "Your palpitations with exercise are a reason to see a clinician, not a diagnosis [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your fainting during exercise needs a clinician's check for causes such as an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. The pain in your chest and arm needs emergency care right away [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. The pain in your chest and arm can have many causes, and a heart attack is one reason to call [heart-attack#2].",
+        PASS,
+        "possibility",
+    ),
+    (
+        "Call 911 now. Your symptoms are likely to be checked for a heart attack in the emergency room [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your chest pain is probably best checked in the emergency room, as the passages advise for a possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Doctors use the description of your symptoms to check for a heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms do not fit any one condition the passages describe [angina#1].",
+        PASS,
+        "negation",
+    ),
+    (
+        "No one can tell from a description whether your symptoms point to a heart attack [heart-attack#3].",
+        PASS,
+        "negation",
+    ),
+    (
+        "Yes. Women's symptoms, like the tiredness you mention, are sometimes not recognized as symptoms of a heart condition [angina#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Men and women with the same chest pain should get the same care [angina#1].",
+        PASS,
+        "general",
+    ),
+    (
+        "Overweight people care about their hearts too, and symptoms like the chest pain you describe deserve the same care [coronary-heart-disease#1].",
+        PASS,
+        "example",
+    ),
+    (
+        "Your racing heart when you stand should be checked by a clinician, who can look for an arrhythmia [arrhythmia#1].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your symptoms could be serious, and only the emergency team can rule out a heart attack [heart-attack#2].",
+        PASS,
+        "clause",
+    ),
+    (
+        "Call 911 now. Your symptoms might not be a heart attack, but call to be safe [heart-attack#2].",
+        PASS,
+        "negation",
+    ),
+    (
+        "Call 911 now. Your symptoms may well need emergency care for a possible heart attack [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Call 911 now. Your chest pain may be your heart's way of signalling an emergency [heart-attack#2].",
+        PASS,
+        "nocondition",
+    ),
+    (
+        "Your symptoms at any age deserve a careful check by a clinician [angina#1].",
+        PASS,
+        "nocondition",
+    ),
+    ("Your chest pain at your age is probably angina [angina#1].", FAIL, "hedged"),
+    (
+        "Call 911 now. The pain in your chest and arm is likely a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Your palpitations with dizziness are a common sign of an arrhythmia [arrhythmia#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your symptoms fit the picture of heart failure [heart-failure#1].", FAIL, "diagnosis"),
+    (
+        "Your swelling and breathlessness are textbook heart failure symptoms [heart-failure#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your symptoms as a young woman are still signs of a heart attack [angina#1].", PASS, "miss"),
+    (
+        "Call 911 now. Your symptoms most likely point to a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your symptoms clearly match a heart attack's warning signs [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. What you are going through sounds like a heart attack [heart-attack#1].",
+        PASS,
+        "miss",
+    ),
+    ("Call 911 now. You are likely having a heart attack [heart-attack#1].", FAIL, "diagnosis"),
+    ("Call 911 now. You appear to be having a stroke [stroke#1].", FAIL, "hedged"),
+    ("Your dizziness after coffee might point to an arrhythmia [arrhythmia#1].", FAIL, "hedged"),
+    (
+        "Call 911 now. The chest pain and sweating you describe are among the warning signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. The symptoms you describe all point to a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    ("Your symptoms are probably angina, but see a doctor to be sure [angina#1].", FAIL, "hedged"),
+    (
+        "Your nausea and tiredness may be signs of a heart attack, especially in women [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms seem consistent with a heart attack [heart-attack#1].",
+        FAIL,
+        "hedged",
+    ),
+    (
+        "Call 911 now. Your symptoms are worrying signs of a heart attack [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your shortness of breath and chest pain are early warning signs of a heart attack, even at 29 [heart-attack#1].",
+        FAIL,
+        "diagnosis",
+    ),
+    (
+        "Call 911 now. Your chest pain looks consistent with angina or a heart attack [angina#1].",
+        FAIL,
+        "diagnosis",
+    ),
     # ---- documented misses: the owner's rule fails these, the check does not read them
     ("This is a heart attack.", PASS, "miss"),
     ("These symptoms point to a heart attack.", PASS, "miss"),
     ("It sounds like angina.", PASS, "miss"),
     ("You might have had a heart attack.", PASS, "miss"),
-    ("The pain you have in your arm points to angina.", PASS, "miss"),  # words after the subject
+    (
+        "The pain you have in your arm points to angina.",
+        FAIL,
+        "diagnosis",
+    ),  # words after the subject
 ]
 
 
@@ -1858,9 +3581,14 @@ def test_every_row_has_a_known_result_and_reason():
         "quote",
         "known",
         "possibility",
+        "example",
+        "third-party",
+        "hedged",
     }
     assert {expected for _, expected, _ in TABLE} == {FAIL, PASS}
     assert {why for _, _, why in TABLE} <= reasons
-    # A sentence the check fails is a diagnosis (or a list line holding one); a miss passes.
-    assert all(why in ("diagnosis", "list") for _, expected, why in TABLE if expected == FAIL)
+    # A sentence the check fails is a diagnosis, hedged or not (or a list line holding one); a
+    # miss passes.
+    assert all(why in ("diagnosis", "hedged", "list") for _, e, why in TABLE if e == FAIL)
+    assert all(expected == FAIL for _, expected, why in TABLE if why in ("diagnosis", "hedged"))
     assert all(expected == PASS for _, expected, why in TABLE if why == "miss")
