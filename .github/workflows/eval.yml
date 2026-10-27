@@ -55,6 +55,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # the whole history, so the step below can diff against the base branch
+      # Lists the files this pull request changes, for the job summary's notice when it touches the
+      # gate itself (GATE_PATHS in evals/report.py). The list is moved into place only if git
+      # succeeded, so a failure leaves no file and the summary says it could not list the files
+      # instead of showing an empty list. --no-renames lists both paths of a moved file, so moving
+      # a gate file out of the gate's paths is still seen. The base branch comes through env,
+      # never into the script.
+      - name: List the changed files
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --no-renames "origin/$BASE_REF...HEAD" > changed-files.tmp
+          mv changed-files.tmp changed-files.txt
       # Fails closed: without keys the check is red, including on fork pull requests, so a run
       # that never scored the app cannot pass the required check (tests/test_check_eval_keys.py).
       - name: Check for API keys
@@ -72,6 +87,7 @@ jobs:
         if: steps.keys.outputs.available == 'true'
         run: uv sync --frozen
       - name: Run DeepEval
+        id: run
         if: steps.keys.outputs.available == 'true'
         # Pull requests are gated by the smoke subset. The full run (manual or weekly) is a
         # report-only trend signal: failing metrics show up in the summary, not as a red job.
@@ -86,10 +102,22 @@ jobs:
           else
             uv run deepeval test run evals/
           fi
+      # The summary opens with the gate verdict. RUN_OUTCOME is the outcome of the step above taken
+      # before continue-on-error applies, so a run that failed outside the scored metrics is not
+      # summarised as passed. Only pull requests are gated; the full run reports a trend.
       - name: Summarise results
         if: always() && steps.keys.outputs.available == 'true'
         continue-on-error: true
-        run: uv run python -m evals.report results >> "$GITHUB_STEP_SUMMARY"
+        env:
+          RUN_OUTCOME: ${{ steps.run.outcome }}
+        run: |
+          args=(--outcome "$RUN_OUTCOME")
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            args+=(--changed-files changed-files.txt)
+          else
+            args+=(--not-a-gate)
+          fi
+          uv run python -m evals.report results "${args[@]}" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && steps.keys.outputs.available == 'true'
         with:
