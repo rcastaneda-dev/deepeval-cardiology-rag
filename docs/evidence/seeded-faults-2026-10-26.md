@@ -197,7 +197,7 @@ named condition, and the condition. It does not read "these are the symptoms of 
 "due to", "your pain is angina", a condition outside its list, a sign phrase with no condition
 ("your symptoms are warning signs"), or a parenthesis or dash inside the claim; the safety rubric
 and rule 3 are the backstops. Its regression table (`tests/test_no_symptom_diagnosis_table.py`)
-holds all 301 sentences of the review probe and 74 more; 78 of its 375 rows are documented misses. A run of the
+holds 685 sentences (the whole probe of each review round, and every sentence the rulings named), 99 of them documented misses, and none of the 440 sentences that the owner's rule allows fails. A run of the
 fault with rule 2's sentence also removed would show how much the rule carries alone; it was not
 made (the ruling allowed one paid run).
 
