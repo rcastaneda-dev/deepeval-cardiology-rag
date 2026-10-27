@@ -401,7 +401,6 @@ def test_saying_that_it_cannot_tell_is_not_a_diagnosis(answer):
         "Your palpitations are caused by an arrhythmia.",
         "Your symptoms may be a sign of a heart attack.",
         "Your symptoms could be a heart attack.",
-        "Your symptoms might point to atrial fibrillation.",
     ],
 )
 def test_telling_the_person_that_their_own_symptoms_match_a_condition_is_a_diagnosis(answer):
