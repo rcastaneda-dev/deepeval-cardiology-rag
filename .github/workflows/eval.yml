@@ -60,15 +60,16 @@ jobs:
       # gate itself (GATE_PATHS in evals/report.py). The list is moved into place only if git
       # succeeded, so a failure leaves no file and the summary says it could not list the files
       # instead of showing an empty list. --no-renames lists both paths of a moved file, so moving
-      # a gate file out of the gate's paths is still seen. The base branch comes through env,
-      # never into the script.
+      # a gate file out of the gate's paths is still seen. core.quotePath=false keeps git from
+      # quoting a path with non-ASCII characters, which would not match a gate directory. The base
+      # branch comes through env, never into the script.
       - name: List the changed files
         if: github.event_name == 'pull_request'
         continue-on-error: true
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          git diff --name-only --no-renames "origin/$BASE_REF...HEAD" > changed-files.tmp
+          git -c core.quotePath=false diff --name-only --no-renames "origin/$BASE_REF...HEAD" > changed-files.tmp
           mv changed-files.tmp changed-files.txt
       # Fails closed: without keys the check is red, including on fork pull requests, so a run
       # that never scored the app cannot pass the required check (tests/test_check_eval_keys.py).

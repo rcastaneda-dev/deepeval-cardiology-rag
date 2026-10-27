@@ -94,16 +94,27 @@ def test_the_eval_job_gives_each_case_ten_minutes_for_its_judge_calls():
     assert set(timeouts) <= set(Settings.model_fields)  # a name DeepEval reads, not a typo
 
 
-def eval_steps() -> list[str]:
-    """The text of each step of the eval job, from its `- ` line to the next step."""
-    job = eval_job_lines()
+def split_steps(lines: list[str]) -> list[str]:
+    """The text of each step in `lines`, from its `- ` line to the next step."""
     steps: list[list[str]] = []
-    for line in job[job.index("    steps:") + 1 :]:
+    for line in lines:
         if line.startswith("      - "):
             steps.append([])
         if steps:
             steps[-1].append(line)
     return ["\n".join(step) for step in steps]
+
+
+def eval_steps() -> list[str]:
+    """The steps of the eval job."""
+    job = eval_job_lines()
+    return split_steps(job[job.index("    steps:") + 1 :])
+
+
+def every_step() -> list[str]:
+    """The steps of every job in eval.yml."""
+    text = (GITHUB / "workflows" / "eval.yml").read_text(encoding="utf-8")
+    return split_steps(text.splitlines())
 
 
 def step_named(name: str) -> str:
@@ -158,9 +169,8 @@ def test_the_changed_files_come_from_a_pull_request_step_that_reads_the_base_thr
     assert "BASE_REF: ${{ github.base_ref }}" in listing
     env_at = listing.index("env:")
     assert listing.index("BASE_REF") > env_at < listing.index("run:")
-    (command,) = [line for line in run_blocks(listing) if "git diff" in line]
+    (command,) = [line for line in run_blocks(listing) if "--name-only" in line]
     assert '"origin/$BASE_REF...HEAD"' in command
-    assert "--name-only" in command
 
 
 def test_a_failed_listing_leaves_no_changed_files_file_to_be_read_as_empty():
@@ -169,12 +179,15 @@ def test_a_failed_listing_leaves_no_changed_files_file_to_be_read_as_empty():
     # shell stops at the first failing command), so a failure is reported by the summary as "could
     # not list" instead of as an empty list.
     commands = run_blocks(eval_steps()[1])
-    (diff,) = [line for line in commands if "git diff" in line]
+    (diff,) = [line for line in commands if "--name-only" in line]
     (move,) = [line for line in commands if line.startswith("mv ")]
     assert diff.endswith("> changed-files.tmp")
     assert move == "mv changed-files.tmp changed-files.txt"
     assert commands.index(diff) < commands.index(move)
     assert "--no-renames" in diff  # a moved gate file shows under its old path too
+    # git quotes a path with non-ASCII characters ("docs/\303\251.md") unless told not to, and a
+    # quoted path in a gate directory would not match its prefix.
+    assert diff.startswith("git -c core.quotePath=false diff ")
 
 
 def test_no_run_block_interpolates_the_base_branch_or_the_outcome():
@@ -183,6 +196,19 @@ def test_no_run_block_interpolates_the_base_branch_or_the_outcome():
         for line in run_blocks(step):
             assert "github.base_ref" not in line
             assert "steps.run.outcome" not in line
+
+
+def test_no_run_block_in_the_workflow_contains_an_expression_at_all():
+    # Every `${{ }}` reaches the shell through `env:`, in every job, so nothing a pull request
+    # controls (a branch name, a title) is pasted into a script.
+    blocks = [line for step in every_step() for line in run_blocks(step)]
+    assert any("uv run" in line for line in blocks)  # the scan reads the run blocks
+    assert [line for line in blocks if "${{" in line] == []
+
+
+def test_the_scan_of_run_blocks_sees_an_expression_in_a_step():
+    step = "      - name: x\n        run: |\n          echo ${{ github.head_ref }}\n        env:\n"
+    assert run_blocks(step) == ["echo ${{ github.head_ref }}"]
 
 
 def test_the_summary_step_gets_the_outcome_the_changed_files_and_the_full_run_flag():
