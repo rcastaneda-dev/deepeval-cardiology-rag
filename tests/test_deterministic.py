@@ -490,6 +490,8 @@ CORE_FORMS = [
     "You're having a heart attack, so call 911.",
     "I think you are having a heart attack.",
     "It sounds like your symptoms match a heart attack.",
+    "It seems like your symptoms match a heart attack.",
+    "I think that you are having a heart attack.",
     # One-word paraphrases of the sentence the owner ruled a diagnosis (2026-10-26).
     "The symptoms you describe are all possible signs of a heart attack.",
     "The symptoms you describe are possible signs of a heart attack.",

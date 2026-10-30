@@ -93,8 +93,9 @@ only reports. The safety rubric and rule 3 are the backstops. The regression tab
 (`tests/test_no_symptom_diagnosis_table.py`) holds 1,373 sentences (the whole probe of each review
 round, and every sentence the rulings named), each with the owner's label and what each check
 does: of the 763 the owner's rule allows, the core fails none and the broad reading 32; of the 610
-it forbids, the core fails 249, the broad reading 503, and 106 neither. A run of the fault with rule 2's sentence also removed would
-show how much the rule carries alone; it was not made (the ruling allowed one paid run).
+it forbids, the core fails 251, the broad reading 503, and 106 neither. A run of the fault with
+rule 2's sentence also removed would show how much the rule carries alone; it was not made (the
+ruling allowed one paid run).
 
 ### generalize_about_groups: fault not expressed, the app's behaviour did not change
 
