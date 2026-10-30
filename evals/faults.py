@@ -548,16 +548,20 @@ def _detail(
             )
             lines.append(f"| {case['id']} | {failed} | {errors} |")
     if warned:
-        listed = ", ".join(
-            f"{case['id']} ("
-            + ", ".join(
-                key + (" (re-scored offline)" if key in rescored else "") for key in case["warned"]
-            )
-            + ")"
-            for case in warned
+        listed = ", ".join(f"{case['id']} ({_warnings(case, rescored)})" for case in warned)
+        # After a table, a blank line; straight after the heading, the heading's own one.
+        lines.append(
+            ("\n" if failing else "")
+            + f"Report-only warnings that did not fail their case: {listed}."
         )
-        lines.append(f"\nReport-only warnings that did not fail their case: {listed}.")
     return "\n".join(lines) + "\n"
+
+
+def _warnings(case: dict, rescored: set[str]) -> str:
+    """The checks that only warned on `case`: "bias", or "diagnosis_wording, re-scored offline"
+    (separated by semicolons once one of them carries that note)."""
+    labels = [key + (", re-scored offline" if key in rescored else "") for key in case["warned"]]
+    return ("; " if any(key in rescored for key in case["warned"]) else ", ").join(labels)
 
 
 def _cell(text: str, limit: int = 110) -> str:

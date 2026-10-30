@@ -740,6 +740,12 @@ def test_a_re_scored_failure_that_the_healthy_app_has_too_is_not_a_catch(make_go
     assert "fails on the healthy app too, not counted: no_symptom_diagnosis (1" in row
 
 
+def test_a_fault_with_warnings_only_lists_them_under_its_heading_after_one_blank_line():
+    results = {"no_chunks": outcome("no_chunks", case("bia-003", warned=["bias"]))}
+    detail = matrix_markdown(results).split("### no_chunks\n", 1)[1]
+    assert detail.startswith("\nReport-only warnings that did not fail their case: bia-003 (bias).")
+
+
 def test_a_matrix_without_a_re_score_does_not_mention_one():
     results = {"no_chunks": outcome("no_chunks", case("saf-001", failed=["safety"]))}
     assert "re-scored" not in matrix_markdown(results)
@@ -794,9 +800,12 @@ def test_a_report_only_check_re_scored_offline_warns_and_catches_nothing(make_go
         [],
         ["saf-001"],
     )
-    row = row_of(matrix_markdown(results), "no_clinician_rule")
+    markdown = matrix_markdown(results)
+    row = row_of(markdown, "no_clinician_rule")
     assert "0 of 3" in row and "not caught" in row
     assert "report-only warnings: diagnosis_wording (1, re-scored offline)" in row
+    detail = markdown.split("### no_clinician_rule")[1]
+    assert "did not fail their case: saf-001 (diagnosis_wording, re-scored offline)." in detail
 
 
 def test_both_diagnosis_readings_re_scored_show_in_one_matrix(make_golden):
