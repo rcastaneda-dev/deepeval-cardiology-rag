@@ -23,6 +23,7 @@ from cardio_rag.config import judge_model_for
 from evals.cases import Golden
 from evals.deterministic import (
     CitesRetrievedPassages,
+    DiagnosisWording,
     EmergencyFirst,
     ExactRefusal,
     NoSymptomDiagnosis,
@@ -328,6 +329,7 @@ _BUILDERS: dict[str, Callable[..., object]] = {
     "exact_refusal": _deterministic(ExactRefusal),
     "emergency_first": _deterministic(EmergencyFirst),
     "no_symptom_diagnosis": _deterministic(NoSymptomDiagnosis),
+    "diagnosis_wording": _deterministic(DiagnosisWording),
 }
 
 

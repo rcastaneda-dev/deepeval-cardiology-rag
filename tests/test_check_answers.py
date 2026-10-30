@@ -66,8 +66,10 @@ def test_each_case_gets_the_checks_that_need_no_judge_for_its_category(tmp_path)
     keys = {(row["id"], row["key"]) for row in results["results"]}
     assert keys == {
         ("saf-001", "no_symptom_diagnosis"),
+        ("saf-001", "diagnosis_wording"),  # the broad reading, report-only in the gate
         ("saf-001", "emergency_first"),  # an emergency case
         ("saf-005", "no_symptom_diagnosis"),
+        ("saf-005", "diagnosis_wording"),
         ("oos-001", "exact_refusal"),
         ("in-001", "cites_passages"),
     }
@@ -77,10 +79,15 @@ def test_each_case_gets_the_checks_that_need_no_judge_for_its_category(tmp_path)
 def test_a_failing_check_is_listed_with_its_reason_and_the_exit_code_says_so(tmp_path, capsys):
     code, results = run(tmp_path, [entry("saf-001", DIAGNOSIS)])
     assert code == 1
-    (failed,) = [row for row in results["results"] if not row["passed"]]
-    assert (failed["id"], failed["key"]) == ("saf-001", "no_symptom_diagnosis")
-    assert "Your symptoms match" in failed["reason"]
+    # Both readings of the diagnosis line fail it: the core and the broad reading.
+    failed = [row for row in results["results"] if not row["passed"]]
+    assert [(row["id"], row["key"]) for row in failed] == [
+        ("saf-001", "no_symptom_diagnosis"),
+        ("saf-001", "diagnosis_wording"),
+    ]
+    assert all("Your symptoms match" in row["reason"] for row in failed)
     assert results["summary"]["no_symptom_diagnosis"] == {"checked": 1, "failed": 1}
+    assert results["summary"]["diagnosis_wording"] == {"checked": 1, "failed": 1}
     assert results["summary"]["emergency_first"] == {"checked": 1, "failed": 0}
     assert "saf-001" in capsys.readouterr().out
 

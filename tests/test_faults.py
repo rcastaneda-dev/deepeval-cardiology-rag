@@ -671,13 +671,16 @@ def rescorable(make_golden):
 def test_a_re_score_records_the_cases_the_check_failed_and_the_ones_it_applies_to(make_golden):
     goldens, results = rescorable(make_golden)
     rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
-    assert results["no_clinician_rule"]["rescored_offline"] == {
-        "check": "no_symptom_diagnosis",
-        "date": "2026-10-26",
-        "cases": ["saf-001", "saf-005"],  # in-001 is not a safety case, so the check is not run
-        "failed": ["saf-001"],
-    }
-    assert results["control"]["rescored_offline"]["failed"] == []
+    assert results["no_clinician_rule"]["rescored_offline"] == [
+        {
+            "check": "no_symptom_diagnosis",
+            "date": "2026-10-26",
+            "cases": ["saf-001", "saf-005"],  # in-001 is not a safety case, so it is not run
+            "failed": ["saf-001"],
+            "warned": [],
+        }
+    ]
+    assert results["control"]["rescored_offline"][0]["failed"] == []
     assert results["worst_chunks"] is None  # a fault that was not run stays so
 
 
@@ -694,7 +697,7 @@ def test_a_case_without_an_answer_is_not_re_scored(make_golden):
     results["no_clinician_rule"]["cases"][0]["answer"] = None
     results["no_clinician_rule"]["cases"][0]["errors"] = {"generation": "RuntimeError: x"}
     rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
-    assert results["no_clinician_rule"]["rescored_offline"]["cases"] == ["saf-005"]
+    assert results["no_clinician_rule"]["rescored_offline"][0]["cases"] == ["saf-005"]
 
 
 def test_a_re_score_made_twice_is_the_same_re_score(make_golden):
@@ -750,25 +753,72 @@ def test_cites_passages_is_refused_because_a_stored_result_holds_no_retrieved_id
     assert "rescored_offline" not in results["control"]
 
 
-@pytest.mark.parametrize("key", ["no_symptom_diagnosis", "exact_refusal", "emergency_first"])
+@pytest.mark.parametrize(
+    "key", ["no_symptom_diagnosis", "diagnosis_wording", "exact_refusal", "emergency_first"]
+)
 def test_the_checks_that_read_the_answer_alone_can_be_re_scored(make_golden, key):
     goldens, results = rescorable(make_golden)
     rescore_offline(results, key, goldens=goldens, on="2026-10-26")
-    assert results["control"]["rescored_offline"]["check"] == key
+    assert [entry["check"] for entry in results["control"]["rescored_offline"]] == [key]
 
 
-def test_a_re_score_never_replaces_the_re_score_of_a_different_check(make_golden):
+def test_a_re_score_with_a_second_check_is_kept_beside_the_first(make_golden):
+    # The gating core and the report-only broad reading of the diagnosis line are both re-scored
+    # on the stored answers; the second never replaces the first.
     goldens, results = rescorable(make_golden)
     rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
-    before = {name: dict(result["rescored_offline"]) for name, result in results.items() if result}
-    with pytest.raises(ValueError, match="no_symptom_diagnosis.*exact_refusal"):
-        rescore_offline(results, "exact_refusal", goldens=goldens, on="2026-10-27")
-    # Nothing was touched, including the faults it would have reached first.
-    assert {n: r["rescored_offline"] for n, r in results.items() if r} == before
+    first = [dict(entry) for entry in results["no_clinician_rule"]["rescored_offline"]]
+    rescore_offline(results, "diagnosis_wording", goldens=goldens, on="2026-10-30")
+    entries = results["no_clinician_rule"]["rescored_offline"]
+    assert [entry["check"] for entry in entries] == ["no_symptom_diagnosis", "diagnosis_wording"]
+    assert entries[0] == first[0]
+    assert entries[1]["date"] == "2026-10-30"
 
 
-def test_a_re_score_of_the_same_check_again_is_allowed(make_golden):
+def test_a_re_score_of_the_same_check_again_replaces_its_own_entry(make_golden):
     goldens, results = rescorable(make_golden)
     rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
     rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-27")
-    assert results["control"]["rescored_offline"]["date"] == "2026-10-27"
+    (entry,) = results["control"]["rescored_offline"]
+    assert entry["date"] == "2026-10-27"
+
+
+def test_a_report_only_check_re_scored_offline_warns_and_catches_nothing(make_golden):
+    # diagnosis_wording is in REPORT_ONLY: on the stored answers its failures are warnings, as
+    # they would have been in the run.
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "diagnosis_wording", goldens=goldens, on="2026-10-30")
+    (entry,) = results["no_clinician_rule"]["rescored_offline"]
+    assert (entry["cases"], entry["failed"], entry["warned"]) == (
+        ["saf-001", "saf-005"],
+        [],
+        ["saf-001"],
+    )
+    row = row_of(matrix_markdown(results), "no_clinician_rule")
+    assert "0 of 3" in row and "not caught" in row
+    assert "report-only warnings: diagnosis_wording (1, re-scored offline)" in row
+
+
+def test_both_diagnosis_readings_re_scored_show_in_one_matrix(make_golden):
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    rescore_offline(results, "diagnosis_wording", goldens=goldens, on="2026-10-30")
+    row = row_of(matrix_markdown(results), "no_clinician_rule")
+    assert "no_symptom_diagnosis (1, re-scored offline)" in row
+    assert "report-only warnings: diagnosis_wording (1, re-scored offline)" in row
+
+
+def test_a_re_score_stored_in_the_earlier_shape_is_still_read(make_golden):
+    # The matrix JSON of 2026-10-26 holds one re-score as a mapping, not a list.
+    goldens, results = rescorable(make_golden)
+    rescore_offline(results, "no_symptom_diagnosis", goldens=goldens, on="2026-10-26")
+    for result in results.values():
+        if result:
+            (result["rescored_offline"],) = result["rescored_offline"]
+            del result["rescored_offline"]["warned"]
+    assert "no_symptom_diagnosis (1, re-scored offline)" in row_of(
+        matrix_markdown(results), "no_clinician_rule"
+    )
+    rescore_offline(results, "diagnosis_wording", goldens=goldens, on="2026-10-30")
+    entries = results["no_clinician_rule"]["rescored_offline"]
+    assert [entry["check"] for entry in entries] == ["no_symptom_diagnosis", "diagnosis_wording"]

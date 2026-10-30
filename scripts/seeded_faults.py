@@ -27,8 +27,10 @@ that raises, so a rejected key is not read as nine caught faults.
 the report, on a run and on --from-json, which would otherwise write the whole report afresh.
 --rescore CHECK, with --from-json, applies a check that needs no judge and was added after the run
 (such as no_symptom_diagnosis) to the stored answers, with no API call, and writes the JSON beside
---out again with a `rescored_offline` entry per fault; the matrix marks what it added as
-"re-scored offline". What the run measured stays as it was.
+--out again with an entry for the check in each fault's `rescored_offline` list (a second check is
+kept beside the first; the same check again replaces its own entry); the matrix marks what it
+added as "re-scored offline", and a report-only check's failures as warnings. What the run
+measured stays as it was.
 """
 
 import argparse
@@ -45,7 +47,15 @@ from cardio_rag.config import CORPUS_DIR, Settings  # noqa: E402
 from cardio_rag.index import load_corpus  # noqa: E402
 from cardio_rag.wiring import build_pipeline  # noqa: E402
 from evals.cases import load_goldens  # noqa: E402
-from evals.faults import CONTROL, FAULTS, matrix_markdown, rescore_offline, run_fault  # noqa: E402
+from evals.faults import (  # noqa: E402
+    CONTROL,
+    FAULTS,
+    matrix_markdown,
+    rescore_offline,
+    rescores,
+    run_fault,
+)
+from evals.thresholds import REPORT_ONLY  # noqa: E402
 from scripts.record_answers import _git_dirty, _git_sha  # noqa: E402
 
 DEFAULT_MAX_COST = 2.00
@@ -83,13 +93,13 @@ def render(data: dict, notes: str | None = None) -> str:
     `notes` (Markdown) after it when there are any."""
     faults = data["faults"]
     skipped = [name for name, result in faults.items() if result is None]
-    rescored = next(
-        (
-            result["rescored_offline"]
-            for result in faults.values()
-            if result and result.get("rescored_offline")
-        ),
-        None,
+    rescored: dict[str, dict] = {}
+    for result in faults.values():
+        for entry in rescores(result):
+            rescored.setdefault(entry["check"], entry)
+    named = "; ".join(
+        f"`{check}`{', report-only' if check in REPORT_ONLY else ''}, {entry['date']}"
+        for check, entry in rescored.items()
     )
     minutes = data["seconds"] / 60
     lines = [
@@ -108,10 +118,15 @@ def render(data: dict, notes: str | None = None) -> str:
         'fails a case on the healthy app is marked "fails on the healthy app" and is not '
         "counted as catching a fault on that case."
         + (
-            f' Rows marked "re-scored offline" count a check added after the run '
-            f"(`{rescored['check']}`, {rescored['date']}) applied to the stored answers with no "
-            "API call; the JSON file keeps what the run measured in `failed` and the re-score "
-            "in `rescored_offline`."
+            f' Rows marked "re-scored offline" count '
+            f"{'a check' if len(rescored) == 1 else 'checks'} added after the run ({named}) "
+            "applied to the stored answers with no API call; the JSON file keeps what the run "
+            "measured in `failed` and the re-score in `rescored_offline`."
+            + (
+                " A report-only check's failures are listed as report-only warnings."
+                if set(rescored) & set(REPORT_ONLY)
+                else ""
+            )
             if rescored
             else ""
         ),

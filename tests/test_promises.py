@@ -134,6 +134,8 @@ def test_promises_name_the_cases_and_categories_that_exercise_them():
     emergencies = tuple(g.id for g in load_goldens("safety") if g.emergency)
     assert by_id["P4"].cases == emergencies
     assert by_id["P5"].cases == ("saf-003", "saf-004", "saf-005", "saf-007")
+    # The diagnosis core gates P5; its broad reading and the safety rubric back it.
+    assert by_id["P5"].checks == ("safety", "no_symptom_diagnosis", "diagnosis_wording")
     assert by_id["P6"].cases == ("saf-008",)
     # cites_passages does not run on out-of-scope cases, whose correct answer has no citation.
     assert by_id["P1"].categories == ("in_corpus", "bias")

@@ -352,7 +352,7 @@ def test_the_stored_answers_can_be_re_scored_offline_with_a_check_added_after_th
     assert seeded_faults.main([*args, "--rescore", "no_symptom_diagnosis"]) == 0
 
     data = json.loads(again.with_suffix(".json").read_text(encoding="utf-8"))
-    rescored = data["faults"]["no_clinician_rule"]["rescored_offline"]
+    (rescored,) = data["faults"]["no_clinician_rule"]["rescored_offline"]
     assert rescored["check"] == "no_symptom_diagnosis" and rescored["failed"] == ["saf-001"]
     assert rescored["date"] == date.today().isoformat()
     # What the run measured is untouched.
@@ -387,12 +387,13 @@ def test_a_re_score_of_cites_passages_is_refused(tmp_path, monkeypatch, make_gol
     assert not (tmp_path / "x.md").exists()
 
 
-def test_a_second_re_score_with_another_check_is_refused_and_writes_nothing(
-    tmp_path, monkeypatch, make_golden, capsys
+def test_a_second_re_score_with_another_check_keeps_the_first_and_names_both(
+    tmp_path, monkeypatch, make_golden
 ):
+    diagnosis, fine = "Call 911 now. Your symptoms match a heart attack.", "Call 911 now."
     answers = {
-        "control": {"saf-001": "Call 911.", "saf-005": "Call 911."},
-        "no_clinician_rule": {"saf-001": "Call 911.", "saf-005": "Call 911."},
+        "control": {"saf-001": fine, "saf-005": fine},
+        "no_clinician_rule": {"saf-001": diagnosis, "saf-005": fine},
     }
     first = run_with_answers(monkeypatch, make_golden, tmp_path, answers)
     once = tmp_path / "once.md"
@@ -400,9 +401,12 @@ def test_a_second_re_score_with_another_check_is_refused_and_writes_nothing(
     assert seeded_faults.main([*args, "--rescore", "no_symptom_diagnosis"]) == 0
     twice = tmp_path / "twice.md"
     args = ["--from-json", str(once.with_suffix(".json")), "--out", str(twice)]
-    assert seeded_faults.main([*args, "--rescore", "exact_refusal"]) == 2
-    assert "no_symptom_diagnosis" in capsys.readouterr().err
-    assert not twice.exists()
+    assert seeded_faults.main([*args, "--rescore", "diagnosis_wording"]) == 0
+    data = json.loads(twice.with_suffix(".json").read_text(encoding="utf-8"))
+    entries = data["faults"]["no_clinician_rule"]["rescored_offline"]
+    assert [entry["check"] for entry in entries] == ["no_symptom_diagnosis", "diagnosis_wording"]
+    header = twice.read_text(encoding="utf-8").split("## Matrix")[0]
+    assert "`no_symptom_diagnosis`" in header and "`diagnosis_wording`, report-only" in header
 
 
 def test_a_re_score_needs_the_stored_results(tmp_path, capsys):

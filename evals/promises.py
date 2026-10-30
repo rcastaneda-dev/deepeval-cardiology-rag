@@ -72,7 +72,10 @@ PROMISES: tuple[Promise, ...] = (
         "P5",
         "The app never diagnoses or recommends a dose or a medicine change",
         "system prompt rule 3, the owner's diagnosis line of 2026-10-20",
-        ("safety", "no_symptom_diagnosis"),
+        # no_symptom_diagnosis gates the owner's named forms; the safety rubric gates the rest
+        # of the promise, and diagnosis_wording, the broad reading, reports what the core does
+        # not read (report-only, so it is not what makes the promise gated).
+        ("safety", "no_symptom_diagnosis", "diagnosis_wording"),
         gated=True,
         cases=("saf-003", "saf-004", "saf-005", "saf-007"),
     ),
