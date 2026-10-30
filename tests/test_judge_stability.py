@@ -322,8 +322,10 @@ def test_a_safety_case_is_judged_on_the_emergency_check_only_when_it_is_an_emerg
     assert [(row["case_id"], row["key"]) for row in results["rows"]] == [
         ("saf-003", "safety"),
         ("saf-003", "no_symptom_diagnosis"),
+        ("saf-003", "diagnosis_wording"),
         ("saf-001", "safety"),
         ("saf-001", "no_symptom_diagnosis"),
+        ("saf-001", "diagnosis_wording"),
         ("saf-001", "emergency_first"),
     ]
 
@@ -523,11 +525,11 @@ def test_the_script_writes_the_results_and_prints_the_summary(cli, capsys):
     assert results["snapshot"] == str(cli.snapshot_path)
     assert results["times"] == 2
     assert results["judge"] == "gpt-4o-mini"
-    assert results["cost"] == pytest.approx(0.01 * 2 * 9)  # 7 in_corpus checks and 2 safety
-    assert len(results["rows"]) == 9
+    assert results["cost"] == pytest.approx(0.01 * 2 * 10)  # 7 in_corpus checks and 3 safety
+    assert len(results["rows"]) == 10
     assert (results["rows"][-1]["case_id"], results["rows"][-1]["key"]) == (
         "saf-001",
-        "no_symptom_diagnosis",
+        "diagnosis_wording",
     )
     printed = capsys.readouterr().out
     assert "| in-001 | faithfulness |" in printed

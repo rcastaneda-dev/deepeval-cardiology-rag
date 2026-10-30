@@ -210,8 +210,12 @@ FAULTS: dict[str, Callable[[], AbstractContextManager[None]]] = {
 }
 
 # The checks that need no judge and read the answer alone, so a stored result (which keeps no
-# retrieved passage ids) can be scored again with them. cites_passages needs the ids.
-ANSWER_ONLY_CHECKS = frozenset({"no_symptom_diagnosis", "exact_refusal", "emergency_first"})
+# retrieved passage ids) can be scored again with them. cites_passages needs the ids. Both readings
+# of the owner's diagnosis line are here, the core (no_symptom_diagnosis, which gates) and the broad
+# reading (diagnosis_wording, report-only), so the matrix re-score reports both.
+ANSWER_ONLY_CHECKS = frozenset(
+    {"no_symptom_diagnosis", "diagnosis_wording", "exact_refusal", "emergency_first"}
+)
 
 # The unfaulted app, run through the same gate as a tenth pass. It is not one of the nine faults.
 CONTROL = "control"
@@ -370,14 +374,10 @@ def matrix_markdown(results: dict[str, dict | None]) -> str:
     and a check that fails a case on the healthy app is not counted for that case in any fault's
     row: it is listed apart as "fails on the healthy app", so a check that is red whatever the app
     does never passes for catching a fault. A result with `rescored_offline` (see
-    `rescore_offline`) counts the cases that check failed as failures of its key, marked
-    "re-scored offline"."""
+    `rescore_offline`) counts the cases each re-scored check failed as failures of its key, or as
+    warnings of a check that only warns there (a report-only one), marked "re-scored offline"."""
     results = {name: _with_rescore(result) for name, result in results.items()}
-    rescored = {
-        result["rescored_offline"]["check"]
-        for result in results.values()
-        if result and result.get("rescored_offline")
-    }
+    rescored = {entry["check"] for result in results.values() for entry in rescores(result)}
     rows = ["| Fault | Cases failed | Catching checks |", "|---|---|---|"]
     details = []
     healthy = _healthy_failures(results.get(CONTROL))
@@ -412,60 +412,73 @@ def matrix_markdown(results: dict[str, dict | None]) -> str:
     return "\n".join(rows) + "\n" + "".join(details)
 
 
+def rescores(result: dict | None) -> list[dict]:
+    """The re-scores a stored result holds, one per check, in the order they were made. The matrix
+    JSON of 2026-10-26 holds its one re-score as a mapping; a list is written since."""
+    stored = (result or {}).get("rescored_offline")
+    if not stored:
+        return []
+    return [stored] if isinstance(stored, dict) else list(stored)
+
+
 def _with_rescore(result: dict | None) -> dict | None:
-    """The result with the cases that its re-score failed counted as failures of the re-scored
-    check (a copy; the stored result is not changed)."""
-    if not result or not result.get("rescored_offline"):
+    """The result with the cases that its re-scores failed counted as failures of each re-scored
+    check, or as warnings of a check that only warns on the case (a copy; the stored result is not
+    changed)."""
+    entries = rescores(result)
+    if not entries:
         return result
-    rescore = result["rescored_offline"]
-    key, failed = rescore["check"], set(rescore["failed"])
-    cases = [
-        {**case, "failed": [*case["failed"], key]}
-        if case["id"] in failed and key not in case["failed"]
-        else case
-        for case in result["cases"]
-    ]
+    cases = []
+    for case in result["cases"]:
+        failed, warned = list(case["failed"]), list(case["warned"])
+        for entry in entries:
+            key = entry["check"]
+            if case["id"] in entry["failed"] and key not in failed:
+                failed.append(key)
+            if case["id"] in entry.get("warned", ()) and key not in warned:
+                warned.append(key)
+        cases.append({**case, "failed": failed, "warned": warned})
     return {**result, "cases": cases}
 
 
 def rescore_offline(results: dict[str, dict | None], key: str, *, goldens, on: str) -> None:
     """Applies the check `key` (one that needs no judge, added after the run) to the stored
-    answers of every result, with no API call. Each result gets `rescored_offline`: the check,
-    the date `on`, the ids of the cases it applies to (an answer exists, the case runs the check
-    and counts it) and the ids it failed. What the run measured is left as it was. A fault that
-    was not run (None) stays None. Only a check in ANSWER_ONLY_CHECKS can be re-scored: a stored
-    result holds the answer and the case id, and no retrieved passage ids."""
+    answers of every result, with no API call. Each result's `rescored_offline` list gets an entry
+    for the check: the check, the date `on`, the ids of the cases it applies to (an answer exists
+    and the case runs the check), the ids it failed where it counts, and the ids it failed where
+    it only warns (a report-only check, or one marked FLAKY for the case). A re-score of a check
+    replaces that check's own entry and leaves the others. What the run measured is left as it
+    was. A fault that was not run (None) stays None. Only a check in ANSWER_ONLY_CHECKS can be
+    re-scored: a stored result holds the answer and the case id, and no retrieved passage ids."""
     deterministic_check(key)  # a ValueError for a key that needs a judge, before anything is read
     if key not in ANSWER_ONLY_CHECKS:
         raise ValueError(
             f"{key!r} needs the retrieved passage ids, which a stored result does not hold; the "
             f"checks that read the answer alone are {', '.join(sorted(ANSWER_ONLY_CHECKS))}"
         )
-    for name, result in results.items():
-        earlier = (result or {}).get("rescored_offline")
-        if earlier and earlier["check"] != key:
-            raise ValueError(
-                f"{name} already holds a re-score by {earlier['check']!r}; the matrix reads one "
-                f"re-scored check, so {key!r} would replace it"
-            )
     by_id = {golden.id: golden for golden in goldens}
     for result in results.values():
         if not result:
             continue
-        applies, failed = [], []
+        applies, failed, warned = [], [], []
         for case in result["cases"]:
             golden = by_id.get(case["id"])
-            if golden is None or case["answer"] is None:
-                continue
-            if key not in keys_for(golden) or not is_strict(golden, key):
+            if golden is None or case["answer"] is None or key not in keys_for(golden):
                 continue
             check = deterministic_check(key)
             applies.append(case["id"])
             if check.measure(LLMTestCase(input=golden.question, actual_output=case["answer"])) < (
                 check.threshold
             ):
-                failed.append(case["id"])
-        result["rescored_offline"] = {"check": key, "date": on, "cases": applies, "failed": failed}
+                (failed if is_strict(golden, key) else warned).append(case["id"])
+        entry = {"check": key, "date": on, "cases": applies, "failed": failed, "warned": warned}
+        entries = rescores(result)
+        checks = [earlier["check"] for earlier in entries]
+        if key in checks:
+            entries[checks.index(key)] = entry
+        else:
+            entries.append(entry)
+        result["rescored_offline"] = entries
 
 
 def _listed(counts: Counter, rescored: set[str] = frozenset()) -> str:
@@ -535,7 +548,14 @@ def _detail(
             )
             lines.append(f"| {case['id']} | {failed} | {errors} |")
     if warned:
-        listed = ", ".join(f"{case['id']} ({', '.join(case['warned'])})" for case in warned)
+        listed = ", ".join(
+            f"{case['id']} ("
+            + ", ".join(
+                key + (" (re-scored offline)" if key in rescored else "") for key in case["warned"]
+            )
+            + ")"
+            for case in warned
+        )
         lines.append(f"\nReport-only warnings that did not fail their case: {listed}.")
     return "\n".join(lines) + "\n"
 

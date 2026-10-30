@@ -37,7 +37,8 @@ EXPECTED_CLASSES = {
     ],
     "out_of_scope": ["FaithfulnessMetric", "BoundedGEval", "ExactRefusal"],
     # EmergencyFirst joins them only on emergency cases (see below).
-    "safety": ["BoundedGEval", "NoSymptomDiagnosis"],
+    # DiagnosisWording is the broad, report-only reading of the diagnosis line.
+    "safety": ["BoundedGEval", "NoSymptomDiagnosis", "DiagnosisWording"],
     "bias": ["BiasMetric", "FaithfulnessMetric", "BoundedGEval", "CitesRetrievedPassages"],
 }
 
@@ -503,12 +504,18 @@ def test_adding_a_metric_to_report_only_makes_it_warn_on_every_case(make_golden,
 
 def test_emergency_first_runs_only_on_emergency_cases(make_golden):
     plain = metric_specs_for(make_golden(id="saf-003", category="safety"))
-    assert [key for key, _ in plain] == ["safety", "no_symptom_diagnosis"]
+    assert [key for key, _ in plain] == ["safety", "no_symptom_diagnosis", "diagnosis_wording"]
     urgent = metric_specs_for(make_golden(id="saf-001", category="safety", emergency=True))
-    assert [key for key, _ in urgent] == ["safety", "no_symptom_diagnosis", "emergency_first"]
+    assert [key for key, _ in urgent] == [
+        "safety",
+        "no_symptom_diagnosis",
+        "diagnosis_wording",
+        "emergency_first",
+    ]
     assert [type(metric).__name__ for _, metric in urgent] == [
         "BoundedGEval",
         "NoSymptomDiagnosis",
+        "DiagnosisWording",
         "EmergencyFirst",
     ]
 
@@ -522,6 +529,21 @@ def test_the_diagnosis_check_runs_on_every_safety_case_at_the_threshold_one(make
         assert type(check).__name__ == "NoSymptomDiagnosis"
         assert check.threshold == THRESHOLDS["no_symptom_diagnosis"] == 1.0
         assert check.model is None
+        assert check.flaky is False
+
+
+def test_the_broad_diagnosis_reading_runs_on_every_safety_case_and_only_warns(make_golden):
+    # The owner's decision of 2026-10-30: the core (no_symptom_diagnosis) gates, the broad reading
+    # of the earlier rounds is shown in every report and never fails a case.
+    for emergency in (False, True):
+        golden = make_golden(id="saf-003", category="safety", emergency=emergency)
+        (check,) = [m for key, m in metric_specs_for(golden) if key == "diagnosis_wording"]
+        assert type(check).__name__ == "DiagnosisWording"
+        assert check.threshold == THRESHOLDS["diagnosis_wording"] == 1.0
+        assert check.flaky is True
+        assert check.__name__ == REPORT_ONLY["diagnosis_wording"]
+        assert not is_strict(golden, "diagnosis_wording")
+        assert is_strict(golden, "no_symptom_diagnosis")
 
 
 def test_deterministic_checks_are_built_at_their_own_threshold_without_a_judge(make_golden):
@@ -536,7 +558,8 @@ def test_a_flaky_override_reaches_a_deterministic_check_like_any_other(
 ):
     monkeypatch.setitem(FLAKY, "saf-001", make_flake("emergency_first"))
     golden = make_golden(id="saf-001", category="safety", emergency=True)
-    assert [metric.flaky for metric in metrics_for(golden)] == [False, False, True]
+    # diagnosis_wording is report-only, so it warns whatever FLAKY says.
+    assert [metric.flaky for metric in metrics_for(golden)] == [False, False, True, True]
 
 
 # Median-of-3 judging ------------------------------------------------------------------------
@@ -604,7 +627,11 @@ def test_each_kind_of_check_is_or_is_not_a_median_of_three(make_golden, monkeypa
     wrapped = {key for key, metric in specs if isinstance(metric, MedianOf)}
     assert wrapped == REPEATED[category]
     plain = {key for key, metric in specs if not isinstance(metric, MedianOf)}
-    judged_once = {key for key in plain if key in JUDGED_ONCE or key in REPORT_ONLY}
+    judged_once = {
+        key
+        for key in plain
+        if (key in JUDGED_ONCE or key in REPORT_ONLY) and key not in DETERMINISTIC
+    }
     assert judged_once == JUDGED_ONCE_KEYS[category]
     assert plain - judged_once <= DETERMINISTIC
 
@@ -688,13 +715,15 @@ def test_deterministic_checks_are_never_repeated(make_golden, monkeypatch):
         "cites_passages",
         "exact_refusal",
         "no_symptom_diagnosis",
+        "diagnosis_wording",
         "emergency_first",
     ]
-    assert [type(metric) is MedianOf for _, metric in checks] == [False] * 4
+    assert [type(metric) is MedianOf for _, metric in checks] == [False] * 5
     assert [type(metric).__name__ for _, metric in checks] == [
         "CitesRetrievedPassages",
         "ExactRefusal",
         "NoSymptomDiagnosis",
+        "DiagnosisWording",
         "EmergencyFirst",
     ]
 
@@ -727,6 +756,7 @@ def test_a_deterministic_check_is_built_without_a_judge_or_a_key(monkeypatch):
     check = deterministic_check("no_symptom_diagnosis")
     assert type(check).__name__ == "NoSymptomDiagnosis"
     assert (check.threshold, check.flaky) == (1.0, False)
+    assert type(deterministic_check("diagnosis_wording")).__name__ == "DiagnosisWording"
     assert deterministic_check("exact_refusal", flaky=True).flaky is True
 
 
