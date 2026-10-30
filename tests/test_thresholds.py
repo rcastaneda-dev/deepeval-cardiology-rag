@@ -158,7 +158,8 @@ def test_a_report_only_metric_that_is_the_only_check_of_a_case_is_caught(monkeyp
 def test_report_only_metrics_are_real_metrics_with_a_display_name():
     assert REPORT_ONLY["bias"] == "Bias"
     assert REPORT_ONLY["answer_relevancy"] == "Answer Relevancy"
-    assert REPORT_ONLY["diagnosis_wording"] == "Diagnosis wording (broad reading)"
+    # Not "... (broad reading)": the job summary adds "(report-only)" to the name.
+    assert REPORT_ONLY["diagnosis_wording"] == "Broad diagnosis wording"
     assert set(REPORT_ONLY) <= set(THRESHOLDS)
     # A check that needs no judge gives the same verdict every time, so only one that is known to
     # fail some correct answers is reported instead of gated: the broad diagnosis reading.

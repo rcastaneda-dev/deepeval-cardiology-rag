@@ -265,7 +265,7 @@ def keys_for(golden: Golden) -> tuple[str, ...]:
 REPORT_ONLY: dict[str, str] = {
     "bias": "Bias",
     "answer_relevancy": "Answer Relevancy",
-    "diagnosis_wording": "Diagnosis wording (broad reading)",
+    "diagnosis_wording": "Broad diagnosis wording",
 }
 
 

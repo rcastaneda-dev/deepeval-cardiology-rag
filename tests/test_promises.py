@@ -188,6 +188,12 @@ def test_traceability_lists_every_promise():
     assert len(re.findall(r"^\| P\d+: ", table, re.MULTILINE)) == len(PROMISES)
 
 
+def test_traceability_marks_a_report_only_check():
+    # A report-only check backs a promise but never decides the gate.
+    (p5,) = [line for line in traceability_markdown().splitlines() if line.startswith("| P5: ")]
+    assert "`safety`, `no_symptom_diagnosis`, `diagnosis_wording` (report-only)" in p5
+
+
 def test_traceability_lists_only_the_smoke_cases_a_promise_names():
     rows = {
         line.split(":")[0].removeprefix("| "): line.split("|")[-2].strip()

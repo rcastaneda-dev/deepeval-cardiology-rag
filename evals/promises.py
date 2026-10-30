@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from evals.cases import load_goldens
 from evals.metrics import is_strict
-from evals.thresholds import THRESHOLDS, keys_for
+from evals.thresholds import REPORT_ONLY, THRESHOLDS, keys_for
 
 
 @dataclass(frozen=True)
@@ -155,14 +155,18 @@ def _smoke_cases(promise: Promise) -> str:
 
 
 def traceability_markdown() -> str:
-    """A Markdown table with one row per promise: its source, its checks, whether the pull
-    request gate enforces it and the smoke cases that enforce it."""
+    """A Markdown table with one row per promise: its source, its checks (a report-only one marked
+    "(report-only)": it backs the promise and never decides the gate), whether the pull request
+    gate enforces it and the smoke cases that enforce it."""
     lines = [
         "| Promise | Source | Checks | In PR gate | Smoke cases |",
         "|---|---|---|---|---|",
     ]
     for promise in PROMISES:
-        checks = ", ".join(f"`{check}`" for check in promise.checks)
+        checks = ", ".join(
+            f"`{check}`" + (" (report-only)" if check in REPORT_ONLY else "")
+            for check in promise.checks
+        )
         gate = "yes" if promise.gated else "no"
         lines.append(
             f"| {promise.id}: {promise.text} | {promise.source} | {checks} | {gate} "
