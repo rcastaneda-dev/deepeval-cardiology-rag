@@ -300,7 +300,10 @@ _NAMED_HEAD = (
     rf"|(?:is|are|be) {_NAMED_ALSO}(?:caused by {_NAMED_CONDITION}"
     rf"|(?:listed (?:in the passages )?(?:as|among) )?{_NAMED_SIGNS_OF}))"
 )
-_NAMED_LEAD = r"(?:(?:I think|it sounds like|it looks like|it seems|most likely,?) )?"
+_NAMED_LEAD = (
+    r"(?:(?:I think(?: that)?|it sounds like|it looks like|it seems(?: like| that)?"
+    r"|most likely,?) )?"
+)
 _NAMED_CLAIM = re.compile(
     rf"{_NAMED_LEAD}{_NAMED_SUBJECT}{_NAMED_LIST} {_NAMED_HEAD}", re.IGNORECASE
 )
@@ -356,9 +359,10 @@ class NoSymptomDiagnosis(_DeterministicCheck):
     rubric see the rest.
 
     A form counts at the start of a sentence, line, bullet or heading, or after the app's own "I
-    think", "it sounds like", "it looks like", "it seems" or "most likely"; the condition comes
-    right after the claim's head with only articles and the qualifiers possible, warning, classic,
-    common, typical, early or serious between. Brackets that hold passage ids are removed first.
+    think (that)", "it sounds like", "it looks like", "it seems (like / that)" or "most likely";
+    the condition comes right after the claim's head with only articles and the qualifiers
+    possible, warning, classic, common, typical, early or serious between. Brackets that hold
+    passage ids are removed first.
     It passes a hedged claim that also names another cause ("could be caused by an arrhythmia or
     by caffeine"), a claim followed by "if", "unless", "when" or "whenever" in its sentence, and a
     described subject ("the symptoms you describe", "what you describe") when the answer names
