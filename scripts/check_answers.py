@@ -4,8 +4,9 @@ Usage: uv run python scripts/check_answers.py --snapshot PATH [--keys KEY,KEY] [
 
 For every case in a snapshot (scripts/record_answers.py; a file of samples is read sample by
 sample) it runs each check of `evals.thresholds.DETERMINISTIC` that the case's category runs
-(`keys_for`: cites_passages, exact_refusal, no_symptom_diagnosis, and emergency_first on the
-emergency cases), against the passages the case retrieved. It prints how many answers each check
+(`keys_for`: cites_passages, exact_refusal, no_symptom_diagnosis and its report-only broad
+reading diagnosis_wording, and emergency_first on the emergency cases), against the passages the
+case retrieved. It prints how many answers each check
 read and how many failed, lists every failure with its reason, writes the same to --out as JSON
 (the snapshot's commit, whether it was dirty, one row per answer and check, and the summary), and
 exits 1 if any check failed, 2 if the snapshot cannot be read.
