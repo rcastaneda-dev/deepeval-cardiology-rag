@@ -112,7 +112,8 @@ def render(data: dict, notes: str | None = None) -> str:
         "asked once with it on (" + ", ".join(data["smoke_cases"]) + "), and the answers were "
         "judged with the checks the gate builds (`metric_specs_for`, `JUDGE_REPEATS` unset). A "
         "case fails a fault when a check that counts fails or errors, as `assert_test` would; "
-        "Bias and Answer Relevancy are report-only and only warn. An error (an app that raised, "
+        f"{_and(sorted(REPORT_ONLY.values()))} are report-only and only warn. An error (an app "
+        "that raised, "
         "a check that raised or set an error) counts as caught and is labelled `error`. The "
         "control is the same pass with no fault on, the first row of the matrix: a check that "
         'fails a case on the healthy app is marked "fails on the healthy app" and is not '
@@ -150,6 +151,11 @@ def render(data: dict, notes: str | None = None) -> str:
     if notes and notes.strip():
         text += "\n" + notes.strip("\n") + "\n"
     return text
+
+
+def _and(names: list[str]) -> str:
+    """The names joined as "A", "A and B" or "A, B and C"."""
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
 
 
 def _csv(text: str) -> list[str]:

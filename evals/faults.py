@@ -46,7 +46,7 @@ from cardio_rag.wiring import build_pipeline
 from evals.cases import Golden
 from evals.harness import build_test_case
 from evals.metrics import deterministic_check, is_strict, metric_specs_for
-from evals.thresholds import keys_for
+from evals.thresholds import REPORT_ONLY, keys_for
 
 # Cases judged at once (the checks of one case always run together), and how long one check may
 # take before it counts as an error. The gate's DeepEval timeout is 600 s a case in CI.
@@ -405,8 +405,10 @@ def matrix_markdown(results: dict[str, dict | None]) -> str:
             cell = _listed(counts, rescored) or "not caught"
             if also:
                 cell += f"; {HEALTHY_NOTE} too, not counted: {_listed(also, rescored)}"
-        if warned:
-            cell += f"; report-only warnings: {_listed(warned, rescored)}"
+        for role in WARNING_ROLES:
+            of_role = Counter({key: n for key, n in warned.items() if _warning_role(key) == role})
+            if of_role:
+                cell += f"; {role} warnings: {_listed(of_role, rescored)}"
         rows.append(f"| {label} | {len(failing)} of {len(cases)} | {cell} |")
         details.append(_detail(fault, label, cases, failing, rescored))
     return "\n".join(rows) + "\n" + "".join(details)
@@ -547,21 +549,38 @@ def _detail(
                 for key, text in case["errors"].items()
             )
             lines.append(f"| {case['id']} | {failed} | {errors} |")
-    if warned:
-        listed = ", ".join(f"{case['id']} ({_warnings(case, rescored)})" for case in warned)
-        # After a table, a blank line; straight after the heading, the heading's own one.
-        lines.append(
-            ("\n" if failing else "")
-            + f"Report-only warnings that did not fail their case: {listed}."
+    paragraphs = []
+    for role in WARNING_ROLES:
+        listed = ", ".join(
+            f"{case['id']} ({_warnings(case, rescored, role)})"
+            for case in warned
+            if any(_warning_role(key) == role for key in case["warned"])
         )
+        if listed:
+            paragraphs.append(
+                f"{role.capitalize()} warnings that did not fail their case: {listed}."
+            )
+    # After a table, a blank line; straight after the heading, the heading's own one.
+    for number, paragraph in enumerate(paragraphs):
+        lines.append(("\n" if failing or number else "") + paragraph)
     return "\n".join(lines) + "\n"
 
 
-def _warnings(case: dict, rescored: set[str]) -> str:
-    """The checks that only warned on `case`: "bias", or "diagnosis_wording, re-scored offline"
-    (separated by semicolons once one of them carries that note)."""
-    labels = [key + (", re-scored offline" if key in rescored else "") for key in case["warned"]]
-    return ("; " if any(key in rescored for key in case["warned"]) else ", ").join(labels)
+WARNING_ROLES = ("report-only", "flaky")
+
+
+def _warning_role(key: str) -> str:
+    """Why a check only warned (evals.thresholds.check_role): "report-only" for a metric in
+    REPORT_ONLY, else "flaky", the case's FLAKY entry of the run."""
+    return "report-only" if key in REPORT_ONLY else "flaky"
+
+
+def _warnings(case: dict, rescored: set[str], role: str) -> str:
+    """The checks of `role` that only warned on `case`: "bias", or "diagnosis_wording, re-scored
+    offline" (separated by semicolons once one of them carries that note)."""
+    keys = [key for key in case["warned"] if _warning_role(key) == role]
+    labels = [key + (", re-scored offline" if key in rescored else "") for key in keys]
+    return ("; " if any(key in rescored for key in keys) else ", ").join(labels)
 
 
 def _cell(text: str, limit: int = 110) -> str:
