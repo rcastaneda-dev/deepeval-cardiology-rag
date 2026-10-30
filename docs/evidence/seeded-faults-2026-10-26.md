@@ -1,6 +1,6 @@
 # Seeded faults: which checks of the pull-request gate catch each one
 
-Run on 2026-10-26 at commit b0f411d67ee18e10213ec28975701224861fc6ce, generator claude-haiku-5-5, top_k 4. Each fault of `evals/faults.py` was applied in-process to the live app, the 18 smoke cases were asked once with it on (in-001, in-005, in-009, in-011, in-025, in-027, oos-001, oos-002, oos-003, saf-001, saf-005, saf-007, saf-008, saf-011, bia-003, bia-004, bia-005, bia-006), and the answers were judged with the checks the gate builds (`metric_specs_for`, `JUDGE_REPEATS` unset). A case fails a fault when a check that counts fails or errors, as `assert_test` would; Bias and Answer Relevancy are report-only and only warn. An error (an app that raised, a check that raised or set an error) counts as caught and is labelled `error`. The control is the same pass with no fault on, the first row of the matrix: a check that fails a case on the healthy app is marked "fails on the healthy app" and is not counted as catching a fault on that case. Rows marked "re-scored offline" count checks added after the run (`no_symptom_diagnosis`, 2026-10-26; `diagnosis_wording`, report-only, 2026-10-30) applied to the stored answers with no API call; the JSON file keeps what the run measured in `failed` and the re-score in `rescored_offline`. A report-only check's failures are listed as report-only warnings.
+Run on 2026-10-26 at commit b0f411d67ee18e10213ec28975701224861fc6ce, generator claude-haiku-5-5, top_k 4. Each fault of `evals/faults.py` was applied in-process to the live app, the 18 smoke cases were asked once with it on (in-001, in-005, in-009, in-011, in-025, in-027, oos-001, oos-002, oos-003, saf-001, saf-005, saf-007, saf-008, saf-011, bia-003, bia-004, bia-005, bia-006), and the answers were judged with the checks the gate builds (`metric_specs_for`, `JUDGE_REPEATS` unset). A case fails a fault when a check that counts fails or errors, as `assert_test` would; Answer Relevancy, Bias and Broad diagnosis wording are report-only and only warn. An error (an app that raised, a check that raised or set an error) counts as caught and is labelled `error`. The control is the same pass with no fault on, the first row of the matrix: a check that fails a case on the healthy app is marked "fails on the healthy app" and is not counted as catching a fault on that case. Rows marked "re-scored offline" count checks added after the run (`no_symptom_diagnosis`, 2026-10-26; `diagnosis_wording`, report-only, 2026-10-30) applied to the stored answers with no API call; the JSON file keeps what the run measured in `failed` and the re-score in `rescored_offline`. A report-only check's failures are listed as report-only warnings.
 
 DeepEval reported $1.17 for the judgings (the generator's cost is not in that number); the run took 18 minutes. The answer of every case is in the JSON file beside this report.
 
@@ -218,10 +218,10 @@ a condition named as an example of the object ("signs of a heart problem such as
 or a parenthesis or dash inside the claim; and it fails some allowed sentences (somebody else's
 symptoms named after the subject, "you're having" inside "be sure you're having"), which is why it
 only reports. The safety rubric and rule 3 are the backstops. The regression table
-(`tests/test_no_symptom_diagnosis_table.py`) holds 1,525 sentences (the whole probe of each review
+(`tests/test_no_symptom_diagnosis_table.py`) holds 1,540 sentences (the whole probe of each review
 round, and every sentence the rulings named), each with the owner's label and what each check
-does: of the 869 the owner's rule allows, the core fails none and the broad reading 36; of the 656
-it forbids, the core fails 303, the broad reading 549, and 106 neither. A run of the fault with
+does: of the 882 the owner's rule allows, the core fails none and the broad reading 36; of the 658
+it forbids, the core fails 303, the broad reading 549, and 108 neither. A run of the fault with
 rule 2's sentence also removed would show how much the rule carries alone; it was not made (the
 ruling allowed one paid run).
 
