@@ -149,7 +149,9 @@ def _describe_failure(case_name: str, metric: dict) -> str:
 # pyproject.toml and uv.lock hold the DeepEval pin (==4.2.9): a new version can score the same
 # answers differently. The last three: evals/params.py applies the smoke mark, so it decides
 # which cases the pull request runs; evals/cases.py loads and validates the goldens; and
-# evals/report.py writes the verdict and this notice.
+# evals/report.py writes the verdict and this notice. data/corpus/ and src/cardio_rag/generate.py
+# (the system prompt) are not listed on purpose: they are the product the gate tests, not the
+# gate, and flagging them would mark every content or prompt pull request.
 GATE_PATHS = (
     "evals/thresholds.py",
     "evals/metrics.py",
@@ -170,7 +172,10 @@ GATE_PATHS = (
 )
 
 OUTCOMES = ("success", "failure", "cancelled", "skipped")  # a GitHub Actions step outcome
-UNFINISHED_OUTCOMES = tuple(outcome for outcome in OUTCOMES if outcome != "success")
+# What `--outcome` becomes when its value is none of OUTCOMES (an empty one when the workflow's
+# expression has nothing to give): the gate is then not decided, never passed.
+UNKNOWN_OUTCOME = "unknown"
+UNFINISHED_OUTCOMES = (*(outcome for outcome in OUTCOMES if outcome != "success"), UNKNOWN_OUTCOME)
 LISTED_AT_MOST = 10
 ERROR_TEXT_LIMIT = 80
 NO_CHANGED_FILES_LIST = (
@@ -276,6 +281,7 @@ _NOT_FINISHED = {
     # The step is skipped when an earlier one (the install, say) failed or was skipped, so it has
     # no log of its own.
     "skipped": "DeepEval did not run: an earlier step failed or was skipped; see the job log.",
+    UNKNOWN_OUTCOME: 'The "Run DeepEval" step gave no outcome this summary knows; see the job log.',
 }
 assert tuple(_NOT_FINISHED) == UNFINISHED_OUTCOMES
 
@@ -360,8 +366,8 @@ def main(argv: list[str] | None = None, today: date | None = None) -> int:
     parser.add_argument("path", type=Path, help="a test_run_*.json file or a folder holding them")
     parser.add_argument(
         "--outcome",
-        choices=OUTCOMES,
-        help='the outcome of the "Run DeepEval" step, so the verdict agrees with the check',
+        help='the outcome of the "Run DeepEval" step, so the verdict agrees with the check: '
+        f"{', '.join(OUTCOMES)}; any other value, an empty one included, is not decided",
     )
     parser.add_argument(
         "--not-a-gate",
@@ -375,6 +381,8 @@ def main(argv: list[str] | None = None, today: date | None = None) -> int:
         help="file listing the paths a pull request changes, one per line",
     )
     args = parser.parse_args(argv)
+    if args.outcome is not None and args.outcome not in OUTCOMES:
+        args.outcome = UNKNOWN_OUTCOME
     gate = not args.not_a_gate
     notice = _changed_files_notice(args.changed_files)
     try:

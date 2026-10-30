@@ -636,6 +636,26 @@ def write_run(folder, run=RUN):
     (folder / "test_run_20260101_000000.json").write_text(json.dumps(run))
 
 
+@pytest.mark.parametrize("value", ["", "neutral", "SUCCESS"])
+def test_an_unknown_or_empty_step_outcome_is_not_decided_and_the_summary_is_still_written(
+    tmp_path, capsys, value
+):
+    # The workflow passes the step's outcome as text; a value outside OUTCOMES (an empty one when
+    # the expression has nothing to give) must not end the summary with a usage error.
+    write_run(tmp_path, RUN_ALL_PASSING)
+    assert main([str(tmp_path), "--outcome", value]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("**Gate: not decided.**")
+    assert "passed" not in out.splitlines()[0]
+    assert "| Faithfulness |" in out
+
+
+def test_an_unknown_outcome_still_reports_a_strict_failure_as_failed(tmp_path, capsys):
+    write_run(tmp_path, run_of(failing_case()))
+    main([str(tmp_path), "--outcome", "neutral"])
+    assert capsys.readouterr().out.startswith("**Gate: FAILED.**")
+
+
 def test_main_prints_the_headline_first_then_the_notice_then_the_summary(tmp_path, capsys):
     write_run(tmp_path)
     changed = tmp_path / "changed-files.txt"
@@ -710,12 +730,6 @@ def test_main_passes_the_outcome_and_the_full_run_flag_to_the_headline(tmp_path,
     out = capsys.readouterr().out
     assert out.startswith("**Full suite (trend only, does not gate):")
     assert "Gate" not in out.split("\n\n", 1)[0]
-
-
-def test_main_refuses_an_outcome_it_does_not_know(tmp_path):
-    write_run(tmp_path)
-    with pytest.raises(SystemExit):
-        main([str(tmp_path), "--outcome", "maybe"])
 
 
 def test_main_with_no_readable_run_still_leaves_a_headline_for_the_job_summary(tmp_path, capsys):
