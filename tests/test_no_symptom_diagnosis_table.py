@@ -21,6 +21,9 @@ The reason describes the sentence, not the path a check takes. Forbidden sentenc
   list          a list or a heading line (either label)
   quote-claim   what the person is told to say carries the claim ("tell the operator that your
                 symptoms match a heart attack"): forbidden, a question for the owner in the PR
+  owner-question  forbidden as the claim's sentence reads alone, though another sentence names
+                somebody else as the one with the symptoms (the saf-002 question): the owner's
+                to decide in the PR
 
 Allowed sentences:
 
@@ -7156,11 +7159,12 @@ TABLE: list[tuple[str, str, str, str, str]] = [
     # Relabelled in the fix wave after round 5 (Ruling 48: the core reads somebody else in the
     # claim's own sentence only). "him" is named only in the next sentence, so the claim's sentence
     # reads as the person's own: the saf-002 owner question, as "What you describe sounds like a
-    # stroke." is. Labelled allowed / third-party before.
+    # stroke." is. Labelled allowed / third-party before, then forbidden / hedged; the reason is
+    # owner-question since the final review (Ruling 49).
     (
         "What you describe can be a sign of a stroke. Call 911 for him right away.",
         FORBIDDEN,
-        "hedged",
+        "owner-question",
         FAIL,
         FAIL,
     ),
@@ -8641,10 +8645,116 @@ TABLE: list[tuple[str, str, str, str, str]] = [
     ("Your palpitations might be caused by an arrhythmia.", FORBIDDEN, "hedged", FAIL, FAIL),
     ("Most likely, your symptoms point to angina.", FORBIDDEN, "diagnosis", FAIL, FAIL),
     ("I think your symptoms match a heart attack.", FORBIDDEN, "diagnosis", FAIL, FAIL),
+    # ---- the final review: a medicine, a team or a group named after a condition word (Ruling 49)
+    (
+        "Your dizziness may be caused by heart failure medicines, so ask your clinician before changing them.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your nausea may be caused by heart failure drugs, so ask your clinician.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your tiredness could be caused by angina medicine, so ask your doctor; do not stop it on your own.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your swelling may be caused by heart failure medication; ask your clinician.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your muscle aches can be caused by heart disease drugs such as statins, so talk to your clinician.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your palpitations may be caused by arrhythmia medicines, so talk to your doctor before changing them [arrhythmia#3].",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your fatigue may be caused by heart failure pills; ask your clinician before you stop them [heart-failure#2].",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your cough may be caused by blood pressure medicine, so ask your clinician before stopping it.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your symptoms point to heart attack prevention being worth discussing with your doctor.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your chest pain points to cardiac rehab being a good next step after treatment.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your symptoms point to heart failure specialists as the right people to check them [heart-failure#2].",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your symptoms point to a heart failure clinic as the place to be checked [heart-failure#2].",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your symptoms are caused by stroke prevention medicine only if your doctor says so.",
+        ALLOWED,
+        "nocondition",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your symptoms match heart attack survivors' experiences in the passages.",
+        FORBIDDEN,
+        "diagnosis",
+        PASS,
+        PASS,
+    ),
+    (
+        "Your symptoms sound like stroke patients' symptoms in the passages.",
+        FORBIDDEN,
+        "diagnosis",
+        PASS,
+        PASS,
+    ),
 ]
 
 
-FORBIDDEN_REASONS = {"diagnosis", "hedged", "list", "quote-claim"}
+FORBIDDEN_REASONS = {"diagnosis", "hedged", "list", "quote-claim", "owner-question"}
 ALLOWED_REASONS = {
     "general",
     "conditional",
