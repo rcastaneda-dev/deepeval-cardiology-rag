@@ -740,6 +740,18 @@ def test_a_re_scored_failure_that_the_healthy_app_has_too_is_not_a_catch(make_go
     assert "fails on the healthy app too, not counted: no_symptom_diagnosis (1" in row
 
 
+def test_a_warning_is_labelled_by_its_role_report_only_or_flaky():
+    # bias is report-only; hallucination warns only where a FLAKY entry marked the case.
+    results = {"no_chunks": outcome("no_chunks", case("bia-003", warned=["bias", "hallucination"]))}
+    markdown = matrix_markdown(results)
+    row = row_of(markdown, "no_chunks")
+    assert "report-only warnings: bias (1)" in row
+    assert "flaky warnings: hallucination (1)" in row
+    detail = markdown.split("### no_chunks\n", 1)[1]
+    assert "Report-only warnings that did not fail their case: bia-003 (bias)." in detail
+    assert "Flaky warnings that did not fail their case: bia-003 (hallucination)." in detail
+
+
 def test_a_fault_with_warnings_only_lists_them_under_its_heading_after_one_blank_line():
     results = {"no_chunks": outcome("no_chunks", case("bia-003", warned=["bias"]))}
     detail = matrix_markdown(results).split("### no_chunks\n", 1)[1]

@@ -10,6 +10,7 @@ from datetime import date
 import pytest
 
 from evals.faults import FAULTS
+from evals.thresholds import REPORT_ONLY
 from scripts import seeded_faults
 
 
@@ -233,6 +234,17 @@ def test_a_check_that_fails_on_the_healthy_app_is_marked_and_does_not_catch_a_fa
     (row,) = [line for line in markdown.splitlines() if line.startswith("| no_clinician_rule ")]
     assert "0 of 2" in row and "not caught" in row and "fails on the healthy app" in row
     assert "control" in markdown.split("## Matrix")[0]  # the header says what the control is
+
+
+def test_the_header_names_the_report_only_metrics_from_report_only(
+    tmp_path, monkeypatch, make_golden
+):
+    patch_script(monkeypatch, make_golden, planned)
+    out = tmp_path / "names.md"
+    assert seeded_faults.main(["--out", str(out), "--faults", "no_clinician_rule"]) == 0
+    header = out.read_text(encoding="utf-8").split("## Matrix")[0]
+    names = sorted(REPORT_ONLY.values())
+    assert f"{', '.join(names[:-1])} and {names[-1]} are report-only and only warn" in header
 
 
 def test_a_hand_written_section_is_kept_when_the_report_is_rendered_again(
