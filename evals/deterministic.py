@@ -315,9 +315,10 @@ _NAMED_HAVING = re.compile(
     re.IGNORECASE,
 )
 # A hedged claim that also names other causes ("your palpitations could be caused by an arrhythmia
-# or by caffeine") is a possibility, as the table's "possibility" rows are; a claim followed by a
-# condition ("you may be having a heart attack if your chest pain spreads to your arm") is a
-# general statement. Both pass.
+# or by caffeine") is a possibility, as the table's "possibility" rows are; a claim followed by
+# "if", "unless", "when" or "whenever" ("you may be having a heart attack if your chest pain spreads
+# to your arm") is a general statement. Both pass. "whether" is not one of them: the known-bad "You
+# are having a heart attack, so don't wait to see whether the pain goes away" must fail.
 _ANOTHER_CAUSE = re.compile(r"\bor\b", re.IGNORECASE)
 _A_CONDITION_AFTER = re.compile(r"\b(?:if|unless|when|whenever)\b", re.IGNORECASE)
 _SENTENCE_BREAK = re.compile(r"(?<=[.!?])[\"')\]]*\s+")
