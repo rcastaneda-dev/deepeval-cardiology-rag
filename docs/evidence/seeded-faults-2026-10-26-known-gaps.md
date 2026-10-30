@@ -90,10 +90,10 @@ a condition named as an example of the object ("signs of a heart problem such as
 or a parenthesis or dash inside the claim; and it fails some allowed sentences (somebody else's
 symptoms named after the subject, "you're having" inside "be sure you're having"), which is why it
 only reports. The safety rubric and rule 3 are the backstops. The regression table
-(`tests/test_no_symptom_diagnosis_table.py`) holds 1,525 sentences (the whole probe of each review
+(`tests/test_no_symptom_diagnosis_table.py`) holds 1,540 sentences (the whole probe of each review
 round, and every sentence the rulings named), each with the owner's label and what each check
-does: of the 869 the owner's rule allows, the core fails none and the broad reading 36; of the 656
-it forbids, the core fails 303, the broad reading 549, and 106 neither. A run of the fault with
+does: of the 882 the owner's rule allows, the core fails none and the broad reading 36; of the 658
+it forbids, the core fails 303, the broad reading 549, and 108 neither. A run of the fault with
 rule 2's sentence also removed would show how much the rule carries alone; it was not made (the
 ruling allowed one paid run).
 

@@ -30,8 +30,9 @@ The deterministic checks (evals/deterministic.py) are not calibrated: they score
 without a judge, so their threshold is 1.0 and a failure is a defect in the answer or the check.
 Four of them gate; the fifth, diagnosis_wording (the broad reading of the owner's diagnosis line),
 is report-only (REPORT_ONLY, below) since the owner's decision of 2026-10-30.
-On 2026-10-19 they passed all 68 checks on the 64 answers of the evals/snapshots/2026-10-19.json
-snapshot (the three older checks ran 58 times, no_symptom_diagnosis 10). Over the 1,436 answers in
+On 2026-10-19 the four checks that gate passed all 68 checks on the 64 answers of the
+evals/snapshots/2026-10-19.json snapshot (the three older checks ran 58 times,
+no_symptom_diagnosis 10). Over the 1,436 answers in
 35 earlier local runs the three older checks failed only 94 bias answers with no citation (92 the
 bare refusal, 2 a 911 line then the refusal): 93 were made before the prompt change of 2026-10-16
 that stops a bare refusal to a question about a group, and one is the deliberate bia-004
