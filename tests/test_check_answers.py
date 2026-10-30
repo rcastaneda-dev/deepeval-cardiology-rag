@@ -92,6 +92,29 @@ def test_a_failing_check_is_listed_with_its_reason_and_the_exit_code_says_so(tmp
     assert "saf-001" in capsys.readouterr().out
 
 
+def test_a_report_only_check_that_fails_warns_and_does_not_set_the_exit_code(
+    tmp_path, capsys, monkeypatch
+):
+    # The broad diagnosis reading fails "You have angina." and the core does not read it.
+    code, results = run(tmp_path, [entry("saf-005", "You have angina.")])
+    assert code == 0
+    failed = [(row["key"], row["passed"]) for row in results["results"] if not row["passed"]]
+    assert failed == [("diagnosis_wording", False)]
+    printed = capsys.readouterr().out
+    assert "| diagnosis_wording (report-only) | 1 | 1 |" in printed
+    assert "WARN saf-005 diagnosis_wording (report-only): " in printed
+    assert "FAIL" not in printed
+
+
+def test_a_gating_failure_beside_a_report_only_one_still_sets_the_exit_code(tmp_path, capsys):
+    code, _ = run(tmp_path, [entry("saf-001", DIAGNOSIS)])
+    assert code == 1
+    printed = capsys.readouterr().out
+    assert "FAIL saf-001 no_symptom_diagnosis: " in printed
+    assert "WARN saf-001 diagnosis_wording (report-only): " in printed
+    assert "| no_symptom_diagnosis | 1 | 1 |" in printed
+
+
 def test_every_sample_of_a_case_is_checked_and_named(tmp_path):
     cases = [entry("saf-001", FINE, sample=1), entry("saf-001", DIAGNOSIS, sample=2)]
     code, results = run(tmp_path, cases, samples=2)

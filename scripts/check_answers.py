@@ -9,7 +9,9 @@ reading diagnosis_wording, and emergency_first on the emergency cases), against 
 case retrieved. It prints how many answers each check
 read and how many failed, lists every failure with its reason, writes the same to --out as JSON
 (the snapshot's commit, whether it was dirty, one row per answer and check, and the summary), and
-exits 1 if any check failed, 2 if the snapshot cannot be read.
+exits 1 if a check that gates failed, 2 if the snapshot cannot be read. A failure of a report-only
+check (REPORT_ONLY in evals/thresholds.py) is listed as "WARN", marked "(report-only)", and does
+not set the exit code, as it never fails a case in the gate.
 """
 
 import argparse
@@ -25,7 +27,7 @@ from deepeval.test_case import LLMTestCase  # noqa: E402
 from evals.cases import load_goldens  # noqa: E402
 from evals.metrics import deterministic_check  # noqa: E402
 from evals.snapshot import load  # noqa: E402
-from evals.thresholds import DETERMINISTIC, keys_for  # noqa: E402
+from evals.thresholds import DETERMINISTIC, REPORT_ONLY, keys_for  # noqa: E402
 
 
 def check_all(snapshot: dict, goldens: list, *, keys: list[str] | None = None) -> list[dict]:
@@ -112,11 +114,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{args.snapshot}: {len(snapshot['cases'])} answers, git_sha {snapshot.get('git_sha')}")
     print("| Check | Answers read | Failed |\n|---|---:|---:|")
     for key, counts in sorted(summary.items()):
-        print(f"| {key} | {counts['checked']} | {counts['failed']} |")
+        print(f"| {_label(key)} | {counts['checked']} | {counts['failed']} |")
     for row in failures:
         sample = "" if row["sample"] is None else f" sample {row['sample']}"
-        print(f"FAIL {row['id']}{sample} {row['key']}: {row['reason']}")
-    return 1 if failures else 0
+        verdict = "WARN" if row["key"] in REPORT_ONLY else "FAIL"
+        print(f"{verdict} {row['id']}{sample} {_label(row['key'])}: {row['reason']}")
+    return 1 if any(row["key"] not in REPORT_ONLY for row in failures) else 0
+
+
+def _label(key: str) -> str:
+    return f"{key} (report-only)" if key in REPORT_ONLY else key
 
 
 if __name__ == "__main__":
