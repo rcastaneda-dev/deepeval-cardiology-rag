@@ -6,6 +6,7 @@ import pytest
 
 from evals.report import (
     GATE_PATHS,
+    NOTHING_SCORED,
     OUTCOMES,
     expired_flakes,
     find_latest_run,
@@ -490,6 +491,49 @@ def test_a_full_run_headline_does_not_say_gate():
             assert "Gate" not in headline(the_run, outcome=outcome, gate=False)
 
 
+def errored_case(name="in-009"):
+    return case(name, metric("Faithfulness", None, None, error="Error code: 401"))
+
+
+def test_a_full_run_that_scored_no_case_says_its_job_fails():
+    # 2026-10-26: a rejected key left all 65 cases unscored and the full run's job green.
+    for the_run in ({}, run_of(), run_of(case("in-001")), run_of(errored_case())):
+        assert headline(the_run, outcome="failure", gate=False).endswith(NOTHING_SCORED)
+    assert NOTHING_SCORED == "No case was scored without an error, so this job fails."
+
+
+def test_a_case_with_any_errored_metric_is_not_scored():
+    # A rejected judge key errors every judged metric while the judge-free checks still score:
+    # that case is not scored, or a run that never reached the judge would look like a trend.
+    half = case(
+        "in-001",
+        metric("Cites retrieved passages", 1.0, True),
+        metric("Contextual Recall", None, None, flaky=True, error="Error code: 401"),
+    )
+    assert headline(run_of(half, errored_case()), gate=False).endswith(NOTHING_SCORED)
+
+
+def test_a_full_run_with_one_scored_case_does_not_fail_even_with_strict_failures():
+    run = run_of(failing_case(), errored_case(), case("in-001", metric("Faithfulness", 0.9, True)))
+    text = headline(run, outcome="failure", gate=False)
+    assert "Strict failures: in-005" in text
+    assert NOTHING_SCORED not in text
+    assert NOTHING_SCORED not in headline(run_of(failing_case()), outcome="failure", gate=False)
+
+
+def test_a_gated_run_never_says_its_job_fails_for_scoring_nothing():
+    # A pull request's check is decided by the "Run DeepEval" step, which fails closed already.
+    for the_run in ({}, run_of(errored_case())):
+        assert NOTHING_SCORED not in headline(the_run, outcome="failure")
+    assert NOTHING_SCORED not in no_results_headline("x", outcome="failure")
+
+
+def test_a_full_run_with_no_readable_results_says_its_job_fails():
+    text = no_results_headline("No test_run_*.json files", outcome="failure", gate=False)
+    assert text.startswith("**Full suite (trend only, does not gate): no results.**")
+    assert text.endswith(NOTHING_SCORED)
+
+
 def test_a_skipped_step_points_at_the_job_log_not_at_the_deepeval_log():
     # "Run DeepEval" is skipped when an earlier step (the install) failed or was skipped, so its
     # own log does not exist: the reader is sent to the job log.
@@ -762,3 +806,34 @@ def test_main_with_no_readable_run_on_a_full_run_does_not_say_gate(tmp_path, cap
     out = capsys.readouterr().out
     assert out.startswith("**Full suite (trend only, does not gate): no results.**")
     assert "Gate" not in out
+
+
+# A full run fails its job only when it scored no case: the summary step's exit code is what turns
+# the job red (continue-on-error is off for full runs, tests/test_workflow.py).
+
+
+def test_main_on_a_full_run_with_no_results_folder_exits_non_zero(tmp_path, capsys):
+    status = main([str(tmp_path / "results"), "--outcome", "failure", "--not-a-gate"])
+    assert status == 2
+    assert capsys.readouterr().out.splitlines()[0].endswith(NOTHING_SCORED)
+
+
+def test_main_on_a_full_run_where_every_case_errored_exits_3(tmp_path, capsys):
+    write_run(tmp_path, run_of(errored_case("in-001"), errored_case("in-002")))
+    assert main([str(tmp_path), "--outcome", "failure", "--not-a-gate"]) == 3
+    out = capsys.readouterr().out
+    assert out.split("\n\n", 1)[0].endswith(NOTHING_SCORED)
+    assert "| Faithfulness |" in out  # the table is still written
+
+
+def test_main_on_a_full_run_with_strict_failures_exits_0(tmp_path, capsys):
+    write_run(tmp_path, run_of(failing_case(), errored_case(), *RUN["testCases"]))
+    assert main([str(tmp_path), "--outcome", "failure", "--not-a-gate"]) == 0
+    assert NOTHING_SCORED not in capsys.readouterr().out
+
+
+def test_main_on_a_gated_run_where_every_case_errored_still_exits_0(tmp_path, capsys):
+    # Unchanged for pull requests: their check is decided by the "Run DeepEval" step.
+    write_run(tmp_path, run_of(errored_case()))
+    assert main([str(tmp_path), "--outcome", "failure"]) == 0
+    assert capsys.readouterr().out.startswith("**Gate: FAILED.**")
