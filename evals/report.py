@@ -325,11 +325,15 @@ def headline(run: dict, outcome: str | None = None, gate: bool = True) -> str:
             "**Gate: FAILED.** The test run failed outside the scored metrics; see the "
             f'"Run DeepEval" log. {_counts(tally)}'
         )
-    if outcome in UNFINISHED_OUTCOMES:  # the failure was handled above: cancelled or skipped
-        return (
-            f"**Gate: not decided.** {_NOT_FINISHED[outcome]} These results are partial or "
-            f"absent. {_counts(tally)}"
+    # The failure was handled above: cancelled, skipped or an outcome this summary does not know.
+    # An unknown outcome may come from a complete run (a renamed step id), so it says "may be".
+    if outcome in UNFINISHED_OUTCOMES:
+        partial = (
+            "These results may be partial."
+            if outcome == UNKNOWN_OUTCOME
+            else "These results are partial or absent."
         )
+        return f"**Gate: not decided.** {_NOT_FINISHED[outcome]} {partial} {_counts(tally)}"
     if not tally.metrics:
         return "**Gate: no results.** The run has no metric results, so nothing was scored."
     return f"**Gate: passed.** {_counts(tally)}"
