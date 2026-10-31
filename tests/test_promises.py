@@ -30,7 +30,8 @@ def _problem(check: str) -> str | None:
 
 def test_every_check_is_a_metric_key_or_a_named_unit_test_or_measurement():
     for promise in PROMISES:
-        assert promise.checks, promise.id
+        # A promise with no check is a known gap, and a gap is never gated.
+        assert promise.checks or not promise.gated, promise.id
         for check in promise.checks:
             assert _problem(check) is None, f"{promise.id}: {_problem(check)}"
 
@@ -45,13 +46,50 @@ def test_the_check_validator_rejects_unknown_keys_and_missing_files():
     assert _problem("measured:docs/findings.md#no-such-heading") is not None
 
 
-def test_the_promises_are_p1_to_p12_each_with_text_and_source():
-    assert [promise.id for promise in PROMISES] == [f"P{n}" for n in range(1, 13)]
+def test_the_promises_are_p1_to_p18_each_with_text_and_source():
+    assert [promise.id for promise in PROMISES] == [f"P{n}" for n in range(1, 19)]
     assert all(promise.text and promise.source for promise in PROMISES)
 
 
-def test_the_two_promises_without_an_eval_case_or_a_gate_are_marked_not_gated():
-    assert {promise.id for promise in PROMISES if not promise.gated} == {"P10", "P12"}
+def test_the_promises_without_an_eval_case_or_a_gate_are_marked_not_gated():
+    # P10's unit test reads the prompt's text only; P12, P15 and P16 are measured once; P14 has
+    # no check at all.
+    assert {promise.id for promise in PROMISES if not promise.gated} == {
+        "P10",
+        "P12",
+        "P14",
+        "P15",
+        "P16",
+    }
+
+
+def test_no_source_points_at_a_document_outside_the_repository():
+    # The design spec and plans under docs/superpowers/ are never committed, so a source names
+    # the system prompt, the original design (quoted in docs/qa-report.md), the owner or a PR.
+    for promise in PROMISES:
+        assert "spec" not in promise.source, promise.id
+        assert "superpowers" not in promise.source, promise.id
+
+
+def test_the_qa_report_quotes_every_design_goal_and_criterion_a_source_names():
+    report = (REPO / "docs" / "qa-report.md").read_text(encoding="utf-8")
+    named = {
+        match.group(0)
+        for promise in PROMISES
+        for match in re.finditer(r"design (?:goal|success criterion) \d+", promise.source)
+    }
+    assert named
+    for name in named:
+        assert f"**{name.capitalize()}**" in report, name
+
+
+def test_every_golden_belongs_to_a_promise_that_runs_one_of_its_checks():
+    # saf-009 (a child's chest pain) once belonged to no promise: P5 now covers every safety case.
+    for golden in load_goldens():
+        assert any(
+            golden in _cases_of(promise) and set(_metric_keys(promise)) & set(keys_for(golden))
+            for promise in PROMISES
+        ), golden.id
 
 
 def _metric_keys(promise):
@@ -133,7 +171,11 @@ def test_promises_name_the_cases_and_categories_that_exercise_them():
     by_id = {promise.id: promise for promise in PROMISES}
     emergencies = tuple(g.id for g in load_goldens("safety") if g.emergency)
     assert by_id["P4"].cases == emergencies
-    assert by_id["P5"].cases == ("saf-003", "saf-004", "saf-005", "saf-007")
+    # A diagnosis can come in any safety answer (the app's own were on saf-001), so P5 covers the
+    # category; the dose and medicine promise names the three cases that ask about one.
+    assert by_id["P5"].cases == ()
+    assert by_id["P5"].categories == ("safety",)
+    assert by_id["P13"].cases == ("saf-004", "saf-005", "saf-007")
     # The diagnosis core gates P5; its broad reading and the safety rubric back it.
     assert by_id["P5"].checks == ("safety", "no_symptom_diagnosis", "diagnosis_wording")
     assert by_id["P6"].cases == ("saf-008",)
@@ -205,10 +247,17 @@ def test_traceability_lists_only_the_smoke_cases_a_promise_names():
     assert {"in-001", "bia-004"} <= set(rows["P1"].split(", "))
     assert {"oos-001", "bia-004"} <= set(rows["P3"].split(", "))
     assert rows["P4"] == "saf-001, saf-011"
-    assert rows["P5"] == "saf-005, saf-007"
+    assert rows["P5"] == "saf-001, saf-005, saf-007, saf-008, saf-011"
+    assert rows["P13"] == "saf-005, saf-007"
     assert rows["P6"] == "saf-008"
     # P9 is enforced by the rubric on the in-corpus smoke cases, in-005 among them.
     assert "in-005" in rows["P9"].split(", ")
     assert not {"oos-001", "bia-004"} & set(rows["P9"].split(", "))
-    assert rows["P10"] == rows["P11"] == "unit tests"
-    assert rows["P12"] == "none"
+    assert rows["P10"] == rows["P11"] == rows["P18"] == "unit tests"
+    assert rows["P12"] == rows["P15"] == rows["P16"] == "measured once"
+    assert rows["P14"] == "none"
+
+
+def test_a_promise_with_no_check_reads_none_and_is_not_gated():
+    (p14,) = [line for line in traceability_markdown().splitlines() if line.startswith("| P14: ")]
+    assert "| system prompt rule 5 | none | no | none |" in p14
