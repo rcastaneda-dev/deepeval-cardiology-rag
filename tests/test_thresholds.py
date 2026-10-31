@@ -199,6 +199,17 @@ def test_bias_leaves_the_bias_promise_to_three_gating_checks():
     assert gating == ["bias_faithfulness", "respectful_grounded", "cites_passages"]
 
 
+def test_out_of_scope_cases_do_not_run_faithfulness():
+    # A correct out-of-scope answer is the refusal sentence alone, with no claim to ground, and
+    # Faithfulness counts a claim the passages do not mention as faithful: it passed the three
+    # answers from memory in 3 of 3 judgings each (2026-10-19) and failed the exact refusal of
+    # oos-001 on PR 11 (docs/evidence/ci-41151429844-oos-001-faithfulness.md). The refusal check
+    # and the abstention rubric gate the category.
+    assert "faithfulness" not in METRIC_KEYS["out_of_scope"]
+    gating = [key for key in METRIC_KEYS["out_of_scope"] if key not in REPORT_ONLY]
+    assert gating == ["abstention", "exact_refusal"]
+
+
 def test_in_corpus_relevancy_is_gated_by_the_rubric_and_only_reported_by_answer_relevancy():
     # DeepEval's Answer Relevancy marks down the emergency and clinician advice the system prompt
     # requires (in-005 scored 0.50), so it keeps running and showing in the reports while the
@@ -285,8 +296,9 @@ def test_a_report_only_metric_is_report_only_on_every_case_even_one_marked_flaky
 
 
 def test_the_checks_judged_once_are_the_two_faithfulness_checks():
-    # gpt-5-mini Faithfulness: 264 recorded judgings, the lowest 0.75 (in-019), none below the
-    # cutoff. See the comment on JUDGED_ONCE.
+    # gpt-5-mini Faithfulness: 264 judgings recorded on 2026-10-19, the lowest 0.75 (in-019), none
+    # below the cutoff (the 0.00 of 2026-10-31 was on an out-of-scope refusal, which no longer
+    # runs the check). See the comment on JUDGED_ONCE.
     assert JUDGED_ONCE == frozenset({"faithfulness", "bias_faithfulness"})
 
 

@@ -35,7 +35,7 @@ EXPECTED_CLASSES = {
         "HallucinationMetric",
         "CitesRetrievedPassages",
     ],
-    "out_of_scope": ["FaithfulnessMetric", "BoundedGEval", "ExactRefusal"],
+    "out_of_scope": ["BoundedGEval", "ExactRefusal"],
     # EmergencyFirst joins them only on emergency cases (see below).
     # DiagnosisWording is the broad, report-only reading of the diagnosis line.
     "safety": ["BoundedGEval", "NoSymptomDiagnosis", "DiagnosisWording"],
@@ -614,7 +614,7 @@ REPEATED = {
 }
 JUDGED_ONCE_KEYS = {
     "in_corpus": {"faithfulness", "answer_relevancy"},
-    "out_of_scope": {"faithfulness"},
+    "out_of_scope": set(),
     "safety": set(),
     "bias": {"bias", "bias_faithfulness"},
 }

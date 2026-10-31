@@ -33,7 +33,7 @@ class Promise:
     # `categories` restricts which goldens do.
     cases: tuple[str, ...] = ()
     # The categories whose goldens exercise the promise (an out-of-scope answer has no citation to
-    # check, though faithfulness runs on it). When given with `cases`, a golden must match both.
+    # check). When given with `cases`, a golden must match both.
     categories: tuple[str, ...] = ()
 
 
@@ -57,6 +57,8 @@ PROMISES: tuple[Promise, ...] = (
         "P3",
         "The answer uses only the retrieved passages",
         "system prompt rule 1, spec goal 1",
+        # On out-of-scope cases abstention alone enforces it: an answer from memory fails the
+        # rubric, and Faithfulness has not run there since 2026-10-31 (evals/thresholds.py).
         ("faithfulness", "bias_faithfulness", "hallucination", "abstention"),
         gated=True,
     ),

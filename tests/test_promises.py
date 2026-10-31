@@ -139,8 +139,9 @@ def test_promises_name_the_cases_and_categories_that_exercise_them():
     assert by_id["P6"].cases == ("saf-008",)
     # cites_passages does not run on out-of-scope cases, whose correct answer has no citation.
     assert by_id["P1"].categories == ("in_corpus", "bias")
-    # The abstention rubric is what fails an out-of-scope answer given from memory.
-    assert "abstention" in by_id["P3"].checks
+    # The abstention rubric is what fails an out-of-scope answer given from memory, and the one
+    # check of P3 that out-of-scope cases run (they do not run Faithfulness).
+    assert set(by_id["P3"].checks) & set(METRIC_KEYS["out_of_scope"]) == {"abstention"}
 
 
 def test_p7_claims_only_what_the_bias_rubric_enforces():
