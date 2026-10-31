@@ -8,6 +8,10 @@ with the colour of the check through the outcome of the "Run DeepEval" step; the
 the pull request changes a file that defines the gate (gate_change_notice); then the table
 (summarize). It also lists the FLAKY entries past their review date, as a warning: a calendar
 date never fails a run.
+
+Exit status: 0 when the summary is written; 1 when the table cannot be built; 2 when the run
+cannot be read at all; 3 for a full run (--not-a-gate) that scored no case (NOTHING_SCORED). A
+pull request's check ignores it; a full run's job is red on any of 1 to 3, never on a score.
 """
 
 import argparse
@@ -178,6 +182,10 @@ UNKNOWN_OUTCOME = "unknown"
 UNFINISHED_OUTCOMES = (*(outcome for outcome in OUTCOMES if outcome != "success"), UNKNOWN_OUTCOME)
 LISTED_AT_MOST = 10
 ERROR_TEXT_LIMIT = 80
+# A full run never fails on a score, but one that scored no case has no trend to report: its
+# summary says so and main exits non-zero, which turns the full-run job red (eval.yml). On
+# 2026-10-26 a rejected key left all 65 cases unscored and the job green for five days.
+NOTHING_SCORED = "No case was scored without an error, so this job fails."
 NO_CHANGED_FILES_LIST = (
     "**Could not list the changed files; check by hand whether this pull request changes the "
     "gate.**"
@@ -217,6 +225,7 @@ class _Tally:
     failure or an error on any other metric is only a warning."""
 
     cases: int = 0
+    scored_cases: int = 0  # cases with metric results and no errored metric, lenient or strict
     metrics: int = 0
     strict_failures: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -232,7 +241,9 @@ def _tally(run: dict) -> _Tally:
     tally = _Tally()
     for case in run.get("testCases") or []:
         tally.cases += 1
-        for metric in case.get("metricsData") or []:
+        metrics = case.get("metricsData") or []
+        tally.scored_cases += bool(metrics) and not any(metric.get("error") for metric in metrics)
+        for metric in metrics:
             tally.metrics += 1
             name = metric.get("name", "?")
             where = f"{case.get('name', '?')} / {name}"
@@ -300,7 +311,8 @@ def headline(run: dict, outcome: str | None = None, gate: bool = True) -> str:
     would then say "passed" over a red check, so a failed outcome is reported as FAILED and a
     strict failure is never reported as passed, whatever the outcome says. Without an outcome the
     JSON decides alone. With gate=False (a full run, which reports a trend and does not gate) the
-    line says so and never says "Gate"."""
+    line says so and never says "Gate", and it ends with NOTHING_SCORED when no case has metric
+    results without an error: a case with any errored metric is not scored."""
     tally = _tally(run)
     strict = _listed(tally.strict_failures, "; ") or "none"
     errors = _listed(tally.errors, "; ") or "none"
@@ -312,6 +324,8 @@ def headline(run: dict, outcome: str | None = None, gate: bool = True) -> str:
             text += f" Errors: {errors}."
         if outcome in UNFINISHED_OUTCOMES and not tally.fails_gate:
             text += f" {_NOT_FINISHED[outcome]}"
+        if not tally.scored_cases:
+            text += f" {NOTHING_SCORED}"
         return text
     if tally.fails_gate:
         text = f"**Gate: FAILED.** Strict failures: {strict}. Errors: {errors}."
@@ -348,8 +362,10 @@ def no_results_headline(reason: str, outcome: str | None = None, gate: bool = Tr
     )
     text = f"{lead} The run results could not be read ({_code(reason)})"
     if outcome in UNFINISHED_OUTCOMES:
-        return f"{text}. {_NOT_FINISHED[outcome]}"
-    return f'{text}; see the "Run DeepEval" log.'
+        text = f"{text}. {_NOT_FINISHED[outcome]}"
+    else:
+        text = f'{text}; see the "Run DeepEval" log.'
+    return text if gate else f"{text} {NOTHING_SCORED}"
 
 
 def _changed_files_notice(path: Path | None) -> str:
@@ -401,7 +417,8 @@ def main(argv: list[str] | None = None, today: date | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
     # The verdict goes out before the table is built: a metric the table cannot read must not lose
-    # it. The table failing is exit 1 (2 is a run that could not be read at all).
+    # it. The table failing is exit 1 (2 is a run that could not be read at all, 3 a full run that
+    # scored no case).
     print("\n\n".join(filter(None, [headline(run, args.outcome, gate), notice])), flush=True)
     print()
     try:
@@ -413,6 +430,8 @@ def main(argv: list[str] | None = None, today: date | None = None) -> int:
         )
         print(f"error: {error}", file=sys.stderr)
         return 1
+    if not gate and not _tally(run).scored_cases:
+        return 3
     return 0
 
 

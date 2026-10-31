@@ -1,4 +1,10 @@
+import json
+import re
+import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 GITHUB = Path(__file__).resolve().parents[1] / ".github"
 
@@ -224,3 +230,112 @@ def test_the_summary_step_gets_the_outcome_the_changed_files_and_the_full_run_fl
     # The changed files are passed on pull requests, the full-run flag on every other event.
     assert text.index("--changed-files") < text.index("else") < text.index("--not-a-gate")
     assert '"$EVENT_NAME" = "pull_request"' in text
+
+
+def continue_on_error(step: str, event: str) -> bool:
+    """Whether a step's `continue-on-error` holds for `event`. It reads the forms the workflow
+    uses: true, false, or github.event_name compared with one quoted event name."""
+    (value,) = [
+        line.split(":", 1)[1].strip()
+        for line in step.splitlines()
+        if line.strip().startswith("continue-on-error:")
+    ]
+    if value in ("true", "false"):
+        return value == "true"
+    match = re.fullmatch(r"\$\{\{ github\.event_name (==|!=) '(\w+)' \}\}", value)
+    assert match, f"continue-on-error this test cannot read: {value}"
+    return (event == match[2]) == (match[1] == "==")
+
+
+def test_a_full_run_never_fails_on_a_score_and_a_pull_request_still_fails_closed():
+    run = step_named("Run DeepEval")
+    assert not continue_on_error(run, "pull_request")
+    assert continue_on_error(run, "schedule") and continue_on_error(run, "workflow_dispatch")
+
+
+def errored(name: str) -> dict:
+    return {
+        "name": name,
+        "metricsData": [
+            {"name": "Cites retrieved passages", "score": 1.0, "success": True, "threshold": 1.0},
+            {"name": "Faithfulness", "score": None, "success": False, "error": "Error code: 401"},
+        ],
+    }
+
+
+def strictly_failing(name: str) -> dict:
+    return {
+        "name": name,
+        "metricsData": [{"name": "Faithfulness", "score": 0.4, "success": False, "threshold": 0.7}],
+    }
+
+
+def passing(name: str) -> dict:
+    return {
+        "name": name,
+        "metricsData": [{"name": "Faithfulness", "score": 0.9, "success": True, "threshold": 0.7}],
+    }
+
+
+RESULTS = {
+    "no results folder": None,
+    "every case errored": {"testCases": [errored("in-001"), errored("in-002")]},
+    "some cases strictly failed": {
+        "testCases": [strictly_failing("in-001"), errored("in-002"), passing("in-003")]
+    },
+}
+
+
+def summary_step_turns_the_job_red(tmp_path: Path, event: str, results: dict | None) -> bool:
+    """Runs the shell of the "Summarise results" step the way the runner does (`bash -e`), in a
+    folder whose results/ holds `results` (no folder when it is None), with `uv run python` standing
+    for this interpreter, and says whether the step leaves the job red: it exits non-zero and its
+    continue-on-error does not hold for `event`."""
+    step = step_named("Summarise results")
+    if results is not None:
+        (tmp_path / "results").mkdir()
+        (tmp_path / "results" / "test_run_20261026_140000.json").write_text(json.dumps(results))
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    uv = bin_dir / "uv"
+    uv.write_text(
+        '#!/bin/sh\n[ "$1 $2" = "run python" ] || exit 99\nshift 2\nexec "$PYTHON" "$@"\n'
+    )
+    uv.chmod(0o755)
+    script = tmp_path / "step.sh"
+    script.write_text("\n".join(run_blocks(step)) + "\n")
+    summary = tmp_path / "step-summary.md"
+    env = {
+        "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "PYTHON": sys.executable,
+        "PYTHONPATH": str(GITHUB.parent),
+        "EVENT_NAME": event,
+        "RUN_OUTCOME": "failure",
+        "GITHUB_STEP_SUMMARY": str(summary),
+    }
+    result = subprocess.run(
+        ["bash", "-e", str(script)], cwd=tmp_path, env=env, capture_output=True, text=True
+    )
+    assert result.returncode != 99, "the step no longer runs `uv run python`"
+    assert summary.read_text().startswith("**"), result.stderr  # the verdict was written
+    return result.returncode != 0 and not continue_on_error(step, event)
+
+
+@pytest.mark.parametrize("event", ["schedule", "workflow_dispatch"])
+@pytest.mark.parametrize(
+    ("outcome", "red"),
+    [
+        ("no results folder", True),
+        ("every case errored", True),
+        ("some cases strictly failed", False),
+    ],
+)
+def test_a_full_run_is_red_only_when_it_scored_no_case(tmp_path, event, outcome, red):
+    # 2026-10-26: a rejected key left all 65 cases unscored, and the full run's job was green.
+    assert summary_step_turns_the_job_red(tmp_path, event, RESULTS[outcome]) is red
+
+
+@pytest.mark.parametrize("outcome", list(RESULTS))
+def test_the_summary_step_never_turns_a_pull_request_red(tmp_path, outcome):
+    # The pull request's check is the "Run DeepEval" step's, which fails closed on its own.
+    assert summary_step_turns_the_job_red(tmp_path, "pull_request", RESULTS[outcome]) is False

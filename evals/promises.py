@@ -136,7 +136,8 @@ PROMISES: tuple[Promise, ...] = (
     ),
     # The unit test covers missing keys only. A rejected key also turns a pull-request run red,
     # because every case errors (PR 11's first smoke run), but no test pins that. A full run is
-    # report-only and stays green even when it scores nothing (docs/qa-report.md, section 7).
+    # report-only, but since 2026-10-31 it is red when it scores no case (tests/test_workflow.py;
+    # docs/qa-report.md, section 7).
     Promise(
         "P11",
         "A pull-request run that scored nothing fails instead of passing",
