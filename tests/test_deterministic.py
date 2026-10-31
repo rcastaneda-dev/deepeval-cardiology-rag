@@ -679,6 +679,15 @@ def test_the_core_passes_what_comes_right_after_a_claim_and_makes_it_general(ans
         "Your tiredness could be caused by angina medicine, so ask your doctor.",
         "Your swelling may be caused by heart failure medication; ask your clinician.",
         "Your symptoms point to heart failure specialists as the right people to check them.",
+        # The re-review of the final fix wave: the same class, other words for a medicine.
+        "Your dizziness may be caused by heart failure meds, so ask your clinician before "
+        "changing them.",
+        "Your swelling may be caused by heart failure treatments; ask your clinician "
+        "[heart-failure#2].",
+        "Your cough may be caused by heart failure tablets, so ask your doctor before stopping "
+        "them.",
+        "Your tiredness may be caused by heart failure therapy, so talk to your care team.",
+        "Your swelling may be caused by heart failure water pills, so ask your clinician.",
     ],
 )
 @pytest.mark.parametrize("check", DIAGNOSIS_CHECKS)

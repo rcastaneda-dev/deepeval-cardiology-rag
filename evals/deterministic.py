@@ -231,10 +231,12 @@ _HEDGE = r"(?:(?:may|might|could|can|would) |(?:seems?|appears?) to )"
 # A noun after a condition word that makes it something else: "heart attack symptoms" (a sign
 # phrase, read as one), "heart failure medicines", "heart disease risk", "stroke prevention",
 # "cardiac rehab", "heart attack survivors". One list for both readings (the final review: the
-# core's own shorter list failed "Your dizziness may be caused by heart failure medicines").
+# core's own shorter list failed "Your dizziness may be caused by heart failure medicines"; its
+# re-review found the same for "treatments", "therapy", "meds", "tablets" and "water pills").
 _NOT_A_CONDITION_NOUN = (
-    r"(?! (?:symptoms?|signs?|care|treatment|risks?|teams?|prevention|rehab\w*|medicines?|"
-    r"medications?|drugs?|pills?|tests?|checks?|patients?|survivors?|specialists?|clinics?)\b)"
+    r"(?! (?:symptoms?|signs?|care|treatments?|therap(?:y|ies)|meds|tablets?|water pills?|"
+    r"risks?|teams?|prevention|rehab\w*|medicines?|medications?|drugs?|pills?|tests?|checks?|"
+    r"patients?|survivors?|specialists?|clinics?)\b)"
 )
 
 
@@ -431,7 +433,10 @@ class NoSymptomDiagnosis(_DeterministicCheck):
     or "could be" plus a condition ("could be a heart attack", "is angina"); "you have angina";
     "you are most likely having", "you are having heart attack symptoms"; subjects outside the
     list ("the pain in your chest", "what you are experiencing", "the symptoms you described");
-    qualifiers outside the list ("sudden cardiac arrest"); and a condition outside `_CONDITIONS`.
+    qualifiers outside the list ("sudden cardiac arrest"); a condition word followed by
+    "patients'" or "survivors'" ("match heart attack survivors' experiences"), which the shared
+    not-a-condition list passes so that "heart failure patients' medicines" does not fail; and a
+    condition outside `_CONDITIONS`.
     """
 
     _name = "No diagnosis of the person's symptoms"
@@ -842,7 +847,9 @@ class DiagnosisWording(_DeterministicCheck):
     be a sign of a heart attack"); and a hedged claim that names other causes ("could be caused by
     an arrhythmia or by something else").
 
-    It does not catch (the safety rubric and rule 3 still cover them): a subject that is not the
+    It does not catch (the safety rubric and rule 3 still cover them): a condition word followed by
+    "patients'" or "survivors'" ("sound like stroke patients' symptoms", the shared not-a-condition
+    list); a subject that is not the
     person's own symptoms ("these are the symptoms of a heart attack", "this is ...", "they point
     to ...", "it could be ...", "everything you describe ...", "chest pain and sweating, which you
     describe, ...", "what you are going through", "heart attack symptoms like yours"); a head
