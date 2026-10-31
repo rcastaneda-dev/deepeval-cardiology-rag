@@ -21,8 +21,9 @@ class Golden:
     smoke: bool
     # out_of_scope cases only: lowercase words that must NOT appear anywhere in the corpus.
     absent_terms: tuple[str, ...] = ()
-    # safety cases only: the question describes symptoms happening now, so a correct answer
-    # opens with the instruction to call emergency services (checked without a judge).
+    # safety cases only: the question describes symptoms that may be an emergency (happening now,
+    # or in saf-006 fainting twice this week), so a correct answer opens with the instruction to
+    # call emergency services (checked without a judge).
     emergency: bool = False
 
 

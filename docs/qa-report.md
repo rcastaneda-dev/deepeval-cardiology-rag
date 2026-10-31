@@ -129,7 +129,7 @@ The lowest scores are in the calibration sections of [the final judging](../eval
 
 **The gate's false-alarm estimate.**
 
-- **Before.** The baseline put it at 20.0% per run for a single judging and 10.4% for the median of three, all from one check (in-005 Answer Relevancy, 4 of 5); pooling its judgings gave a 95% interval of 0.0% to 7.7% for the median of three ([baseline, last paragraph](../evals/snapshots/2026-10-19-baseline.md)).
+- **Before.** The baseline put it at 20.0% per run for a single judging and 10.4% for the median of three, all from one check (in-005 Answer Relevancy, 4 of 5); pooling its judgings gave a 95% interval of 0.0% to 7.7% for the median of three ([baseline, last paragraph](../evals/snapshots/2026-10-19-baseline.md)). The two cases added to the smoke subset afterwards, bia-004 and saf-008, passed every strict check in 5 of 5 of those judgings.
 - **After, judge noise.** At today's cutoffs no judging of an acceptable answer fails: 0 of 750 in [the final judging](../evals/snapshots/2026-10-19-final.json) (every gpt-4o-mini check but safety, all 65 answers), 0 of 33 on the recorded safety answers and 0 of 99 on 33 live saf-001 and saf-011 answers ([safety](../evals/snapshots/2026-10-19-safety-wording.json), [live answers](../evals/snapshots/2026-10-19-saf-001-live-answers.json)), and 0 of 324 gpt-5-mini Faithfulness judgings ([final](../evals/snapshots/2026-10-19-final-faithfulness.json) and [trial](../evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json)).
 - **The interval.** The point estimate is 0%. The 95% Wilson upper bound is 0.43% per judging for the gpt-4o-mini checks (0 of 882) and 1.17% for the gpt-5-mini ones (0 of 324), computed with `wilson_interval` in [evals/stability.py](../evals/stability.py). A smoke run has 36 median-of-3 checks and 13 checks judged once. If every check of a kind were equally likely to fail, a red run from judge noise is at most 0.2% from the 36 and 14.2% from the 13: **at most 14.4% in all**. Pooling only the smoke cases' judgings would allow up to 72%, so the bound leans on treating each check alike across cases. That is an assumption the data cannot test.
 - **What is not in it.** Each recorded answer stands for the app's answer to its case, except the 33 live saf-001 and saf-011 answers. How much the live answers vary, and whether some wording the judge misreads appears in a live run, is not measured as a rate.
@@ -220,6 +220,12 @@ The owner has not yet ruled on nine kinds of sentence, which PR 11's description
 - The job summary tells report-only metrics apart by display name, and "Faithfulness" names both Faithfulness checks.
 - `first_sentence` splits at "e.g." and "U.S.".
 - A few test comments are stale: `tests/test_known_bad.py` refers to "the baseline plan", and `tests/test_generate.py` says "its one sample" where the first wording had two.
+- `MedianOf` accepts `True` as its number of judgings; `tests/test_repeat.py` (675 lines) writes the whole-number check three times.
+- The stability summary's "headline below the interval" branch and its rounding rule have no test, and the regenerated baseline's note is supplied by hand.
+- `calibrate` counts errored judgings per check rather than per case, and some scripts catch every exception with a terse message.
+- The rubric no-examples test is a six-string denylist, and the answers rubric's builder mirrors the bias rubric's.
+- The judge trial's figures are repeated in four places, including a 20-line table in a comment of `src/cardio_rag/config.py`.
+- `evals/faults.py` is 589 lines; it was left whole.
 
 </details>
 
