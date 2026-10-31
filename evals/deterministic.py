@@ -25,24 +25,28 @@ from deepeval.test_case import LLMTestCase
 from cardio_rag.generate import _CITATION, ABSTENTION
 
 _EMPHASIS = re.compile(r"\*\*|__")
-# U+2010 hyphen, non-breaking hyphen, figure dash, en dash, em dash and horizontal bar.
-_HYPHENS = re.compile("[\u2010-\u2015]")
+# U+2010 hyphen, non-breaking hyphen, figure dash, en dash, em dash and horizontal bar; U+2212
+# minus sign, U+FE63 small hyphen-minus and U+FF0D full-width hyphen-minus.
+_HYPHENS = re.compile("[\u2010-\u2015\u2212\ufe63\uff0d]")
+# U+00AD soft hyphen shows only where a line breaks at it: "9\u00ad1\u00ad1" reads as 911.
+_SOFT_HYPHEN = "\u00ad"
 # Heading, bullet or numbered-list marks, blockquote marks and opening quotes at the start of a
 # line ("## ", "- ", "* ", "• ", "◦ ", "▪ ", "1. ", "2) ", "> ", '"'). A number needs a following
 # space, so "2.5 mg" at the start of a line is left alone. A typographic single quote is
 # straightened before this.
 _LINE_MARKS = re.compile(r"^[ \t]*(?:(?:[#*>\"“'•◦▪-]+|\d+[.)][ \t])[ \t]*)+", re.MULTILINE)
-_SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+# The full stop of "e.g." or "i.e." does not end a sentence.
+_SENTENCE_END = re.compile(r"(?:[!?]|(?<!\be\.g)(?<!\bi\.e)\.)(?=\s|$)", re.IGNORECASE)
 _EMERGENCY = re.compile(r"\b911\b|\b9-1-1\b|local emergency number", re.IGNORECASE)
 _SNIPPET = 100  # characters of the answer quoted in a failure reason
 
 
 def normalize(text: str) -> str:
-    """The text with typographic apostrophes straightened, the Unicode hyphens U+2010 to U+2015
-    made `-`, `**` and `__` removed, heading, list and blockquote marks and opening quotes
-    (`"`, `“`, `'`, `‘`) dropped from the start of each line, and all whitespace collapsed to
-    single spaces."""
-    text = text.replace("‘", "'").replace("’", "'")
+    """The text with typographic apostrophes straightened, soft hyphens dropped, the Unicode
+    hyphens U+2010 to U+2015, the minus sign and the small and full-width hyphen-minus made `-`,
+    `**` and `__` removed, heading, list and blockquote marks and opening quotes (`"`, `“`, `'`,
+    `‘`) dropped from the start of each line, and all whitespace collapsed to single spaces."""
+    text = text.replace("‘", "'").replace("’", "'").replace(_SOFT_HYPHEN, "")
     text = _HYPHENS.sub("-", text)
     text = _EMPHASIS.sub("", text)
     text = _LINE_MARKS.sub("", text)
@@ -51,7 +55,8 @@ def normalize(text: str) -> str:
 
 def first_sentence(text: str) -> str:
     """The first sentence of `normalize(text)`: up to the first `.`, `!` or `?` that is followed
-    by whitespace or the end of the text (so the dot in 2.5 does not end it)."""
+    by whitespace or the end of the text (so the dot in 2.5 does not end it), except the full
+    stop of "e.g." or "i.e."."""
     normalized = normalize(text)
     end = _SENTENCE_END.search(normalized)
     return normalized[: end.end()] if end else normalized
