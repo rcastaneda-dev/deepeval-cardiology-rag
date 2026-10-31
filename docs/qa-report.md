@@ -4,7 +4,7 @@ Written 2026-10-30, after the QA hardening of pull requests [6](https://github.c
 
 ## Verdict
 
-**A green check means** that the 18 smoke cases were each asked once, live, and every gating check passed on every case: 69 checks, of which 20 need no judge (citations, the refusal sentence, 911 first, the owner's diagnosis wording) and 49 are judged (36 as the median of three judgings, 13 once). `main` cannot take a change whose check is red, admins included.
+**A green check means** that the 18 smoke cases were each asked once, live, and every gating check passed on every case: 69 checks, of which 20 need no judge (citations, the refusal sentence, 911 first, the owner's diagnosis wording) and 49 are judged (36 as the median of three judgings, 13 once). `main` cannot take a change whose check is red, admins included. No person has to approve the change: `main` requires no approving review and no signed commits ([section 2](#2-does-a-red-check-lock-ci)).
 
 **It does not mean** that the answers are clinically right (nothing tests that), that the other 47 cases pass (the full run only reports), that a defect that shows in some answers and not others is absent (each case is asked once), or that the report-only metrics passed.
 
@@ -13,7 +13,7 @@ Written 2026-10-30, after the QA hardening of pull requests [6](https://github.c
 | The question | Short answer | Evidence |
 |---|---|---|
 | Is the product built to what it promises? | 18 promises are mapped to checks; 13 are gated on every pull request; P10 (text in a passage is never an instruction) and P14 (short, plain answers) have no check that reads the app's behaviour | [Section 1](#1-is-the-product-built-to-what-it-promises) |
-| Does a red check lock CI? | Yes. Both checks are required, the branch must be up to date, and the rule applies to admins. A direct push and a red pull request were both refused. A run that cannot reach the models is red, not skipped | [Section 2](#2-does-a-red-check-lock-ci) |
+| Does a red check lock CI? | Yes. Both checks are required, the branch must be up to date, and the rule applies to admins. A direct push and a red pull request were both refused. A run that cannot reach the models is red, not skipped. Not enforced: an approving review (0 required, one maintainer) and signed commits | [Section 2](#2-does-a-red-check-lock-ci) |
 | Are deviations from the design caught? | 6 of 9 seeded faults were caught by the checks meant to see them; 2 did not change the app; 1 was missed. 30 of 31 known-bad answers fail. The checks found two real product defects, and a reviewer found a third that no check reads | [Section 3](#3-are-deviations-from-the-design-caught) |
 | Are the checks reliable, and is a red check useful? | The checks that misread correct answers were repaired, replaced or made report-only; no judging of an acceptable answer fails today's cutoffs; the 2% target is not shown (above). The job summary opens with a verdict line, and a change to the gate is flagged | [Sections 4](#4-are-the-checks-reliable), [5](#5-flake-register-and-report-only-checks), [8](#8-how-to-read-a-red-check) |
 
@@ -58,19 +58,29 @@ Each promise maps to the checks that would fail if it were broken. The table is 
 
 **Branch protection on `main`**, read back with `gh api repos/rcastaneda-dev/deepeval-cardiology-rag/branches/main/protection` on 2026-10-30 ([the response](evidence/branch-protection-2026-10-30.json)):
 
-| Setting | Value |
+What it enforces:
+
+| Setting (field in the read-back) | Value |
 |---|---|
-| Required checks | `unit tests and lint` and `DeepEval (smoke subset)`, both pinned to the GitHub Actions app (id 15368) |
-| Branch must be up to date with `main` | yes (`strict: true`) |
-| Changes only through a pull request | yes, with 0 required approvals (a sole owner cannot approve their own pull request) |
-| Enforced for admins | yes |
-| Force pushes and deletion | refused |
+| Required checks (`required_status_checks.checks`) | `unit tests and lint` and `DeepEval (smoke subset)`, both pinned to the GitHub Actions app (id 15368), so a check of the same name from elsewhere does not count |
+| Branch must be up to date with `main` (`required_status_checks.strict`) | yes |
+| Changes only through a pull request (`required_pull_request_reviews` present) | yes |
+| No admin bypass (`enforce_admins`) | yes: the rules bind the owner's account too |
+| Force pushes, deletion (`allow_force_pushes`, `allow_deletions`) | refused |
+
+What it does not enforce:
+
+| Setting (field in the read-back) | Value | What it means | The lever |
+|---|---|---|---|
+| Approving reviews (`required_approving_review_count`) | 0, and `require_code_owner_reviews` is false | **No human review is required.** With a single maintainer, a pull request is merged on green checks alone, including one that changes the gate or the system prompt | A second reviewer with a required approval (at least 1), and a CODEOWNERS file (there is none today) naming them for `evals/` and `src/cardio_rag/generate.py`, with code-owner review required. GitHub does not let an author approve their own pull request, so this needs a second person |
+| Signed commits (`required_signatures`) | not required | **Unsigned commits are accepted**, so who made a commit rests on its author line | Required signatures on `main` |
+| Re-approval after a push, conversation resolution, linear history | not required | Nothing extra while no review is required | Turn on `dismiss_stale_reviews` with the required approval |
 
 **The probes.** [PR 5](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/pull/5) carried a known regression (answer from the model's own knowledge), was up to date with `main`, and its smoke check was red ([run 39009821662](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/actions/runs/39009821662): 11 of 15 passed). A normal merge was refused with "the base branch policy prohibits the merge", and a direct push from the admin account was refused too; both are recorded in the pull request's closing comment. The admin-override path was deliberately not tried.
 
 **Failing closed.** A run without both API keys fails, including a pull request from a fork, since [PR 4](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/pull/4) ([.github/scripts/check-eval-keys.sh](../.github/scripts/check-eval-keys.sh), [tests/test_check_eval_keys.py](../tests/test_check_eval_keys.py)). An error is never a pass: a judge error, a malformed score or an app that raises fails the case. The first smoke run of PR 11 shows it: the Anthropic API rejected the repository's key, all 18 cases failed with the 401 error, and the check was red ([run 41151429844](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/actions/runs/41151429844)).
 
-**What protection does not stop.** A pull request runs its own copy of the workflow, thresholds and checks, so it can weaken its own gate. Since PR 11 the job summary says so in bold when a pull request changes a file that defines the gate (`GATE_PATHS` in [evals/report.py](../evals/report.py)), but nothing blocks it, and no second person reviews it (section 7).
+**What protection does not stop.** A pull request runs its own copy of the workflow, thresholds and checks, so it can weaken its own gate. Since PR 11 the job summary says so in bold when a pull request changes a file that defines the gate (`GATE_PATHS` in [evals/report.py](../evals/report.py)), but nothing blocks it. With no approving review required, nobody but the author has to read that notice before the merge (section 7). The owner decides these settings; this report changes none of them.
 
 ## 3. Are deviations from the design caught?
 
@@ -177,8 +187,9 @@ The owner has not yet ruled on nine kinds of sentence, which PR 11's description
 **How the gate is run**
 
 - A pull request runs its own copy of the gate and can weaken it. Since PR 11 the job summary flags any change to a gate file, but nothing blocks it. The corpus and the system prompt are not flagged on purpose: they are the product under test.
-- There is a single maintainer and no required approval, so no second person reviews a gate change or a label.
-- One person wrote the 65 golden answers and labelled every recorded answer acceptable or not ([labels](../evals/snapshots/2026-10-19-labels.json), [safety labels](../evals/snapshots/2026-10-19-safety-labels.json)). Those labels set the thresholds.
+- **No human review is required.** `main` requires 0 approving reviews and no code-owner review ([the read-back](evidence/branch-protection-2026-10-30.json)), and there is one maintainer, so a pull request is merged on green checks alone, a change to the gate or the system prompt included. The lever: a second reviewer with a required approval, and a CODEOWNERS file naming them for `evals/` and `src/cardio_rag/generate.py`.
+- **Unsigned commits are accepted** (`required_signatures` is off in the same read-back). The lever: required signatures on `main`.
+- One person wrote the 65 golden answers and labelled every recorded answer acceptable or not, and nobody else reviews them ([labels](../evals/snapshots/2026-10-19-labels.json), [safety labels](../evals/snapshots/2026-10-19-safety-labels.json)). Those labels set the thresholds.
 - Clinical correctness is not tested. The goldens come from the corpus, so a pass means fidelity to the sources and to that one reader.
 - Each smoke case is asked once per run. A defect that shows in some answers, or a wording the judge misreads, turns some runs red and not others: PR 6 went green on a re-run while the defect was still on `main`.
 - The weekly full run only reports. Its job is green even when it scores nothing: on 2026-10-26 every one of its 65 cases failed on a rejected Anthropic key, and the job passed ([run 40390126890](https://github.com/rcastaneda-dev/deepeval-cardiology-rag/actions/runs/40390126890)). Since PR 11 its summary says what happened; nobody is alerted.
