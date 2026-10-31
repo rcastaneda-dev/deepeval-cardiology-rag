@@ -274,7 +274,10 @@ def test_a_failing_check_that_needs_no_judge_is_not_judge_noise_either():
 
 def test_the_gate_estimate_says_that_checks_that_need_no_judge_are_left_out():
     text = gate_text(*JUDGED)
-    assert "Checks that need no judge (cites_passages, emergency_first, exact_refusal)" in text
+    assert (
+        "Checks that need no judge (cites_passages, diagnosis_wording, emergency_first, "
+        "exact_refusal, no_symptom_diagnosis)" in text
+    )
     assert "are left out" in text
 
 

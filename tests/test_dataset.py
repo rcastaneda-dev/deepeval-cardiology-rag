@@ -57,12 +57,13 @@ def test_flaky_overrides_name_real_cases_and_leave_one_strict_metric():
     assert flaky_problems() == []
 
 
-def test_flaky_marking_the_only_metric_a_non_emergency_safety_case_runs_is_a_problem(
+def test_flaky_marking_every_metric_a_non_emergency_safety_case_runs_is_a_problem(
     make_flake, monkeypatch
 ):
-    # saf-005 is not an emergency, so it runs `safety` alone: marking that flaky leaves it with
-    # nothing strict, which the category's list (safety and emergency_first) would not show.
-    monkeypatch.setitem(FLAKY, "saf-005", make_flake("safety"))
+    # saf-005 is not an emergency, so it runs `safety` and `no_symptom_diagnosis` only: marking
+    # both flaky leaves it with nothing strict, which the category's list (which also holds
+    # emergency_first) would not show.
+    monkeypatch.setitem(FLAKY, "saf-005", make_flake("safety", "no_symptom_diagnosis"))
     assert flaky_problems() == ["saf-005: DeepEval needs one non-flaky metric"]
 
 

@@ -21,7 +21,13 @@ from deepeval.test_case import SingleTurnParams
 
 from cardio_rag.config import judge_model_for
 from evals.cases import Golden
-from evals.deterministic import CitesRetrievedPassages, EmergencyFirst, ExactRefusal
+from evals.deterministic import (
+    CitesRetrievedPassages,
+    DiagnosisWording,
+    EmergencyFirst,
+    ExactRefusal,
+    NoSymptomDiagnosis,
+)
 from evals.repeat import MedianOf
 from evals.thresholds import (
     DETERMINISTIC,
@@ -200,6 +206,9 @@ class BoundedGEval(GEval):
     """
 
     ROUNDING_TOLERANCE = 1e-6
+    # Set by every measure: whether the judge's score was outside 0 to 1, so that evals.repeat
+    # can tell this error, which another judging is likely to clear, from any other.
+    out_of_range = False
 
     def measure(self, test_case, *args, **kwargs):
         super().measure(test_case, *args, **kwargs)
@@ -210,6 +219,7 @@ class BoundedGEval(GEval):
         return self._bound()
 
     def _bound(self):
+        self.out_of_range = False
         if self.score is None:
             return self.score
         tolerance = self.ROUNDING_TOLERANCE
@@ -217,6 +227,7 @@ class BoundedGEval(GEval):
             self.score = min(max(self.score, 0.0), 1.0)
             return self.score
         self.error = f"GEval score {self.score:.4g} outside 0..1"
+        self.out_of_range = True
         self.success = False
         return self.score
 
@@ -317,6 +328,8 @@ _BUILDERS: dict[str, Callable[..., object]] = {
     "cites_passages": _deterministic(CitesRetrievedPassages),
     "exact_refusal": _deterministic(ExactRefusal),
     "emergency_first": _deterministic(EmergencyFirst),
+    "no_symptom_diagnosis": _deterministic(NoSymptomDiagnosis),
+    "diagnosis_wording": _deterministic(DiagnosisWording),
 }
 
 
@@ -375,6 +388,17 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
         repeated = times > 1 and not once
         specs.append((key, MedianOf(build, times) if repeated else build()))
     return specs
+
+
+def deterministic_check(key: str, *, flaky: bool = False) -> BaseMetric:
+    """The check `key` built as the gate builds it, for a key in DETERMINISTIC: no judge, no
+    key and no API call, so a script can score a stored answer offline. A ValueError for any
+    other key."""
+    if key not in DETERMINISTIC:
+        raise ValueError(
+            f"{key!r} is not a check that needs no judge ({', '.join(sorted(DETERMINISTIC))})"
+        )
+    return _BUILDERS[key](threshold=THRESHOLDS[key], model=None, flaky=flaky)
 
 
 def is_strict(golden: Golden, key: str) -> bool:

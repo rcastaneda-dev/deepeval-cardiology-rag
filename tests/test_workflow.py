@@ -52,9 +52,8 @@ def test_the_scan_finds_a_judge_setting_in_any_file_and_any_letter_case(tmp_path
     ]
 
 
-def eval_job_env() -> dict[str, str]:
-    """The `env:` entries of the eval job in eval.yml, read as text (PyYAML is not a dependency).
-    Comment lines are skipped and quotes are removed from the values."""
+def eval_job_lines() -> list[str]:
+    """The lines of the eval job in eval.yml, read as text (PyYAML is not a dependency)."""
     lines = (GITHUB / "workflows" / "eval.yml").read_text(encoding="utf-8").splitlines()
     start = lines.index("  eval:")
     job = []
@@ -62,6 +61,13 @@ def eval_job_env() -> dict[str, str]:
         if line.startswith("  ") and not line.startswith("   ") and line.strip():
             break  # the next job
         job.append(line)
+    return job
+
+
+def eval_job_env() -> dict[str, str]:
+    """The `env:` entries of the eval job in eval.yml, read as text (PyYAML is not a dependency).
+    Comment lines are skipped and quotes are removed from the values."""
+    job = eval_job_lines()
     env_at = job.index("    env:")
     env = {}
     for line in job[env_at + 1 :]:
@@ -86,3 +92,135 @@ def test_the_eval_job_gives_each_case_ten_minutes_for_its_judge_calls():
     }
     assert timeouts == {"DEEPEVAL_PER_TASK_TIMEOUT_SECONDS_OVERRIDE": "600"}
     assert set(timeouts) <= set(Settings.model_fields)  # a name DeepEval reads, not a typo
+
+
+def split_steps(lines: list[str]) -> list[str]:
+    """The text of each step in `lines`, from its `- ` line to the next step."""
+    steps: list[list[str]] = []
+    for line in lines:
+        if line.startswith("      - "):
+            steps.append([])
+        if steps:
+            steps[-1].append(line)
+    return ["\n".join(step) for step in steps]
+
+
+def eval_steps() -> list[str]:
+    """The steps of the eval job."""
+    job = eval_job_lines()
+    return split_steps(job[job.index("    steps:") + 1 :])
+
+
+def every_step() -> list[str]:
+    """The steps of every job in eval.yml."""
+    text = (GITHUB / "workflows" / "eval.yml").read_text(encoding="utf-8")
+    return split_steps(text.splitlines())
+
+
+def step_named(name: str) -> str:
+    (step,) = [step for step in eval_steps() if f"name: {name}" in step]
+    return step
+
+
+def run_blocks(step: str) -> list[str]:
+    """The shell text of a step's `run:` entry, whether on one line or in a `|` block."""
+    lines = step.splitlines()
+    for number, line in enumerate(lines):
+        if line.strip().startswith("run:"):
+            first = line.split("run:", 1)[1].strip()
+            if first not in ("|", ">"):
+                return [first]
+            indent = len(line) - len(line.lstrip())
+            body = []
+            for later in lines[number + 1 :]:
+                if later.strip() and len(later) - len(later.lstrip()) <= indent:
+                    break
+                body.append(later.strip())
+            return body
+    return []
+
+
+def test_the_step_reader_finds_the_steps_and_their_run_text():
+    names = [
+        line.split("name: ", 1)[1]
+        for step in eval_steps()
+        for line in step.splitlines()
+        if line.strip().startswith("- name: ")
+    ]
+    assert "Run DeepEval" in names and "Summarise results" in names
+    assert any(
+        "uv run deepeval test run evals/ -m smoke" in line
+        for line in run_blocks(step_named("Run DeepEval"))
+    )
+
+
+def test_the_eval_checkout_has_the_full_history_to_diff_against_the_base_branch():
+    checkout = eval_steps()[0]
+    assert "actions/checkout" in checkout
+    assert "fetch-depth: 0" in checkout
+    assert "persist-credentials: false" in checkout  # the history is not a reason to keep the token
+
+
+def test_the_changed_files_come_from_a_pull_request_step_that_reads_the_base_through_env():
+    steps = eval_steps()
+    listing = steps[1]  # right after the checkout
+    assert "if: github.event_name == 'pull_request'" in listing
+    assert "continue-on-error: true" in listing
+    assert "BASE_REF: ${{ github.base_ref }}" in listing
+    env_at = listing.index("env:")
+    assert listing.index("BASE_REF") > env_at < listing.index("run:")
+    (command,) = [line for line in run_blocks(listing) if "--name-only" in line]
+    assert '"origin/$BASE_REF...HEAD"' in command
+
+
+def test_a_failed_listing_leaves_no_changed_files_file_to_be_read_as_empty():
+    # A redirect creates the file before git runs, and an empty file means "no gate file changed".
+    # The list is written to a temporary name and moved into place only after git succeeded (the
+    # shell stops at the first failing command), so a failure is reported by the summary as "could
+    # not list" instead of as an empty list.
+    commands = run_blocks(eval_steps()[1])
+    (diff,) = [line for line in commands if "--name-only" in line]
+    (move,) = [line for line in commands if line.startswith("mv ")]
+    assert diff.endswith("> changed-files.tmp")
+    assert move == "mv changed-files.tmp changed-files.txt"
+    assert commands.index(diff) < commands.index(move)
+    assert "--no-renames" in diff  # a moved gate file shows under its old path too
+    # git quotes a path with non-ASCII characters ("docs/\303\251.md") unless told not to, and a
+    # quoted path in a gate directory would not match its prefix.
+    assert diff.startswith("git -c core.quotePath=false diff ")
+
+
+def test_no_run_block_interpolates_the_base_branch_or_the_outcome():
+    # An expression inside `run:` is pasted into the shell script; both go through `env:`.
+    for step in eval_steps():
+        for line in run_blocks(step):
+            assert "github.base_ref" not in line
+            assert "steps.run.outcome" not in line
+
+
+def test_no_run_block_in_the_workflow_contains_an_expression_at_all():
+    # Every `${{ }}` reaches the shell through `env:`, in every job, so nothing a pull request
+    # controls (a branch name, a title) is pasted into a script.
+    blocks = [line for step in every_step() for line in run_blocks(step)]
+    assert any("uv run" in line for line in blocks)  # the scan reads the run blocks
+    assert [line for line in blocks if "${{" in line] == []
+
+
+def test_the_scan_of_run_blocks_sees_an_expression_in_a_step():
+    step = "      - name: x\n        run: |\n          echo ${{ github.head_ref }}\n        env:\n"
+    assert run_blocks(step) == ["echo ${{ github.head_ref }}"]
+
+
+def test_the_summary_step_gets_the_outcome_the_changed_files_and_the_full_run_flag():
+    run = step_named("Run DeepEval")
+    assert "id: run" in run
+    summary = step_named("Summarise results")
+    assert "RUN_OUTCOME: ${{ steps.run.outcome }}" in summary
+    assert "if: always()" in summary
+    text = "\n".join(run_blocks(summary))
+    assert '--outcome "$RUN_OUTCOME"' in text
+    assert "--changed-files changed-files.txt" in text
+    assert "--not-a-gate" in text
+    # The changed files are passed on pull requests, the full-run flag on every other event.
+    assert text.index("--changed-files") < text.index("else") < text.index("--not-a-gate")
+    assert '"$EVENT_NAME" = "pull_request"' in text

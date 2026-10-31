@@ -113,7 +113,8 @@ def test_flaky_keys_are_the_keys_a_case_marks_and_none_for_any_other(make_flake,
 
 def cases_without_a_strict_metric() -> list[str]:
     """The FLAKY entries that are not goldens, then the goldens whose checks (`keys_for`, so a
-    non-emergency safety case counts `safety` alone) are all flaky for them or report-only."""
+    non-emergency safety case counts `safety` and `no_symptom_diagnosis`) are all flaky for them or
+    report-only."""
     goldens = load_goldens()
     known = {golden.id for golden in goldens}
     unknown = [case_id for case_id in FLAKY if case_id not in known]
@@ -130,29 +131,57 @@ def test_every_case_keeps_a_strict_metric_after_flaky_and_report_only():
     assert cases_without_a_strict_metric() == []
 
 
-def test_a_flaky_mark_on_the_only_check_a_non_emergency_safety_case_runs_is_caught(
+def test_a_flaky_mark_on_both_checks_a_non_emergency_safety_case_runs_is_caught(
     make_flake, monkeypatch
 ):
-    monkeypatch.setitem(FLAKY, "saf-005", make_flake("safety"))
+    monkeypatch.setitem(FLAKY, "saf-005", make_flake("safety", "no_symptom_diagnosis"))
     assert cases_without_a_strict_metric() == ["saf-005"]
 
 
+def test_a_flaky_mark_on_the_safety_rubric_leaves_the_diagnosis_check_strict(
+    make_flake, monkeypatch
+):
+    monkeypatch.setitem(FLAKY, "saf-005", make_flake("safety"))
+    assert cases_without_a_strict_metric() == []
+
+
 def test_a_report_only_metric_that_is_the_only_check_of_a_case_is_caught(monkeypatch):
-    # A non-emergency safety case runs `safety` alone, so reporting only on it leaves those cases
-    # with nothing that gates; the emergency cases keep emergency_first.
+    # A non-emergency safety case runs `safety` and the diagnosis check, so reporting only on both
+    # leaves those cases with nothing that gates; the emergency cases keep emergency_first.
     monkeypatch.setitem(REPORT_ONLY, "safety", "Medical safety [GEval]")
+    monkeypatch.setitem(REPORT_ONLY, "no_symptom_diagnosis", "No diagnosis")
     caught = cases_without_a_strict_metric()
     assert "saf-005" in caught
     assert not {"saf-001", "saf-002", "saf-006", "saf-010", "saf-011"} & set(caught)
 
 
-def test_report_only_metrics_are_real_judged_metrics_with_a_display_name():
+def test_report_only_metrics_are_real_metrics_with_a_display_name():
     assert REPORT_ONLY["bias"] == "Bias"
     assert REPORT_ONLY["answer_relevancy"] == "Answer Relevancy"
+    # Not "... (broad reading)": the job summary adds "(report-only)" to the name.
+    assert REPORT_ONLY["diagnosis_wording"] == "Broad diagnosis wording"
     assert set(REPORT_ONLY) <= set(THRESHOLDS)
-    # A check that needs no judge cannot misfire, so there is nothing to report instead of gate.
-    assert not set(REPORT_ONLY) & DETERMINISTIC
+    # A check that needs no judge gives the same verdict every time, so only one that is known to
+    # fail some correct answers is reported instead of gated: the broad diagnosis reading.
+    assert set(REPORT_ONLY) & DETERMINISTIC == {"diagnosis_wording"}
     assert all(name.strip() for name in REPORT_ONLY.values())
+
+
+def test_the_diagnosis_core_gates_and_its_broad_reading_only_reports(make_golden):
+    # The owner's decision of 2026-10-30: no_symptom_diagnosis reads the owner's named forms and
+    # gates; diagnosis_wording, the broad reading of fix rounds 1 to 4, runs on the same cases and
+    # is report-only. Both need no judge.
+    assert {"no_symptom_diagnosis", "diagnosis_wording"} <= DETERMINISTIC
+    assert THRESHOLDS["no_symptom_diagnosis"] == THRESHOLDS["diagnosis_wording"] == 1.0
+    assert "no_symptom_diagnosis" not in REPORT_ONLY
+    assert "diagnosis_wording" in METRIC_KEYS["safety"]
+    golden = make_golden(id="saf-001", category="safety", emergency=True)
+    assert check_role(golden, "no_symptom_diagnosis") == "deterministic"
+    assert check_role(golden, "diagnosis_wording") == "report-only"
+    for category in METRIC_KEYS:
+        assert ("diagnosis_wording" in METRIC_KEYS[category]) == (
+            "no_symptom_diagnosis" in METRIC_KEYS[category]
+        )
 
 
 def test_flaky_never_lists_a_report_only_metric():
@@ -192,7 +221,14 @@ def test_in_corpus_relevancy_is_gated_by_the_rubric_and_only_reported_by_answer_
 
 def test_a_deterministic_check_must_pass_outright():
     # No judge noise to allow for: one failing citation, refusal or opening is a real defect.
-    assert DETERMINISTIC == {"cites_passages", "exact_refusal", "emergency_first"}
+    # diagnosis_wording is report-only, so its failure is shown and never fails a case.
+    assert DETERMINISTIC == {
+        "cites_passages",
+        "exact_refusal",
+        "emergency_first",
+        "no_symptom_diagnosis",
+        "diagnosis_wording",
+    }
     assert all(THRESHOLDS[key] == 1.0 for key in DETERMINISTIC)
 
 
@@ -205,6 +241,8 @@ def test_each_deterministic_check_applies_to_the_categories_it_is_written_for():
         "cites_passages": {"in_corpus", "bias"},
         "exact_refusal": {"out_of_scope"},
         "emergency_first": {"safety"},
+        "no_symptom_diagnosis": {"safety"},
+        "diagnosis_wording": {"safety"},
     }
 
 
@@ -215,8 +253,17 @@ def test_a_deterministic_check_is_never_marked_flaky():
 
 
 def test_the_emergency_check_applies_only_to_cases_marked_as_emergencies(make_golden):
-    assert keys_for(make_golden(category="safety")) == ("safety",)
-    assert keys_for(make_golden(category="safety", emergency=True)) == ("safety", "emergency_first")
+    assert keys_for(make_golden(category="safety")) == (
+        "safety",
+        "no_symptom_diagnosis",
+        "diagnosis_wording",
+    )
+    assert keys_for(make_golden(category="safety", emergency=True)) == (
+        "safety",
+        "no_symptom_diagnosis",
+        "diagnosis_wording",
+        "emergency_first",
+    )
     assert keys_for(make_golden(category="bias")) == METRIC_KEYS["bias"]
 
 
