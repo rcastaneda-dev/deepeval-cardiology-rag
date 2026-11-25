@@ -19,6 +19,7 @@ from evals.thresholds import (
     FLAKY,
     JUDGED_ONCE,
     METRIC_KEYS,
+    REPEATED_ON_SMOKE_ONLY,
     REPORT_ONLY,
     THRESHOLDS,
     flaky_keys,
@@ -603,9 +604,10 @@ def test_a_repeated_check_is_wrapped_in_a_median_of_three_by_default(make_golden
     assert [type(copy).__name__ for copy in repeated.copies] == ["BoundedGEval"] * 3
 
 
-# Which checks are judged more than once: every judged check except those in JUDGED_ONCE and
-# REPORT_ONLY (a check in DETERMINISTIC needs no judge, so a repeat would only repeat the answer).
-# Spelled out per category, so a change to the sets shows up here.
+# Which checks are judged more than once on a smoke case, the cases the pull-request gate runs:
+# every judged check except those in JUDGED_ONCE and REPORT_ONLY (a check in DETERMINISTIC needs
+# no judge, so a repeat would only repeat the answer). Spelled out per category, so a change to
+# the sets shows up here. Off the smoke subset the checks in REPEATED_ON_SMOKE_ONLY judge once.
 REPEATED = {
     "in_corpus": {
         "faithfulness",
@@ -629,7 +631,7 @@ JUDGED_ONCE_KEYS = {
 @pytest.mark.parametrize("category", sorted(REPEATED))
 def test_each_kind_of_check_is_or_is_not_a_median_of_three(make_golden, monkeypatch, category):
     monkeypatch.setenv("JUDGE_REPEATS", "3")
-    specs = metric_specs_for(make_golden(category=category))
+    specs = metric_specs_for(make_golden(category=category, smoke=True))
     wrapped = {key for key, metric in specs if isinstance(metric, MedianOf)}
     assert wrapped == REPEATED[category]
     plain = {key for key, metric in specs if not isinstance(metric, MedianOf)}
@@ -651,14 +653,28 @@ def test_the_faithfulness_checks_take_the_median_of_their_judgings_on_gpt_5_mini
         monkeypatch.delenv(name, raising=False)
     for repeats in (3, 5):
         for category, key in (("in_corpus", "faithfulness"), ("bias", "bias_faithfulness")):
-            specs = dict(metric_specs_for(make_golden(category=category), repeats=repeats))
-            median = specs[key]
+            golden = make_golden(category=category, smoke=True)
+            median = dict(metric_specs_for(golden, repeats=repeats))[key]
             assert isinstance(median, MedianOf), (repeats, key)
             assert median.times == repeats
             assert [type(copy).__name__ for copy in median.copies] == ["FaithfulnessMetric"] * (
                 repeats
             )
             assert {copy.evaluation_model for copy in median.copies} == {"gpt-5-mini"}
+
+
+def test_the_faithfulness_checks_are_judged_once_off_the_smoke_subset(make_golden, monkeypatch):
+    # Only the full run scores the other 47 cases, and it never gates: one gpt-5-mini judging
+    # there is a trend signal at a third of the cost (the owner's decision of 2026-11-25). The
+    # other judged checks keep their median there.
+    monkeypatch.setenv("JUDGE_REPEATS", "3")
+    in_corpus = dict(metric_specs_for(make_golden(smoke=False)))
+    bias = dict(metric_specs_for(make_golden(id="bia-001", category="bias", smoke=False)))
+    assert type(in_corpus["faithfulness"]).__name__ == "FaithfulnessMetric"
+    assert type(bias["bias_faithfulness"]).__name__ == "FaithfulnessMetric"
+    assert isinstance(in_corpus["hallucination"], MedianOf)
+    assert isinstance(bias["respectful_grounded"], MedianOf)
+    assert REPEATED_ON_SMOKE_ONLY == frozenset({"faithfulness", "bias_faithfulness"})
 
 
 def test_report_only_metrics_are_judged_once_whatever_the_repeats(make_golden):
