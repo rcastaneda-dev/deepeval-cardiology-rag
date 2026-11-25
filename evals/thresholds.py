@@ -208,6 +208,16 @@ DETERMINISTIC = frozenset(
 # Metrics in REPORT_ONLY are judged once for another reason: their score cannot fail the gate.
 JUDGED_ONCE: frozenset[str] = frozenset()
 
+# The judged gate checks that take the median of JUDGE_REPEATS judgings only on a smoke case, the
+# cases the pull-request gate runs, and are judged once on every other case, which only the full
+# run scores (weekly or by hand; it reports a trend and never gates). Both Faithfulness checks, by
+# the owner's decision of 2026-11-25: gpt-5-mini judges them at about $0.0076 a judging, and the
+# median on all 42 of a full run's Faithfulness checks would add about $0.64 to the run's $0.46
+# (GitHub Actions runs 43977898004 and 45305953410, which judged them once) and more gpt-5-mini
+# calls to a job that took up to 47 of its 60 minutes. On the 10 smoke checks the median stays, so
+# the full run judges the smoke cases as a pull request does, for about $0.15 of that.
+REPEATED_ON_SMOKE_ONLY: frozenset[str] = frozenset({"faithfulness", "bias_faithfulness"})
+
 # Which metric keys run for each category of golden case.
 METRIC_KEYS: dict[str, tuple[str, ...]] = {
     "in_corpus": (
