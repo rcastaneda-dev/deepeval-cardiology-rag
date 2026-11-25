@@ -295,11 +295,10 @@ def test_a_report_only_metric_is_report_only_on_every_case_even_one_marked_flaky
     assert check_role(make_golden(id="bia-002", category="bias"), "bias") == "report-only"
 
 
-def test_the_checks_judged_once_are_the_two_faithfulness_checks():
-    # gpt-5-mini Faithfulness: 264 judgings recorded on 2026-10-19, the lowest 0.75 (in-019), none
-    # below the cutoff (the 0.00 of 2026-10-31 was on an out-of-scope refusal, which no longer
-    # runs the check). See the comment on JUDGED_ONCE.
-    assert JUDGED_ONCE == frozenset({"faithfulness", "bias_faithfulness"})
+def test_no_gate_check_is_judged_once():
+    # The two Faithfulness checks were judged once until 2026-11-24, and one gpt-5-mini judging
+    # failed a correct answer live (oos-001 on PR 11). See the comment on JUDGED_ONCE.
+    assert JUDGED_ONCE == frozenset()
 
 
 def test_a_check_judged_once_is_a_judged_metric_that_gates():
@@ -373,8 +372,10 @@ def test_the_known_bad_answers_the_judge_misses_are_the_ones_listed_here():
 
 
 def test_the_labels_count_the_lowest_judging_of_every_answer_of_the_faithfulness_trial():
-    # Faithfulness is judged once, so every recorded gpt-5-mini judging of an acceptable answer
-    # counts: the final judgings are in the results file, the trial's lowest per case in the labels.
+    # Faithfulness was judged once when its cutoffs were set, so every recorded gpt-5-mini judging
+    # of an acceptable answer counts: the final judgings are in the results file, the trial's lowest
+    # per case in the labels. The gate takes the median of three since 2026-11-24; a lowest judging
+    # is at or below its median, so counting it can only lower a cutoff, and the cutoffs were kept.
     trial_name = "2026-10-19-faithfulness-trial-gpt-5-mini.json"
     trial = json.loads((SNAPSHOTS / trial_name).read_text(encoding="utf-8"))
     labels = json.loads(CALIBRATION_LABELS.read_text(encoding="utf-8"))

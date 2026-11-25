@@ -54,8 +54,12 @@ from datetime import date
 from evals.cases import Golden
 
 THRESHOLDS: dict[str, float] = {
-    # 0.75 -> 0.70, by every recorded gpt-5-mini judging of an acceptable answer. The check is
-    # judged once, so the lowest single judging of each case counts. In the 44 answers of the
+    # 0.75 -> 0.70, by every recorded gpt-5-mini judging of an acceptable answer. The check was
+    # judged once when this was set, so the lowest single judging of each case counts, and the
+    # labels still count it now that the gate takes the median of three (since 2026-11-24): a
+    # lowest judging is at or below its median, so it can only lower the cutoff. On the medians
+    # alone the rule gives 0.90; raising the cutoff is a separate decision, not taken with the
+    # median (JUDGED_ONCE). In the 44 answers of the
     # final prompt all 132 judgings scored 1.00 (evals/snapshots/2026-10-19-final-faithfulness.md).
     # In the trial of the same day (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json:
     # the 44 answers of evals/snapshots/2026-10-19.json, all read and found acceptable, counted as
@@ -187,24 +191,22 @@ DETERMINISTIC = frozenset(
 )
 
 # The judged gate checks that are judged once per run instead of as the median of JUDGE_REPEATS
-# judgings (evals.metrics.metric_specs_for): both Faithfulness checks, which gpt-5-mini judges
-# (cardio_rag.config.DEFAULT_JUDGE_MODELS). In the trial of 2026-10-19 (3 judgings of each recorded
-# answer: evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.md) it scored 131 of the 132
-# judgings of the 44 faithfulness answers at 0.90 or higher, the other being in-019 at 0.75, and
-# all 30 judgings of the 10 bias answers at 0.80 or higher. On the answers of the final prompt
-# (evals/snapshots/2026-10-19-final-faithfulness.md) all 132 faithfulness judgings scored 1.00 and
-# all 30 bias judgings 0.875 or higher. A median of three would have changed no verdict in either.
-# It costs about 10 times as much per judging as gpt-4o-mini ($0.0076 against $0.0008; the final
-# run's 162 judgings cost $1.25), and one judging keeps a third of that cost and of the time. The
-# risk is that one misread of a correct answer fails its case, which none of the 264 faithfulness
-# judgings of the two runs would have done at the cutoff 0.70 (the 0.75 of in-019 passes it), and
-# that one judging catches a wrong answer less often than the median of three would: the in-013
-# contradicts_source answer passed 2 of its 3 judgings at 0.70 (1 of 3 at the old 0.75), where
-# Hallucination, a median of three, caught it. A misread did fail a case on 2026-10-31: the exact
-# refusal of oos-001 scored 0.00 on PR 11 (GitHub Actions run 41151429844), and the out-of-scope
-# cases, 12 of the 44 answers above, no longer run the check (METRIC_KEYS). Metrics in
-# REPORT_ONLY are judged once for another reason: their score cannot fail the gate.
-JUDGED_ONCE = frozenset({"faithfulness", "bias_faithfulness"})
+# judgings (evals.metrics.metric_specs_for). None since 2026-11-24, by the owner's decision. From
+# 2026-10-19 the two Faithfulness checks were here, to save cost: gpt-5-mini judges them
+# (cardio_rag.config.DEFAULT_JUDGE_MODELS) at about 10 times the price of gpt-4o-mini per judging
+# ($0.0076 against $0.0008), and no recorded judging of an acceptable answer was under its cutoff
+# (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.md and
+# evals/snapshots/2026-10-19-final-faithfulness.md). Live, one judging failed a correct answer:
+# the exact refusal of oos-001 scored 0.00 on PR 11 (GitHub Actions run 41151429844), where all
+# six recorded judgings of it gave 1.00 (docs/evidence/ci-41151429844-oos-001-faithfulness.md).
+# A median of three outvotes one such misread. On the recorded judgings (0 of 252 gpt-5-mini
+# judgings under the cutoff, 95% Wilson bound 1.50% per judging) it takes the bound on a smoke run
+# turning red from judge noise from 14.2% to 0.9% (docs/qa-report.md, section 4), for 20 more
+# gpt-5-mini judgings per smoke run, about $0.15. MedianOf judges the copies at the same time, so
+# a case takes about as long. The median does not make Faithfulness catch the in-013 contradiction
+# (0.60, 0.714 and 0.75 in the trial: median 0.714, which passes 0.70); Hallucination catches it.
+# Metrics in REPORT_ONLY are judged once for another reason: their score cannot fail the gate.
+JUDGED_ONCE: frozenset[str] = frozenset()
 
 # Which metric keys run for each category of golden case.
 METRIC_KEYS: dict[str, tuple[str, ...]] = {

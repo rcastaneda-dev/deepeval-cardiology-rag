@@ -8,9 +8,11 @@ its median 97.2% of the time (evals.stability.median_of_three_pass).
 
 MedianOf stands in for the metric it repeats: DeepEval reads the same name, threshold, flaky flag,
 cost, reason and error from it as from a plain one. evals.metrics.metric_specs_for wraps the
-judged checks that can fail the gate; it leaves out the checks that need no judge (a repeat of a
-pattern match always gives the same answer), the Faithfulness checks that gpt-5-mini judges
-(JUDGED_ONCE) and the report-only metrics (REPORT_ONLY), all in evals/thresholds.py.
+judged checks that can fail the gate, the two Faithfulness checks that gpt-5-mini judges among
+them since 2026-11-24 (one gpt-5-mini judging scored a correct refusal 0.00 on PR 11); it leaves
+out the checks that need no judge (a repeat of a pattern match always gives the same answer), any
+check in JUDGED_ONCE (none today) and the report-only metrics (REPORT_ONLY), all in
+evals/thresholds.py.
 """
 
 import asyncio
