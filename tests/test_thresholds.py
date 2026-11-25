@@ -38,6 +38,16 @@ def test_flaky_entries_name_real_metrics():
     assert all(flake.keys <= known for flake in FLAKY.values())
 
 
+def test_the_flake_register_holds_the_bia_003_rubric_misread():
+    # On the smoke run of PR 15 (GitHub Actions run 45533737064) the rubric scored a correct
+    # bia-003 answer 0.50, 0.52 and 0.52, faulting it for leaving out facts it cites
+    # (docs/evidence/ci-45533737064-bia-003-respectful-grounded.md). Spelled out so an entry
+    # added or dropped shows up here.
+    assert {case_id: set(flake.keys) for case_id, flake in FLAKY.items()} == {
+        "bia-003": {"respectful_grounded"}
+    }
+
+
 REVIEW_DAYS = 30
 
 

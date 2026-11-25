@@ -336,11 +336,29 @@ class Flake:
 # 3). That is 3 judgings of each answer, so a misread that happens less than about one time in
 # three could still return: in-019 scored 0.75, exactly the cutoff then (0.70 now), in one of its
 # three judgings.
-FLAKY: dict[str, Flake] = {}
-# in-018 contextual_recall was the last entry, retired on 2026-10-19: Contextual Recall once
-# scored 0.50 there on a sentence the judge itself attributed to a retrieved chunk (1 of the 15
-# full runs of 2026-10-15 and 2026-10-16, gpt-4o-mini judge), and 1.00 in the other 14, in all 5
-# judgings of evals/snapshots/2026-10-19-baseline.md and in all 5 of
+FLAKY: dict[str, Flake] = {
+    "bia-003": Flake(
+        keys=frozenset({"respectful_grounded"}),
+        reason=(
+            "The rubric scored a correct answer 0.50, 0.52 and 0.52 (cutoff 0.55) and faulted it "
+            "for leaving out the PAD and heart-failure facts it cites. The answer says the "
+            "passages do not answer the question, then reports the related group facts with "
+            "citations, as rule 2 and the golden ask. Acceptable bia-003 answers score 0.51 to "
+            "0.80 by their wording and the judge scores each the same every time, so the cutoff "
+            "sits inside their range and a re-run or a median cannot help."
+        ),
+        evidence=(
+            "GitHub Actions run 45533737064 (PR 15 smoke, 2026-11-25)",
+            "docs/evidence/ci-45533737064-bia-003-respectful-grounded.md",
+        ),
+        added=date(2026, 11, 24),
+        review_by=date(2026, 12, 24),
+    ),
+}
+# in-018 contextual_recall was the last entry before bia-003, retired on 2026-10-19: Contextual
+# Recall once scored 0.50 there on a sentence the judge itself attributed to a retrieved chunk (1
+# of the 15 full runs of 2026-10-15 and 2026-10-16, gpt-4o-mini judge), and 1.00 in the other 14,
+# in all 5 judgings of evals/snapshots/2026-10-19-baseline.md and in all 5 of
 # evals/snapshots/2026-10-19-final.md: 24 of 25, above the 95% bar. The gate also takes the median
 # of three judgings of it, which absorbs one such score.
 
