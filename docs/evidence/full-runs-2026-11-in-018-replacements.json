@@ -1,0 +1,74 @@
+[
+ {
+  "case_id": "in-018",
+  "kind": "run 41244617307 (2026-10-31, weekly fail) verbatim",
+  "answer": "No, cardiomyopathy is not limited to certain ages or races. People of any age, race, or ethnicity can have it [cardiomyopathy#1].\n\nSome types are more common in certain age groups:\n- Septic cardiomyopathy is more common in newborns.\n- Arrhythmogenic cardiomyopathy is more common in teens and young adults.\n- Dilated cardiomyopathy is more common in adults between 20 and 60.\n- Hypertrophic cardiomyopathy is more common in people in their 30s.\n- Takotsubo cardiomyopathy is more common in women after menopause [cardiomyopathy#3].\n\nFor race, the passages say Black people have a nearly three times higher risk of dilated cardiomyopathy than White people [cardiomyopathy#3]. The passages do not give risk comparisons for other racial or ethnic groups for the other types.",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 41539191887 (2026-11-02, weekly pass) verbatim",
+  "answer": "No. The passages say people of any age, race, or ethnicity can have cardiomyopathy [cardiomyopathy#1].\n\nSome types are more common in certain age groups. For example, hypertrophic cardiomyopathy is more common in people in their 30s, and dilated cardiomyopathy is more common in adults between 20 and 60 [cardiomyopathy#3]. The passages also note that Black people have a nearly three times higher risk of dilated cardiomyopathy than White people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 42719630078 (2026-11-09, weekly pass) verbatim",
+  "answer": "No. Cardiomyopathy is not limited to certain ages or races. \"People of any age, race, or ethnicity can have cardiomyopathy.\" [cardiomyopathy#1]\n\nSome types are more common in certain age groups. For example, dilated cardiomyopathy is more common in adults between 20 and 60, and hypertrophic cardiomyopathy is more common in people in their 30s. [cardiomyopathy#3]\n\nRace can affect risk for some types. Black people have a risk of dilated cardiomyopathy nearly three times higher than White people. [cardiomyopathy#3]",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 43977898004 (2026-11-16, weekly fail) verbatim",
+  "answer": "No, cardiomyopathy is not limited to certain ages or races. \"People of any age, race, or ethnicity can have cardiomyopathy\" [cardiomyopathy#1].\n\nSome types are more common in certain age groups. For example, hypertrophic cardiomyopathy is more common in people in their 30s, and dilated cardiomyopathy is more common in adults between 20 and 60 [cardiomyopathy#3]. Race also affects risk for one type: Black people have a risk of dilated cardiomyopathy that's nearly three times higher than that of White people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 45305953410 (2026-11-24, weekly fail) verbatim",
+  "answer": "No. Cardiomyopathy is not limited to certain ages or races. People of any age, race, or ethnicity can have it [cardiomyopathy#1].\n\nSome types are more common in certain age groups. For example, dilated cardiomyopathy is more common in adults between 20 and 60, and hypertrophic cardiomyopathy is more common in people in their 30s [cardiomyopathy#3].\n\nRace can also affect risk for some types. Black people have a risk of dilated cardiomyopathy nearly three times higher than White people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 41244617307 (2026-10-31) without the not-limited clause",
+  "answer": "No. People of any age, race, or ethnicity can have it [cardiomyopathy#1].\n\nSome types are more common in certain age groups:\n- Septic cardiomyopathy is more common in newborns.\n- Arrhythmogenic cardiomyopathy is more common in teens and young adults.\n- Dilated cardiomyopathy is more common in adults between 20 and 60.\n- Hypertrophic cardiomyopathy is more common in people in their 30s.\n- Takotsubo cardiomyopathy is more common in women after menopause [cardiomyopathy#3].\n\nFor race, the passages say Black people have a nearly three times higher risk of dilated cardiomyopathy than White people [cardiomyopathy#3]. The passages do not give risk comparisons for other racial or ethnic groups for the other types.",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 43977898004 (2026-11-16) without the not-limited clause",
+  "answer": "No. \"People of any age, race, or ethnicity can have cardiomyopathy\" [cardiomyopathy#1].\n\nSome types are more common in certain age groups. For example, hypertrophic cardiomyopathy is more common in people in their 30s, and dilated cardiomyopathy is more common in adults between 20 and 60 [cardiomyopathy#3]. Race also affects risk for one type: Black people have a risk of dilated cardiomyopathy that's nearly three times higher than that of White people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "run 45305953410 (2026-11-24) without the not-limited clause",
+  "answer": "No. People of any age, race, or ethnicity can have it [cardiomyopathy#1].\n\nSome types are more common in certain age groups. For example, dilated cardiomyopathy is more common in adults between 20 and 60, and hypertrophic cardiomyopathy is more common in people in their 30s [cardiomyopathy#3].\n\nRace can also affect risk for some types. Black people have a risk of dilated cardiomyopathy nearly three times higher than White people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ },
+ {
+  "case_id": "in-018",
+  "kind": "PR 16 rule-2b sample with the not-limited clause",
+  "answer": "No, cardiomyopathy is not limited to certain ages or races. The passages say that people of any age, race, or ethnicity can have it [cardiomyopathy#1].\n\nSome types are more common in certain age groups. For example, dilated cardiomyopathy is more common in adults between 20 and 60, and hypertrophic cardiomyopathy is more common in people in their 30s [cardiomyopathy#3]. Race can also affect risk for some types: Black people have a risk of dilated cardiomyopathy nearly three times higher than White people [cardiomyopathy#3].",
+  "must_fail": [
+   "hallucination"
+  ]
+ }
+]
