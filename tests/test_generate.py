@@ -147,9 +147,10 @@ def test_system_prompt_stops_after_a_full_answer_instead_of_saying_what_is_missi
     # false claim about the passages; the same cases' answers without such a sentence scored 1.00
     # (docs/evidence/full-runs-2026-11-faithfulness-caveats.md). The owner's decision of 2026-11-25.
     rule = SYSTEM_PROMPT[SYSTEM_PROMPT.index("2. ") : SYSTEM_PROMPT.index("3. ")]
-    # Only for questions that are not about a group: a group answer must still say plainly where
-    # the passages do not answer or support it.
-    assert "For any other question the passages answer, give the answer and stop" in rule
+    # For every question, a group answer included: limited to other questions, the rule let group
+    # answers to factual questions hunt for gaps, and an in-032 answer said the passages give no
+    # comparison of PAD risk by sex where they say the risk is similar.
+    assert "When the passages do answer the question, give the answer and stop" in rule
     assert "do not add a sentence about what they do not say, even to qualify the answer" in rule
     assert "only when a part of the question gets no answer at all" in rule
 
