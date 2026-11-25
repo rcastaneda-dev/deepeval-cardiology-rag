@@ -131,8 +131,8 @@ def test_system_prompt_stops_after_a_full_answer_instead_of_saying_what_is_missi
     # false claim about the passages; the same cases' answers without such a sentence scored 1.00
     # (docs/evidence/full-runs-2026-11-faithfulness-caveats.md). The owner's decision of 2026-11-25.
     rule = SYSTEM_PROMPT[SYSTEM_PROMPT.index("2. ") : SYSTEM_PROMPT.index("3. ")]
-    assert "do not add a sentence about what they do not say" in rule
-    assert "say which part they leave out" in rule
+    assert "do not add a sentence about what they do not say, even to qualify the answer" in rule
+    assert "only when a part of the question gets no answer at all" in rule
 
 
 def test_system_prompt_says_group_claims_give_no_basis_for_less_care():
