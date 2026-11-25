@@ -197,7 +197,8 @@ def test_margin_risks_and_failing_scores_name_their_cases_in_the_order_given(fil
     assert "- acceptable scores that would fail: bia-004 0.40" in out
 
 
-def test_a_check_judged_once_uses_the_lowest_single_judging_and_says_so(files, capsys):
+def test_a_check_judged_once_uses_the_lowest_single_judging_and_says_so(files, capsys, monkeypatch):
+    monkeypatch.setattr("evals.calibrate.JUDGED_ONCE", frozenset({"faithfulness"}))
     results = results_for(
         row("in-005", "faithfulness", [1.0, 0.8, 1.0]),
         row("in-005", "hallucination", [1.0, 0.8, 1.0]),
@@ -283,7 +284,8 @@ def test_a_repeated_check_with_fewer_than_three_judgings_is_refused_with_its_cas
     assert "at least 3 judgings" in captured.err
 
 
-def test_a_check_judged_once_needs_only_one_judging(files, capsys):
+def test_a_check_judged_once_needs_only_one_judging(files, capsys, monkeypatch):
+    monkeypatch.setattr("evals.calibrate.JUDGED_ONCE", frozenset({"faithfulness"}))
     results = results_for(row("in-019", "faithfulness", [0.9]), times=1)
     assert main(files(results, labelled("in-019"))) == 0
     assert "- lowest acceptable score: 0.90 (in-019)" in capsys.readouterr().out
@@ -431,7 +433,8 @@ def test_an_extra_score_below_the_threshold_is_a_failing_score_or_a_margin_risk(
     assert "- acceptable scores that would fail: bia-003 [extra] 0.40" in out
 
 
-def test_an_extra_score_for_a_check_judged_once_is_a_single_judging(files, capsys):
+def test_an_extra_score_for_a_check_judged_once_is_a_single_judging(files, capsys, monkeypatch):
+    monkeypatch.setattr("evals.calibrate.JUDGED_ONCE", frozenset({"bias_faithfulness"}))
     results = results_for(row("bia-004", "bias_faithfulness", [1.0, 1.0, 1.0]))
     labels = labelled("bia-004", extra=[extra("bias_faithfulness", "bia-004", 0.80)])
     assert main(files(results, labels)) == 0

@@ -597,8 +597,8 @@ def test_judge_repeats_rejects_nonsense(monkeypatch, value):
 
 def test_a_repeated_check_is_wrapped_in_a_median_of_three_by_default(make_golden, monkeypatch):
     monkeypatch.delenv("JUDGE_REPEATS", raising=False)
-    specs = metric_specs_for(make_golden(category="bias"))
-    (repeated,) = [metric for _, metric in specs if isinstance(metric, MedianOf)]
+    repeated = dict(metric_specs_for(make_golden(category="bias")))["respectful_grounded"]
+    assert isinstance(repeated, MedianOf)
     assert repeated.times == 3
     assert [type(copy).__name__ for copy in repeated.copies] == ["BoundedGEval"] * 3
 
@@ -607,16 +607,22 @@ def test_a_repeated_check_is_wrapped_in_a_median_of_three_by_default(make_golden
 # REPORT_ONLY (a check in DETERMINISTIC needs no judge, so a repeat would only repeat the answer).
 # Spelled out per category, so a change to the sets shows up here.
 REPEATED = {
-    "in_corpus": {"answers_question", "contextual_precision", "contextual_recall", "hallucination"},
+    "in_corpus": {
+        "faithfulness",
+        "answers_question",
+        "contextual_precision",
+        "contextual_recall",
+        "hallucination",
+    },
     "out_of_scope": {"abstention"},
     "safety": {"safety"},
-    "bias": {"respectful_grounded"},
+    "bias": {"bias_faithfulness", "respectful_grounded"},
 }
 JUDGED_ONCE_KEYS = {
-    "in_corpus": {"faithfulness", "answer_relevancy"},
+    "in_corpus": {"answer_relevancy"},
     "out_of_scope": set(),
     "safety": set(),
-    "bias": {"bias", "bias_faithfulness"},
+    "bias": {"bias"},
 }
 
 
@@ -636,12 +642,23 @@ def test_each_kind_of_check_is_or_is_not_a_median_of_three(make_golden, monkeypa
     assert plain - judged_once <= DETERMINISTIC
 
 
-def test_the_faithfulness_checks_are_judged_once_whatever_the_repeats(make_golden):
-    # gpt-5-mini never scored an answer below the cutoff in 132 judgings, so the gate pays for one.
+def test_the_faithfulness_checks_take_the_median_of_their_judgings_on_gpt_5_mini(
+    make_golden, monkeypatch
+):
+    # One gpt-5-mini judging failed oos-001's correct refusal on PR 11 (0.00 where six recorded
+    # judgings gave 1.00); a median of three outvotes one such misread.
+    for name in ("JUDGE_MODEL", "JUDGE_MODEL_FAITHFULNESS", "JUDGE_MODEL_BIAS_FAITHFULNESS"):
+        monkeypatch.delenv(name, raising=False)
     for repeats in (3, 5):
         for category, key in (("in_corpus", "faithfulness"), ("bias", "bias_faithfulness")):
             specs = dict(metric_specs_for(make_golden(category=category), repeats=repeats))
-            assert not isinstance(specs[key], MedianOf), (repeats, key)
+            median = specs[key]
+            assert isinstance(median, MedianOf), (repeats, key)
+            assert median.times == repeats
+            assert [type(copy).__name__ for copy in median.copies] == ["FaithfulnessMetric"] * (
+                repeats
+            )
+            assert {copy.evaluation_model for copy in median.copies} == {"gpt-5-mini"}
 
 
 def test_report_only_metrics_are_judged_once_whatever_the_repeats(make_golden):
