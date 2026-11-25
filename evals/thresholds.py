@@ -58,8 +58,13 @@ THRESHOLDS: dict[str, float] = {
     # judged once when this was set, so the lowest single judging of each case counts, and the
     # labels still count it now that the gate takes the median of three (since 2026-11-24): a
     # lowest judging is at or below its median, so it can only lower the cutoff. On the medians
-    # alone the rule gives 0.90; raising the cutoff is a separate decision, not taken with the
-    # median (JUDGED_ONCE). In the 44 answers of the
+    # of the recorded judgings alone the rule gives 0.90, and the owner asked for it on
+    # 2026-11-25; it was not taken, by the owner's second decision that day, because live answers
+    # fail it: correct in-011 and in-023 answers of the weekly full runs that ended with "The
+    # passages don't say ..." scored medians of 0.667 and 0.833 in 3 judgings each
+    # (docs/evidence/full-runs-2026-11-faithfulness-caveats.md), and in-011 is a smoke case. Rule
+    # 2 of the system prompt now stops such a sentence; 0.90 can be looked at again once live
+    # answers show it gone. In the 44 answers of the
     # final prompt all 132 judgings scored 1.00 (evals/snapshots/2026-10-19-final-faithfulness.md).
     # In the trial of the same day (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json:
     # the 44 answers of evals/snapshots/2026-10-19.json, all read and found acceptable, counted as
