@@ -102,7 +102,7 @@ PROMPT_TARGETS: dict[str, str] = {
         "If a question is about, or rests on a claim about, a group of people, do not use that "
         "sentence, or any rewording of it, anywhere in the answer: report what the passages say "
         "that bears on it, with citations, starting with whatever answers or corrects the "
-        "question, then say plainly where they do not answer or support it. If the question "
+        "question, and say plainly where they do not answer or support it. If the question "
         "claims, or asks whether, a symptom matters less or care should differ in some group, or "
         "that a group is not worth treating, say plainly, after any emergency instruction that "
         "rule 4 requires and before anything else, that the passages give no basis for treating "
