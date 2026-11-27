@@ -1,28 +1,8 @@
 import pytest
 
-from cardio_rag.generate import Answer
-from cardio_rag.pipeline import RagResult
-from cardio_rag.retriever import RetrievedChunk
 from evals.cases import load_goldens
 from evals.harness import build_test_case
 from evals.snapshot import ReplayRag
-
-CHUNKS = [
-    RetrievedChunk("a#0", "a", "First passage.", 0.9),
-    RetrievedChunk("b#1", "b", "Second passage.", 0.8),
-]
-
-
-class FakeRag:
-    def __init__(self):
-        self.asked = []
-
-    def ask(self, question):
-        self.asked.append(question)
-        return RagResult(
-            question=question, answer=Answer("An answer [a#0].", ["a#0"]), chunks=CHUNKS
-        )
-
 
 SOURCE = """# Heart attack
 
@@ -36,10 +16,9 @@ Aspirin may be given.
 """
 
 
-def test_the_test_case_carries_the_app_output_and_the_golden_expectations(make_golden):
-    rag = FakeRag()
-    case = build_test_case(make_golden(), rag, corpus={"heart-attack": SOURCE})
-    assert rag.asked == ["What is a heart attack?"]
+def test_the_test_case_carries_the_app_output_and_the_golden_expectations(make_golden, fake_rag):
+    case = build_test_case(make_golden(), fake_rag, corpus={"heart-attack": SOURCE})
+    assert fake_rag.asked == ["What is a heart attack?"]
     assert case.name == "in-001"
     assert case.input == "What is a heart attack?"
     assert case.actual_output == "An answer [a#0]."
@@ -49,47 +28,49 @@ def test_the_test_case_carries_the_app_output_and_the_golden_expectations(make_g
     assert case.tags == ["in_corpus"]
 
 
-def test_the_test_case_context_is_the_whole_section_when_a_corpus_is_given(make_golden):
-    case = build_test_case(make_golden(), FakeRag(), corpus={"heart-attack": SOURCE})
+def test_the_test_case_context_is_the_whole_section_when_a_corpus_is_given(make_golden, fake_rag):
+    case = build_test_case(make_golden(), fake_rag, corpus={"heart-attack": SOURCE})
     assert case.context == ["## Symptoms\n\nBlood flow is blocked. Chest pain is common."]
 
 
-def test_the_corpus_is_a_required_keyword_argument(make_golden):
+def test_the_corpus_is_a_required_keyword_argument(make_golden, fake_rag):
     # A call that forgets the corpus must not fall back to the one-sentence excerpt, which made
     # Hallucination fail correct answers. There is no default to forget.
     with pytest.raises(TypeError, match="corpus"):
-        build_test_case(make_golden(), FakeRag())
+        build_test_case(make_golden(), fake_rag)
     with pytest.raises(TypeError):
-        build_test_case(make_golden(), FakeRag(), {"heart-attack": SOURCE})
+        build_test_case(make_golden(), fake_rag, {"heart-attack": SOURCE})
 
 
-def test_a_case_with_an_excerpt_and_no_corpus_is_an_error_naming_the_case(make_golden):
+def test_a_case_with_an_excerpt_and_no_corpus_is_an_error_naming_the_case(make_golden, fake_rag):
     with pytest.raises(ValueError, match="in-001.*corpus"):
-        build_test_case(make_golden(), FakeRag(), corpus=None)
+        build_test_case(make_golden(), fake_rag, corpus=None)
 
 
-def test_a_source_document_missing_from_the_corpus_is_an_error_naming_the_case(make_golden):
+def test_a_source_document_missing_from_the_corpus_is_an_error_naming_the_case(
+    make_golden, fake_rag
+):
     with pytest.raises(ValueError, match="in-001: source_doc 'heart-attack' is not in the corpus"):
-        build_test_case(make_golden(), FakeRag(), corpus={"stroke": SOURCE})
+        build_test_case(make_golden(), fake_rag, corpus={"stroke": SOURCE})
 
 
-def test_cases_without_a_source_excerpt_have_no_ground_truth_context(make_golden):
+def test_cases_without_a_source_excerpt_have_no_ground_truth_context(make_golden, fake_rag):
     golden = make_golden(category="bias", source_doc=None, source_excerpt=None)
-    assert build_test_case(golden, FakeRag(), corpus=None).context is None
-    assert build_test_case(golden, FakeRag(), corpus={}).context is None
+    assert build_test_case(golden, fake_rag, corpus=None).context is None
+    assert build_test_case(golden, fake_rag, corpus={}).context is None
 
 
-def test_every_golden_without_an_excerpt_builds_with_no_corpus():
+def test_every_golden_without_an_excerpt_builds_with_no_corpus(fake_rag):
     # scripts/compare_safety_metrics.py has no corpus to give: its goldens have no excerpt.
     safety = load_goldens("safety")
     assert safety
     for golden in safety:
-        assert build_test_case(golden, FakeRag(), corpus=None).context is None
+        assert build_test_case(golden, fake_rag, corpus=None).context is None
 
 
-def test_the_test_case_carries_the_retrieved_chunk_ids(make_golden):
+def test_the_test_case_carries_the_retrieved_chunk_ids(make_golden, fake_rag):
     # The citation check compares an answer's [id#n] marks with what the app was given.
-    case = build_test_case(make_golden(), FakeRag(), corpus={"heart-attack": SOURCE})
+    case = build_test_case(make_golden(), fake_rag, corpus={"heart-attack": SOURCE})
     assert case.metadata == {"chunk_ids": ["a#0", "b#1"]}
 
 

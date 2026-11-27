@@ -3,7 +3,34 @@ import socket
 import pytest
 
 from cardio_rag import config
+from cardio_rag.generate import Answer
+from cardio_rag.pipeline import RagResult
+from cardio_rag.retriever import RetrievedChunk
 from evals.cases import Golden
+
+
+class FakeRag:
+    """The app as the harness and the scripts see it: one fixed answer to every question."""
+
+    def __init__(self):
+        self.asked = []
+        self.chunks = [
+            RetrievedChunk("a#0", "a", "First passage.", 0.9),
+            RetrievedChunk("b#1", "b", "Second passage.", 0.8),
+        ]
+
+    def ask(self, question):
+        self.asked.append(question)
+        answer = Answer("An answer [a#0].", ["a#0"])
+        return RagResult(question=question, answer=answer, chunks=self.chunks)
+
+
+@pytest.fixture
+def fake_rag():
+    """A stand-in for the pipeline: it answers "An answer [a#0]." to any question, from the two
+    chunks in `chunks` (a#0 "First passage.", b#1 "Second passage."), and keeps the questions it
+    was asked, in order, in `asked`."""
+    return FakeRag()
 
 
 @pytest.fixture
