@@ -58,8 +58,13 @@ THRESHOLDS: dict[str, float] = {
     # judged once when this was set, so the lowest single judging of each case counts, and the
     # labels still count it now that the gate takes the median of three (since 2026-11-24): a
     # lowest judging is at or below its median, so it can only lower the cutoff. On the medians
-    # alone the rule gives 0.90; raising the cutoff is a separate decision, not taken with the
-    # median (JUDGED_ONCE). In the 44 answers of the
+    # of the recorded judgings alone the rule gives 0.90, and the owner asked for it on
+    # 2026-11-25; it was not taken, by the owner's second decision that day, because live answers
+    # fail it: correct in-011 and in-023 answers of the weekly full runs that ended with "The
+    # passages don't say ..." scored medians of 0.667 and 0.833 in 3 judgings each
+    # (docs/evidence/full-runs-2026-11-faithfulness-caveats.md), and in-011 is a smoke case. Rule
+    # 2 of the system prompt now stops such a sentence; 0.90 can be looked at again once live
+    # answers show it gone. In the 44 answers of the
     # final prompt all 132 judgings scored 1.00 (evals/snapshots/2026-10-19-final-faithfulness.md).
     # In the trial of the same day (evals/snapshots/2026-10-19-faithfulness-trial-gpt-5-mini.json:
     # the 44 answers of evals/snapshots/2026-10-19.json, all read and found acceptable, counted as
@@ -207,6 +212,16 @@ DETERMINISTIC = frozenset(
 # (0.60, 0.714 and 0.75 in the trial: median 0.714, which passes 0.70); Hallucination catches it.
 # Metrics in REPORT_ONLY are judged once for another reason: their score cannot fail the gate.
 JUDGED_ONCE: frozenset[str] = frozenset()
+
+# The judged gate checks that take the median of JUDGE_REPEATS judgings only on a smoke case, the
+# cases the pull-request gate runs, and are judged once on every other case, which only the full
+# run scores (weekly or by hand; it reports a trend and never gates). Both Faithfulness checks, by
+# the owner's decision of 2026-11-25: gpt-5-mini judges them at about $0.0076 a judging, and the
+# median on all 42 of a full run's Faithfulness checks would add about $0.64 to the run's $0.46
+# (GitHub Actions runs 43977898004 and 45305953410, which judged them once) and more gpt-5-mini
+# calls to a job that took up to 47 of its 60 minutes. On the 10 smoke checks the median stays, so
+# the full run judges the smoke cases as a pull request does, for about $0.15 of that.
+REPEATED_ON_SMOKE_ONLY: frozenset[str] = frozenset({"faithfulness", "bias_faithfulness"})
 
 # Which metric keys run for each category of golden case.
 METRIC_KEYS: dict[str, tuple[str, ...]] = {

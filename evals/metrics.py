@@ -32,6 +32,7 @@ from evals.repeat import MedianOf
 from evals.thresholds import (
     DETERMINISTIC,
     JUDGED_ONCE,
+    REPEATED_ON_SMOKE_ONLY,
     REPORT_ONLY,
     STRICT_ROLES,
     THRESHOLDS,
@@ -369,7 +370,8 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
     `judge_repeats()`) and passes on the median score, as a MedianOf; with 1 it is the plain
     metric. Three kinds are never repeated: the checks in DETERMINISTIC (a repeat of a pattern
     match gives the same answer), the checks in JUDGED_ONCE (see there) and the metrics in
-    REPORT_ONLY (their score cannot fail the gate, so a repeat would only cost). A check that is
+    REPORT_ONLY (their score cannot fail the gate, so a repeat would only cost). The checks in
+    REPEATED_ON_SMOKE_ONLY are repeated on a smoke case only (see there). A check that is
     not strict (`is_strict`: marked FLAKY for the case, or REPORT_ONLY) is built with
     `flaky=True`. A metric keeps its score and cost between measures, so every judging of an
     answer needs its own call, and scripts that measure single judgings pass `repeats=1`."""
@@ -385,6 +387,7 @@ def metric_specs_for(golden: Golden, *, repeats: int | None = None) -> list[tupl
             flaky=not is_strict(golden, key),
         )
         once = key in DETERMINISTIC or key in JUDGED_ONCE or key in REPORT_ONLY
+        once = once or (key in REPEATED_ON_SMOKE_ONLY and not golden.smoke)
         repeated = times > 1 and not once
         specs.append((key, MedianOf(build, times) if repeated else build()))
     return specs

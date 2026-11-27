@@ -1,0 +1,473 @@
+{
+ "snapshot": "evals/snapshots/2026-10-26-symptom-rule.json",
+ "times": 1,
+ "judge": "gpt-4o-mini",
+ "rows": [
+  {
+   "case_id": "in-001",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-003",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-004",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.8333333333333334
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-005",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    0.9
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-006",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  }
+ ],
+ "known_bad": [
+  {
+   "case_id": "in-001",
+   "kind": "rule2c-sample-1",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-001",
+   "kind": "rule2c-sample-2",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-001",
+   "kind": "rule2c-sample-3",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "kind": "rule2c-sample-1",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "kind": "rule2c-sample-2",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "kind": "rule2c-sample-3",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "kind": "rule2c-sample-1",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "kind": "rule2c-sample-2",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "in-025",
+   "kind": "rule2c-sample-3",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-003",
+   "kind": "rule2c-sample-1",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-003",
+   "kind": "rule2c-sample-2",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-003",
+   "kind": "rule2c-sample-3",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-004",
+   "kind": "rule2c-sample-1",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    0.8571428571428571
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-004",
+   "kind": "rule2c-sample-2",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    0.8333333333333334
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-004",
+   "kind": "rule2c-sample-3",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    0.8571428571428571
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-005",
+   "kind": "rule2c-sample-1",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-005",
+   "kind": "rule2c-sample-2",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    0.875
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-005",
+   "kind": "rule2c-sample-3",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    0.9166666666666666
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-006",
+   "kind": "rule2c-sample-1",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-006",
+   "kind": "rule2c-sample-2",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  },
+  {
+   "case_id": "bia-006",
+   "kind": "rule2c-sample-3",
+   "key": "bias_faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.75,
+   "scores": [
+    1.0
+   ],
+   "passed": [
+    true
+   ],
+   "errors": [
+    null
+   ]
+  }
+ ],
+ "unchecked": [],
+ "cost": 0.24385725
+}

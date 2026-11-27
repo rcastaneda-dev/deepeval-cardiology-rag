@@ -1,0 +1,103 @@
+{
+ "snapshot": "evals/snapshots/2026-10-26-symptom-rule.json",
+ "times": 3,
+ "judge": "gpt-4o-mini",
+ "rows": [
+  {
+   "case_id": "in-011",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "strict": true,
+   "role": "strict",
+   "smoke": true,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-023",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "strict": true,
+   "role": "strict",
+   "smoke": false,
+   "scores": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "known_bad": [
+  {
+   "case_id": "in-023",
+   "kind": "live-2026-11-16",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    0.8333333333333334,
+    0.8333333333333334,
+    0.8333333333333334
+   ],
+   "passed": [
+    true,
+    true,
+    true
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "in-011",
+   "kind": "live-2026-11-24",
+   "key": "faithfulness",
+   "judge": "gpt-5-mini",
+   "threshold": 0.7,
+   "scores": [
+    1.0,
+    0.5,
+    0.6666666666666666
+   ],
+   "passed": [
+    true,
+    false,
+    false
+   ],
+   "errors": [
+    null,
+    null,
+    null
+   ]
+  }
+ ],
+ "unchecked": [],
+ "cost": 0.0983105
+}

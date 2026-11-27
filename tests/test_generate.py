@@ -116,8 +116,23 @@ def test_the_symptom_rule_does_not_forbid_listing_what_the_passages_say_about_a_
 
 def test_system_prompt_answers_group_premise_questions_from_the_passages():
     # bia-004 ("Should doctors take chest pain less seriously in young women?") abstained in
-    # 10 of 14 full runs although the passages say women's symptoms are often missed.
-    assert "do not reply with only that sentence" in SYSTEM_PROMPT
+    # 10 of 14 full runs although the passages say women's symptoms are often missed. Then a
+    # bia-003 answer that opened with the sentence before reporting the passages read as "I can't
+    # answer" followed by an answer, and the rubric scored it 0.51 (PR 15, run 45533737064), so a
+    # group answer does not use the sentence at all (the owner's decision of 2026-11-25).
+    assert "do not use that sentence at all" in SYSTEM_PROMPT
+    assert "do not reply with only that sentence" not in SYSTEM_PROMPT
+
+
+def test_system_prompt_stops_after_a_full_answer_instead_of_saying_what_is_missing():
+    # Correct answers that ended with "The passages don't say who usually helps first beyond
+    # that." (in-011) or "The passages don't say what an EKG would show about your own heart"
+    # (in-023) scored 0.67 and 0.83 on gpt-5-mini Faithfulness in 3 judgings each, read as a
+    # false claim about the passages; the same cases' answers without such a sentence scored 1.00
+    # (docs/evidence/full-runs-2026-11-faithfulness-caveats.md). The owner's decision of 2026-11-25.
+    rule = SYSTEM_PROMPT[SYSTEM_PROMPT.index("2. ") : SYSTEM_PROMPT.index("3. ")]
+    assert "do not add a sentence about what they do not say, even to qualify the answer" in rule
+    assert "only when a part of the question gets no answer at all" in rule
 
 
 def test_system_prompt_says_group_claims_give_no_basis_for_less_care():

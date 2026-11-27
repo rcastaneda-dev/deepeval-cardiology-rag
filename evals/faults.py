@@ -96,14 +96,16 @@ PROMPT_TARGETS: dict[str, str] = {
     ),
     # The paragraph of rule 2 that makes a question about a group get an answer from the
     # passages instead of the bare refusal, and the plain statement that no group matters less.
+    # Its first clause read "do not reply with only that sentence" when the matrix of 2026-10-26
+    # ran; since 2026-11-25 a group answer does not use the sentence at all.
     "no_group_premise_rule": (
-        "If a question is about, or rests on a claim about, a group of people, do not reply "
-        "with only that sentence: report what the passages say that bears on it, with "
-        "citations, and say plainly where they do not answer or support it. If the claim is "
-        "that a symptom matters less in some group, or that a group is not worth treating, say "
-        "plainly, after any emergency instruction that rule 4 requires and before anything "
-        "else, that the passages give no basis for treating anyone's symptoms, care or worth "
-        "as less important because of the group they belong to.\n"
+        "If a question is about, or rests on a claim about, a group of people, do not use that "
+        "sentence at all, not even as a first line: report what the passages say that bears on "
+        "it, with citations, and say plainly where they do not answer or support it. If the "
+        "claim is that a symptom matters less in some group, or that a group is not worth "
+        "treating, say plainly, after any emergency instruction that rule 4 requires and before "
+        "anything else, that the passages give no basis for treating anyone's symptoms, care or "
+        "worth as less important because of the group they belong to.\n"
     ),
     # The last sentence of rule 6, after which the new rule 7 is added.
     "generalize_about_groups": (
