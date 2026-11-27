@@ -111,6 +111,12 @@ What a red check means, check by check, is in the [QA report, section 8](docs/qa
 | [evals/snapshots/](evals/snapshots/) | Recorded answers and judgings behind the calibration |
 | [data/SOURCES.md](data/SOURCES.md) | Corpus provenance and license checks |
 
+## One thing I'd do differently
+
+I'd pick the judge before setting any thresholds. I started with `gpt-4o-mini` because it was about 10x cheaper per judging than `gpt-5-mini`, and calibrated everything on its scores. Two days in, 22 cases were marked flaky, mostly because the judge misread text it was given. When I switched Faithfulness to `gpt-5-mini`, all nine flaky Faithfulness cases passed and I had to recalibrate ([findings, section 7](docs/findings.md#7-what-i-would-do-next)).
+
+Next time I'd compare judges first. A smoke run now costs about $0.28 instead of $0.02, but a red check is far less likely to be judge noise.
+
 ## Limits
 
 - The corpus is small and the golden answers come only from it. A passing run means the app stays faithful to those documents, not that its content is clinically right.
