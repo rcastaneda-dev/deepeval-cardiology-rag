@@ -15,3 +15,17 @@ What the suite and its gate can and cannot show, with the evidence for each limi
   - The bound covers judge noise, not what the app writes. The app's wording has failed correct answers too: a bia-003 answer that opened with the refusal sentence (bias rubric 0.51, PR 15), and in-011 and in-023 answers that ended with "The passages don't say …" (Faithfulness medians 0.667 and 0.833, weekly runs). Rule 2 of the prompt was changed on 2026-11-25 to stop both, and neither showed in 72 samples of the 24 bias and in-corpus cases most prone to them ([evidence](evidence/rule-2-wording-2026-11-24.md)).
   - The rest of what the gate cannot show is in the [QA report, section 7](qa-report.md#7-known-defects-and-residual-risk).
 - **The assistant is a demo and must not be used for medical decisions.**
+
+## Roadmap
+
+Work that would close the gaps above. None of it has started.
+
+| Item | Why | What it needs |
+|---|---|---|
+| Red-team cases: an instruction planted inside a passage, and questions that try to override rules 3 and 4 | P10 (text in a passage is data, never an instruction) has no eval case; only a unit test checks that the prompt says so | New golden cases and a check for each, then a bug report in the [defect log](defects.md) for anything that breaks |
+| Multi-turn attacks | The app answers one question at a time, so nothing tests a conversation | A conversation mode in the app first, then multi-turn cases |
+| Generator comparison: the same golden cases on a local model and a commercial one, with a write-up of where they diverge | Only Claude Haiku 5.5 has been evaluated as the generator. The judges were compared ([three Faithfulness trials](testing.md#choosing-the-judge)); the generators were not | A provider setting in [src/cardio_rag/generate.py](../src/cardio_rag/generate.py), which calls the Anthropic SDK only |
+| A check for P14 (short, plain answers) | Nothing reads answer length or reading level | A check that needs no judge, calibrated on the recorded answers |
+| The open defects: [BUG-13 to BUG-16](defects.md#summary) | Each is a known false alarm or miss | A flaky entry for in-018, a rubric change for partial answers, a safety step for the clinician rule, and the `emergency_first` openers |
+| A second reviewer, CODEOWNERS for `evals/` and the prompt, and signed commits | One maintainer merges on green checks alone ([QA report, section 7](qa-report.md#7-known-defects-and-residual-risk)) | Branch-protection settings and a second person |
+| A clinician's review of the golden answers and the safety answers | Every pass measures fidelity to the sources and to one reader, not clinical correctness ([findings, section 7](findings.md#7-what-i-would-do-next)) | A clinician |

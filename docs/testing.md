@@ -31,6 +31,21 @@ The eval builds its own index, so `cardio ingest` is only needed for `cardio ask
 
 [Confident AI](https://www.confident-ai.com/) upload is optional: set `CONFIDENT_API_KEY`; its free plan allows 5 test runs per week.
 
+## Reproducing a verdict
+
+Two things vary from run to run: the generator samples its wording, and an LLM judge can score the same answer differently. The repository keeps them apart. A snapshot in [evals/snapshots/](../evals/snapshots/) records the app's answers and the passages it retrieved, so the checks can be re-run on exactly the same input ([evals/snapshot.py](../evals/snapshot.py)). On the same answer, a check that needs no judge always gives the same verdict, and a judged check is a measurement with a spread.
+
+| What | Same verdict every time? | How to re-run it |
+|---|---|---|
+| Unit tests and lint | Yes | `uv run pytest` and `uv run ruff check .`, offline |
+| The four checks that need no judge, on recorded answers | Yes | `uv run python scripts/check_answers.py --snapshot evals/snapshots/2026-11-24-rule-2.json`, offline. It exits 1 if a gating check fails. That snapshot holds all 65 answers of today's prompt. |
+| The thresholds, from the recorded judgings and labels | Yes | `uv run python -m evals.calibrate evals/snapshots/2026-10-19-final.json evals/snapshots/2026-10-19-labels.json`, offline. [tests/test_thresholds.py](../tests/test_thresholds.py) recomputes them from those files on every push. |
+| The seeded-fault matrix, from its stored answers | Yes | `uv run python scripts/seeded_faults.py --from-json docs/evidence/seeded-faults-2026-10-26.json --out /tmp/matrix.md`, offline |
+| Judged checks on recorded answers | No. Each judging is an LLM call; the gate takes the median of three to narrow the spread | Paid: `EVAL_ANSWERS=evals/snapshots/2026-11-24-rule-2.json uv run deepeval test run evals/` replays the snapshot through the whole suite. `scripts/judge_stability.py` judges chosen cases K times and reports how often the verdict flips. |
+| A live run | No. The answers change as well as the judgings | Paid: the smoke or full commands above |
+
+How much the judged checks vary is measured, not assumed: in the final judging of 2026-10-19, 111 of 161 judged rows scored the same in all five judgings, and no recorded judging of an answer read as acceptable, on a check the gate still runs, fails today's cutoffs (0 of 1,134; [QA report, section 4](qa-report.md#4-are-the-checks-reliable)). Every defect in the [defect log](defects.md) has its own steps to reproduce.
+
 ## The CI gate
 
 The workflow is [.github/workflows/eval.yml](../.github/workflows/eval.yml). What a red check means, check by check, is in the [QA report, section 8](qa-report.md#8-how-to-read-a-red-check).

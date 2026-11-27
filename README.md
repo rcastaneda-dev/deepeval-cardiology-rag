@@ -8,15 +8,23 @@ A cardiology question-answering assistant built on US federal health documents, 
 
 **Can the gate be trusted?** The [QA report](docs/qa-report.md) answers with evidence: what a green check means and what it does not, how the checks map to what the app promises, the measured false-alarm bound, the seeded faults the gate catches and misses, and how to read a red check.
 
-## Highlights
+## QA coverage at a glance
 
-- **Retrieval and generation are scored separately**, so a failing answer points at the right component.
-- **The judge is a different model family from the generator** (Claude answers, OpenAI judges), which avoids a model grading its own style.
-- **A gate that fails closed.** An 18-case smoke subset runs on every pull request, the full suite on demand and weekly. `main` only takes pull requests whose checks are green, and a run without API keys is a failure, not a skip.
-- **Mechanical rules are checked without a judge:** citations, the exact refusal sentence, 911 first, and the owner's wording rule against telling a person their symptoms match a condition.
-- **The judge is measured, not assumed.** Judged checks were scored repeatedly on recorded answers, every judged check that gates takes the median of three judgings, and thresholds were set from those scores ([QA report, section 4](docs/qa-report.md#4-are-the-checks-reliable)).
-- **Detection is shown, not claimed.** Nine deliberate faults were run through the gate and 31 known-bad answers must fail; what is caught and what is missed are both written down ([QA report, section 3](docs/qa-report.md#3-are-deviations-from-the-design-caught)).
-- **Every promise is listed with its check or its gap:** `uv run python -m evals.promises` ([QA report, section 1](docs/qa-report.md#1-is-the-product-built-to-what-it-promises)).
+| Area | What this project does | Evidence |
+|---|---|---|
+| **RAG evaluation** | Scores retrieval (Contextual Precision and Recall) apart from generation (Faithfulness, Hallucination), so a failure points at the retriever or the prompt | [What is scored](docs/testing.md#what-is-scored) |
+| **LLM-as-a-judge** | Custom G-Eval rubrics for medical safety, abstention, relevance and bias. The judge is a different model family from the generator (Claude answers, OpenAI judges) | [evals/metrics.py](evals/metrics.py) |
+| **Judge reliability** | Re-judges recorded answers to measure how often a verdict flips. Every judged check that gates takes the median of three, and thresholds are calibrated on human-labelled answers | [QA report, section 4](docs/qa-report.md#4-are-the-checks-reliable) |
+| **Judge model comparison** | Compared three judge models on Faithfulness and chose `gpt-5-mini` on its misreads and cost | [Choosing the judge](docs/testing.md#choosing-the-judge) |
+| **Deterministic oracles** | Citations, the exact refusal sentence, 911 first and no diagnosis of the person's symptoms need no judge, and give the same verdict on every run | [Reproducing a verdict](docs/testing.md#reproducing-a-verdict) |
+| **Safety and bias testing** | 11 medical-safety and 10 bias probes in a high-risk domain, under a diagnosis rule set by the owner | [The diagnosis check](docs/qa-report.md#6-the-diagnosis-check-two-tiers-and-the-owners-open-questions) |
+| **Prompt regression** | Compared four wordings of a prompt rule by sampling 35 cases three times each, before choosing one | [Rule 2 wordings](docs/evidence/rule-2-wording-2026-11-24.md) |
+| **Testing the tests** | Ran 9 seeded faults and 31 known-bad answers through the gate, and recorded both what it catches and what it misses | [QA report, section 3](docs/qa-report.md#3-are-deviations-from-the-design-caught) |
+| **Defect reports** | 16 bug reports with severity, steps to reproduce, expected and actual results, and the fix | [Defect log](docs/defects.md) |
+| **Requirements traceability** | `uv run python -m evals.promises` maps each of the app's 18 promises to the check that fails when it breaks, and lists the promises with no check | [QA report, section 1](docs/qa-report.md#1-is-the-product-built-to-what-it-promises) |
+| **CI quality gate** | An 18-case smoke subset gates every pull request and the full suite runs weekly. Required checks, a gate that fails closed, and cost tracked per run | [The CI gate](docs/testing.md#the-ci-gate) |
+
+**Stack:** Python 3.12 · pytest · DeepEval (G-Eval and RAG metrics) · Anthropic and OpenAI APIs · NumPy · uv · ruff · GitHub Actions
 
 ## How it works
 
@@ -94,9 +102,10 @@ What a red check means, check by check, is in the [QA report, section 8](docs/qa
 | Document | Contents |
 |---|---|
 | [docs/qa-report.md](docs/qa-report.md) | Can the gate be trusted: promises and their checks, branch protection, seeded faults, reliability, how to read a red check |
-| [docs/testing.md](docs/testing.md) | The evaluation suite and CI gate in detail, running it locally, choosing the judge, cost |
+| [docs/testing.md](docs/testing.md) | The evaluation suite and CI gate in detail, running it locally, reproducing a verdict, choosing the judge, cost |
+| [docs/defects.md](docs/defects.md) | Every defect found in the app, its checks and its gate, as bug reports with steps to reproduce |
 | [docs/results.md](docs/results.md) | Recorded full-run results |
-| [docs/limits.md](docs/limits.md) | The limits of the evaluation, with the evidence for each |
+| [docs/limits.md](docs/limits.md) | The limits of the evaluation, with the evidence for each, and the roadmap |
 | [docs/findings.md](docs/findings.md) | Where the metrics disagreed with a human reader, and how the thresholds were set |
 | [docs/evidence/](docs/evidence/) | The committed evidence the reports quote |
 | [evals/snapshots/](evals/snapshots/) | Recorded answers and judgings behind the calibration |

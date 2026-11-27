@@ -11,6 +11,7 @@ QUOTING = [
     "docs/testing.md",
     "docs/results.md",
     "docs/limits.md",
+    "docs/defects.md",
     "src/cardio_rag/config.py",
     *(f"evals/{path.name}" for path in (REPO / "evals").glob("*.py")),
     *(f"scripts/{path.name}" for path in (REPO / "scripts").glob("*.py")),
