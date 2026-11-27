@@ -8,6 +8,9 @@ LINK = re.compile(r"evals/snapshots/[\w.\-]+\.(?:md|json)")
 QUOTING = [
     "README.md",
     "docs/findings.md",
+    "docs/testing.md",
+    "docs/results.md",
+    "docs/limits.md",
     "src/cardio_rag/config.py",
     *(f"evals/{path.name}" for path in (REPO / "evals").glob("*.py")),
     *(f"scripts/{path.name}" for path in (REPO / "scripts").glob("*.py")),
