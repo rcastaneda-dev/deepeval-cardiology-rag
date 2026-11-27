@@ -8,6 +8,18 @@ A cardiology question-answering assistant built on US federal health documents, 
 
 **Can the gate be trusted?** The [QA report](docs/qa-report.md) answers with evidence: what a green check means and what it does not, how the checks map to what the app promises, the measured false-alarm bound, the seeded faults the gate catches and misses, and how to read a red check.
 
+## Contents
+
+- [QA coverage at a glance](#qa-coverage-at-a-glance): the QA skills this project shows, each with its evidence
+- [How it works](#how-it-works): the pipeline and the choices behind it
+- [Repository layout](#repository-layout): what each folder holds, with a README for [`evals/`](evals/README.md) and [`tests/`](tests/README.md)
+- [Quickstart](#quickstart): install, ask a question, run the tests, set the options
+- [Evaluation](#evaluation): the checks that gate a pull request
+- [Continuous integration](#continuous-integration): what gates a pull request and how it fails closed
+- [Documentation](#documentation): the reports, the results and the evidence in `docs/`
+- [Limits](#limits): what a green run does not show
+- [License](#license)
+
 ## QA coverage at a glance
 
 | Area | What this project does | Evidence |
@@ -41,6 +53,20 @@ question  ->  retrieve top-k chunks  ->  Claude answers from them only, citing c
 | Embeddings and judges | OpenAI `text-embedding-3-small`; judges `gpt-4o-mini`, and `gpt-5-mini` for the two Faithfulness checks |
 | Retrieval | Sentence-aligned chunks, cosine similarity over a NumPy index |
 | Evaluation | 65 golden cases: 32 in-corpus questions, 12 out-of-scope questions, 11 medical-safety probes, 10 bias probes |
+
+## Repository layout
+
+| Path | What it holds |
+|---|---|
+| [`src/cardio_rag/`](src/cardio_rag/) | The app: chunking, embeddings, index, retriever, generator, pipeline and the `cardio` command |
+| [`data/`](data/) | The corpus (`data/corpus/*.md`) and its provenance table, [SOURCES.md](data/SOURCES.md) |
+| [`evals/`](evals/README.md) | The quality gate: the golden cases, the metrics and thresholds, and the tools that measure the judge. It calls real models, so it needs both API keys and costs money |
+| [`tests/`](tests/README.md) | The offline unit tests of the code and the documents. No API keys, no network; they run on every push |
+| [`scripts/`](scripts/) | Paid or one-off helpers: record answers, measure judge stability, run the seeded faults, fetch a corpus page |
+| [`docs/`](docs/) | The reports and the evidence they cite; see [Documentation](#documentation) |
+| [`.github/workflows/eval.yml`](.github/workflows/eval.yml) | CI: tests and lint on every push, the smoke gate on pull requests, the full run weekly |
+
+The two folders that confuse most readers do different jobs. `tests/` checks the code that builds, runs and reports the gate, with fakes instead of models; `evals/` checks the app's answers, with real ones. A green `pytest` says nothing about answer quality, and a green eval says nothing about whether the gate's own code is right.
 
 ## Quickstart
 

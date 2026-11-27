@@ -5,7 +5,6 @@ import pytest
 
 from cardio_rag.generate import Answer
 from cardio_rag.pipeline import RagResult
-from cardio_rag.retriever import RetrievedChunk
 from evals import conftest as eval_conftest
 from evals.snapshot import (
     SNAPSHOT_VERSION,
@@ -17,10 +16,6 @@ from evals.snapshot import (
     save,
 )
 
-CHUNKS = [
-    RetrievedChunk("a#0", "a", "First passage.", 0.9),
-    RetrievedChunk("b#1", "b", "Second passage.", 0.8),
-]
 META = {
     "created": "2026-10-17",
     "git_sha": "d41ab7e",
@@ -31,22 +26,10 @@ META = {
 }
 
 
-class FakeRag:
-    def __init__(self):
-        self.asked = []
-
-    def ask(self, question):
-        self.asked.append(question)
-        return RagResult(
-            question=question, answer=Answer("An answer [a#0].", ["a#0"]), chunks=CHUNKS
-        )
-
-
-def test_record_keeps_answer_citations_and_chunks_per_case(make_golden):
-    rag = FakeRag()
+def test_record_keeps_answer_citations_and_chunks_per_case(make_golden, fake_rag):
     goldens = [make_golden(), make_golden(id="in-002", question="What is angina?")]
-    snapshot = record(goldens, rag, meta=META)
-    assert rag.asked == ["What is a heart attack?", "What is angina?"]
+    snapshot = record(goldens, fake_rag, meta=META)
+    assert fake_rag.asked == ["What is a heart attack?", "What is angina?"]
     assert snapshot["version"] == SNAPSHOT_VERSION == 1
     assert {key: snapshot[key] for key in META} == META
     assert snapshot["cases"][0] == {
@@ -62,11 +45,14 @@ def test_record_keeps_answer_citations_and_chunks_per_case(make_golden):
     assert [case["id"] for case in snapshot["cases"]] == ["in-001", "in-002"]
 
 
-def test_record_samples_asks_every_question_the_given_number_of_times_in_order(make_golden):
-    rag = FakeRag()
+def test_record_samples_asks_every_question_the_given_number_of_times_in_order(
+    make_golden, fake_rag
+):
     goldens = [make_golden(), make_golden(id="in-002", question="What is angina?")]
-    snapshot = record_samples(goldens, rag, samples=3, meta=META)
-    assert sorted(rag.asked) == sorted(["What is a heart attack?"] * 3 + ["What is angina?"] * 3)
+    snapshot = record_samples(goldens, fake_rag, samples=3, meta=META)
+    assert sorted(fake_rag.asked) == sorted(
+        ["What is a heart attack?"] * 3 + ["What is angina?"] * 3
+    )
     assert snapshot["version"] == SNAPSHOT_VERSION
     assert snapshot["samples"] == 3
     assert {key: snapshot[key] for key in META} == META
@@ -83,7 +69,7 @@ def test_record_samples_asks_every_question_the_given_number_of_times_in_order(m
     assert [chunk["id"] for chunk in first["chunks"]] == ["a#0", "b#1"]
 
 
-def test_record_samples_keeps_the_answer_that_belongs_to_each_sample(make_golden):
+def test_record_samples_keeps_the_answer_that_belongs_to_each_sample(make_golden, fake_rag):
     class Numbered:
         def __init__(self):
             self.count = 0
@@ -91,7 +77,7 @@ def test_record_samples_keeps_the_answer_that_belongs_to_each_sample(make_golden
         def ask(self, question):
             self.count += 1
             text = f"Answer {self.count} to {question}"
-            return RagResult(question=question, answer=Answer(text, []), chunks=CHUNKS)
+            return RagResult(question=question, answer=Answer(text, []), chunks=fake_rag.chunks)
 
     rag = Numbered()
     snapshot = record_samples([make_golden()], rag, samples=4, meta=META, workers=1)
@@ -101,28 +87,28 @@ def test_record_samples_keeps_the_answer_that_belongs_to_each_sample(make_golden
     assert [case["sample"] for case in parallel["cases"]] == [1, 2, 3, 4]
 
 
-def test_a_file_of_samples_is_not_a_snapshot_to_replay(make_golden):
+def test_a_file_of_samples_is_not_a_snapshot_to_replay(make_golden, fake_rag):
     # The same question has several answers in it, which replay cannot choose between.
     with pytest.raises(ValueError, match="in-001, in-001"):
-        ReplayRag(record_samples([make_golden()], FakeRag(), samples=2, meta=META))
+        ReplayRag(record_samples([make_golden()], fake_rag, samples=2, meta=META))
 
 
-def test_record_samples_needs_a_positive_number_of_samples(make_golden):
+def test_record_samples_needs_a_positive_number_of_samples(make_golden, fake_rag):
     with pytest.raises(ValueError, match="samples"):
-        record_samples([make_golden()], FakeRag(), samples=0, meta=META)
+        record_samples([make_golden()], fake_rag, samples=0, meta=META)
 
 
-def test_save_then_load_round_trips(tmp_path, make_golden):
-    snapshot = record([make_golden(question="What's a — heart attack?")], FakeRag(), meta=META)
+def test_save_then_load_round_trips(tmp_path, make_golden, fake_rag):
+    snapshot = record([make_golden(question="What's a — heart attack?")], fake_rag, meta=META)
     path = tmp_path / "answers.json"
     save(snapshot, path)
     assert load(path) == snapshot
     assert "—" in path.read_text(encoding="utf-8")  # kept readable, not \u escaped
 
 
-def test_save_creates_the_missing_folder(tmp_path, make_golden):
+def test_save_creates_the_missing_folder(tmp_path, make_golden, fake_rag):
     path = tmp_path / "snapshots" / "answers.json"
-    save(record([make_golden()], FakeRag(), meta=META), path)
+    save(record([make_golden()], fake_rag, meta=META), path)
     assert path.exists()
 
 
@@ -133,12 +119,14 @@ def test_load_refuses_another_version(tmp_path):
         load(path)
 
 
-def test_replay_returns_the_recorded_answer_and_chunks(make_golden):
+def test_replay_returns_the_recorded_answer_and_chunks(make_golden, fake_rag):
     goldens = [make_golden(), make_golden(id="in-002", question="What is angina?")]
-    replay = ReplayRag(record(goldens, FakeRag(), meta=META))
+    replay = ReplayRag(record(goldens, fake_rag, meta=META))
     result = replay.ask("What is angina?")
     assert result == RagResult(
-        question="What is angina?", answer=Answer("An answer [a#0].", ["a#0"]), chunks=CHUNKS
+        question="What is angina?",
+        answer=Answer("An answer [a#0].", ["a#0"]),
+        chunks=fake_rag.chunks,
     )
 
 
@@ -149,17 +137,17 @@ def test_replay_names_a_question_it_has_no_answer_for():
     assert "What is a heart attack?" in error.value.args[0]
 
 
-def test_replay_refuses_two_cases_that_share_a_question(make_golden):
+def test_replay_refuses_two_cases_that_share_a_question(make_golden, fake_rag):
     # Replay looks answers up by question, so a shared question would silently serve one case
     # the other's answer.
     goldens = [make_golden(), make_golden(id="in-002")]
     with pytest.raises(ValueError, match="in-001, in-002") as error:
-        ReplayRag(record(goldens, FakeRag(), meta=META))
+        ReplayRag(record(goldens, fake_rag, meta=META))
     assert "What is a heart attack?" in str(error.value)
 
 
-def test_mismatches_name_missing_cases_and_changed_questions(make_golden):
-    snapshot = record([make_golden()], FakeRag(), meta=META)
+def test_mismatches_name_missing_cases_and_changed_questions(make_golden, fake_rag):
+    snapshot = record([make_golden()], fake_rag, meta=META)
     goldens = [
         make_golden(question="What is a myocardial infarction?"),
         make_golden(id="in-002", question="What is angina?"),
@@ -170,20 +158,20 @@ def test_mismatches_name_missing_cases_and_changed_questions(make_golden):
     ]
 
 
-def test_a_matching_snapshot_has_no_mismatches(make_golden):
+def test_a_matching_snapshot_has_no_mismatches(make_golden, fake_rag):
     goldens = [make_golden(), make_golden(id="in-002", question="What is angina?")]
-    assert mismatches(record(goldens, FakeRag(), meta=META), goldens) == []
+    assert mismatches(record(goldens, fake_rag, meta=META), goldens) == []
 
 
 # the EVAL_ANSWERS fixture in evals/conftest.py ----------------------------------------------
 
 
 def test_a_replayed_run_warns_and_names_the_snapshot_so_it_is_not_taken_for_a_live_one(
-    tmp_path, monkeypatch, make_golden
+    tmp_path, monkeypatch, make_golden, fake_rag
 ):
     golden = make_golden()
     path = tmp_path / "answers.json"
-    save(record([golden], FakeRag(), meta=META), path)
+    save(record([golden], fake_rag, meta=META), path)
     monkeypatch.setattr(eval_conftest, "load_goldens", lambda: [golden])
     with pytest.warns(pytest.PytestWarning, match=re.escape(str(path))) as warned:
         replay = eval_conftest.replay_pipeline(str(path))
@@ -192,10 +180,10 @@ def test_a_replayed_run_warns_and_names_the_snapshot_so_it_is_not_taken_for_a_li
 
 
 def test_a_snapshot_that_does_not_match_the_dataset_fails_the_run_instead_of_replaying(
-    tmp_path, monkeypatch, make_golden
+    tmp_path, monkeypatch, make_golden, fake_rag
 ):
     path = tmp_path / "answers.json"
-    save(record([make_golden()], FakeRag(), meta=META), path)
+    save(record([make_golden()], fake_rag, meta=META), path)
     monkeypatch.setattr(eval_conftest, "load_goldens", lambda: [make_golden(question="Changed?")])
     with pytest.raises(pytest.fail.Exception, match="in-001: question changed"):
         eval_conftest.replay_pipeline(str(path))
